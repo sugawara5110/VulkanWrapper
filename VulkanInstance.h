@@ -23,6 +23,8 @@ void checkError(VkResult res);
 VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT, uint64_t object,
 	size_t location, int32_t messageCode, const char* pLayerPrefix, const char* pMessage, void* pUserData);
 
+class Vulkan2D;
+
 class VulkanInstance final {
 
 private:
@@ -51,6 +53,7 @@ public:
 class Device final {
 
 private:
+	friend Vulkan2D;
 	VkPhysicalDevice pDev;
 	VkSurfaceKHR surface;
 	VkDevice device;
@@ -68,6 +71,7 @@ private:
 	VkRenderPass renderPass;
 	std::unique_ptr <VkFramebuffer[]> frameBuffer = nullptr;
 	std::unique_ptr <VkCommandBuffer[]> commandBuffer = nullptr;
+	uint32_t currentFrameIndex = 0;
 
 	Device() {}
 	void create();
@@ -126,10 +130,10 @@ private:
 		return buf;
 	}
 
-	auto createShaderModule(char* shader);
-	auto createPipelineLayout();
-	auto createPipelineCache();
-	auto createGraphicsPipelineVF(
+	VkShaderModule createShaderModule(char* shader);
+	VkPipelineLayout createPipelineLayout();
+	VkPipelineCache createPipelineCache();
+	VkPipeline createGraphicsPipelineVF(
 		const VkShaderModule& vshader, const VkShaderModule& fshader,
 		const VkVertexInputBindingDescription& bindDesc, const VkVertexInputAttributeDescription* attrDescs, uint32_t numAttr,
 		const VkPipelineLayout& pLayout, const VkRenderPass renderPass, const VkPipelineCache& pCache);
@@ -140,7 +144,7 @@ private:
 	void submitCommandAndWait(uint32_t comBufindex);
 	void acquireNextImageAndWait(uint32_t currentFrameIndex);
 	void submitCommands(uint32_t comBufindex);
-	auto waitForFence();
+	VkResult waitForFence();
 	void present(uint32_t currentframeIndex);
 	void resetFence();
 
@@ -159,10 +163,5 @@ public:
 	Device(VkPhysicalDevice pd, VkSurfaceKHR surface, uint32_t width = 640, uint32_t height = 480);
 	~Device();
 	void createDevice();
-
-	//2Dtest
-	uint32_t currentFrameIndex = 0;
-	void d2test();
-	void d2testDraw();
 };
 #endif

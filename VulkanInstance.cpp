@@ -301,7 +301,7 @@ void Device::createFramebuffers() {
 	}
 }
 
-auto Device::createShaderModule(char* shader) {
+VkShaderModule Device::createShaderModule(char* shader) {
 
 	VkShaderModuleCreateInfo shaderInfo{};
 	VkShaderModule mod;
@@ -314,7 +314,7 @@ auto Device::createShaderModule(char* shader) {
 	return mod;
 }
 
-auto Device::createPipelineLayout() {
+VkPipelineLayout Device::createPipelineLayout() {
 	VkPipelineLayoutCreateInfo pLayoutInfo{};
 	pLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	VkPipelineLayout pipelineLayout;
@@ -323,7 +323,7 @@ auto Device::createPipelineLayout() {
 	return pipelineLayout;
 }
 
-auto Device::createPipelineCache() {
+VkPipelineCache Device::createPipelineCache() {
 	VkPipelineCacheCreateInfo cacheInfo{};
 	VkPipelineCache pipelineCache;
 	cacheInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
@@ -332,7 +332,7 @@ auto Device::createPipelineCache() {
 	return pipelineCache;
 }
 
-auto Device::createGraphicsPipelineVF(
+VkPipeline Device::createGraphicsPipelineVF(
 	const VkShaderModule& vshader, const VkShaderModule& fshader,
 	const VkVertexInputBindingDescription& bindDesc, const VkVertexInputAttributeDescription* attrDescs, uint32_t numAttr,
 	const VkPipelineLayout& pLayout, const VkRenderPass renderPass, const VkPipelineCache& pCache) {
@@ -473,7 +473,7 @@ void Device::submitCommands(uint32_t comBufindex) {
 	checkError(res);
 }
 
-auto Device::waitForFence() {
+VkResult Device::waitForFence() {
 	return vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX);
 }
 
@@ -575,109 +575,4 @@ void Device::createDevice() {
 	createCommonRenderPass();
 	createFramebuffers();
 	createCommandBuffers();
-}
-
-//2Dtest
-struct VertexData {
-	float pos[2];
-	float color[4];
-};
-
-static VertexData verticesData[] = {
-	{ { 0.0f, -0.75f }, { 1.0f, 1.0f, 1.0f, 1.0f } },
-	{ { -0.5f, 0.75f }, { 1.0f, 0.5f, 0.0f, 1.0f } },
-	{ { 0.5f, 0.75f }, { 0.0f, 0.5f, 1.0f, 1.0f } }
-};
-std::pair<VkBuffer, VkDeviceMemory> vertices;
-VkPipeline pipeline;
-void Device::d2test() {
-
-	static VkVertexInputBindingDescription bindDesc
-	{
-		0, sizeof(VertexData), VK_VERTEX_INPUT_RATE_VERTEX
-	};
-	static VkVertexInputAttributeDescription attrDescs[] =
-	{
-		{ 0, 0, VK_FORMAT_R32G32_SFLOAT, 0 },
-		{ 1, 0, VK_FORMAT_R32G32B32A32_SFLOAT, sizeof(float) * 2 }
-	};
-	vertices = createVertexBuffer(verticesData, sizeof(verticesData));
-
-	char* vsShader =
-		"#version 400\n"
-		"#extension GL_ARB_separate_shader_objects : enable\n"
-		"#extension GL_ARB_shading_language_420pack : enable\n"
-
-		"layout(location = 0) in vec2 pos;\n"
-		"layout(location = 1) in vec4 color;\n"
-
-		"layout(location = 0) out vec4 color_out;\n"
-		"out gl_PerVertex{ vec4 gl_Position; };\n"
-
-		"void main()\n"
-		"{\n"
-		"	gl_Position = vec4(pos, 0.0f, 1.0f);\n"
-		"	color_out = color;\n"
-		"}\n";
-
-	char* fsShader =
-		"#version 400\n"
-		"#extension GL_ARB_separate_shader_objects : enable\n"
-		"#extension GL_ARB_shading_language_420pack : enable\n"
-		"layout(location = 0) in vec4 color;\n"
-		"layout(location = 0) out vec4 color_out;\n"
-		"void main() { color_out = color; }\n";
-
-	auto vs = createShaderModule(vsShader);
-	auto fs = createShaderModule(fsShader);
-
-	auto pLayout = createPipelineLayout();
-	auto pCache = createPipelineCache();
-	pipeline = createGraphicsPipelineVF(vs, fs, bindDesc, attrDescs, 2, pLayout, renderPass, pCache);
-
-	beginCommandWithFramebuffer(0, VkFramebuffer());
-	initialImageLayouting(0);
-	auto res = vkEndCommandBuffer(commandBuffer[0]);
-	checkError(res);
-	submitCommandAndWait(0);
-
-	// Acquire First
-	acquireNextImageAndWait(currentFrameIndex);
-}
-
-void Device::d2testDraw() {
-	static VkViewport vp = { 0.0f, 0.0f, 640.0f, 480.0f, 0.0f, 1.0f };
-	static VkRect2D sc = { { 0, 0 }, { 640, 480 } };
-	static VkDeviceSize offsets[] = { 0 };
-
-	beginCommandWithFramebuffer(0, frameBuffer[currentFrameIndex]);
-	barrierResource(0, currentFrameIndex,
-		VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-		VK_ACCESS_MEMORY_READ_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-		VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-	beginRenderPass(0, currentFrameIndex);
-	vkCmdBindPipeline(commandBuffer[0], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
-	vkCmdSetViewport(commandBuffer[0], 0, 1, &vp);
-	vkCmdSetScissor(commandBuffer[0], 0, 1, &sc);
-	vkCmdBindVertexBuffers(commandBuffer[0], 0, 1, &vertices.first, offsets);
-	vkCmdDraw(commandBuffer[0], 3, 1, 0, 0);
-	vkCmdEndRenderPass(commandBuffer[0]);
-	/*Vulkan::barrierResource(commandBuffer[0], images.first[currentFrameIndex],
-		VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-		VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_MEMORY_READ_BIT,
-		VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);*/
-	vkEndCommandBuffer(commandBuffer[0]);
-
-	// Submit and Wait with Fences
-	submitCommands(0);
-	switch (waitForFence())
-	{
-	case VK_SUCCESS: present(currentFrameIndex); break;
-	case VK_TIMEOUT: throw std::runtime_error("Command execution timed out."); break;
-	default: OutputDebugString(L"waitForFence returns unknown value.\n");
-	}
-	resetFence();
-
-	// Acquire next
-	acquireNextImageAndWait(currentFrameIndex);
 }
