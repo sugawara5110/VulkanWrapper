@@ -19,8 +19,9 @@ void VulkanInstance::createinstance(char* appName) {
 
 	VkInstanceCreateInfo instanceInfo{};
 	VkApplicationInfo appInfo{};
+	//"VK_KHR_surface", "VK_KHR_win32_surface":Windows環境で必須, "VK_EXT_debug_report":検証レイヤで必須
 	const char* extensions[] = { "VK_KHR_surface", "VK_KHR_win32_surface", "VK_EXT_debug_report" };
-	const char* layers[] = { "VK_LAYER_LUNARG_standard_validation" };
+	const char* layers[] = { "VK_LAYER_LUNARG_standard_validation" };//検証レイヤ
 
 	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
 	appInfo.applicationVersion = VK_MAKE_VERSION(0, 0, 1);
@@ -33,10 +34,11 @@ void VulkanInstance::createinstance(char* appName) {
 	instanceInfo.enabledLayerCount = std::size(layers);
 	instanceInfo.ppEnabledLayerNames = layers;
 
+	//Vulkanインスタンス生成
 	auto res = vkCreateInstance(&instanceInfo, nullptr, &instance);
 	checkError(res);
 
-	// load extensions
+	//デバック
 	_vkCreateDebugReportCallbackEXT = reinterpret_cast<PFN_vkCreateDebugReportCallbackEXT>(vkGetInstanceProcAddr(instance, "vkCreateDebugReportCallbackEXT"));
 	_vkDebugReportMessageEXT = reinterpret_cast<PFN_vkDebugReportMessageEXT>(vkGetInstanceProcAddr(instance, "vkDebugReportMessageEXT"));
 	_vkDestroyDebugReportCallbackEXT = reinterpret_cast<PFN_vkDestroyDebugReportCallbackEXT>(vkGetInstanceProcAddr(instance, "vkDestroyDebugReportCallbackEXT"));
@@ -50,7 +52,7 @@ void VulkanInstance::createDebugReportCallback() {
 	callbackInfo.flags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT
 		| VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT | VK_DEBUG_REPORT_INFORMATION_BIT_EXT;
 	callbackInfo.pfnCallback = &debugCallback;
-
+	//デバック有効化
 	auto res = _vkCreateDebugReportCallbackEXT(instance, &callbackInfo, nullptr, &debugReportCallback);
 }
 
@@ -61,18 +63,21 @@ void VulkanInstance::createSurfaceHwnd(HWND hWnd) {
 	surfaceInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
 	surfaceInfo.hinstance = GetModuleHandle(nullptr);
 	surfaceInfo.hwnd = hWnd;
-
+	//Windows用のサーフェース生成
 	auto res = vkCreateWin32SurfaceKHR(instance, &surfaceInfo, nullptr, &surface);
 	checkError(res);
 }
 
 void VulkanInstance::createPhysicalDevice() {
 
+	//物理デバイス出力先にnullptrを指定:adapterCountに物理デバイス個数出力
 	auto res = vkEnumeratePhysicalDevices(instance, &adapterCount, nullptr);
 	checkError(res);
 	adapters = std::make_unique<VkPhysicalDevice[]>(adapterCount);
+	//個数分の物理デバイス出力
 	res = vkEnumeratePhysicalDevices(instance, &adapterCount, adapters.get());
 	checkError(res);
+	//物理デバイスのプロパティ情報出力
 	OutputDebugString(L"=== Physical Device Enumeration ===\n");
 	for (uint32_t i = 0; i < adapterCount; i++) {
 		static VkPhysicalDeviceProperties props;
@@ -131,6 +136,7 @@ void Device::create() {
 
 	//グラフィックス用のデバイスキューのファミリー番号を取得
 	uint32_t propertyCount;
+	//nullptr指定でプロパティ数取得
 	vkGetPhysicalDeviceQueueFamilyProperties(pDev, &propertyCount, nullptr);
 	auto properties = std::make_unique<VkQueueFamilyProperties[]>(propertyCount);
 	vkGetPhysicalDeviceQueueFamilyProperties(pDev, &propertyCount, properties.get());
@@ -145,7 +151,7 @@ void Device::create() {
 	if (queueFamilyIndex == 0xffffffff) throw std::runtime_error("No Graphics queues available on current device.");
 
 	const char* layers[] = { "VK_LAYER_LUNARG_standard_validation" };
-	const char* extensions[] = { "VK_KHR_swapchain" };
+	const char* extensions[] = { "VK_KHR_swapchain" };//スワップチェーンで必須
 	static float qPriorities[] = { 0.0f };
 	queueInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
 	queueInfo.queueCount = 1;
@@ -160,10 +166,12 @@ void Device::create() {
 	devInfo.enabledExtensionCount = std::size(extensions);
 	devInfo.ppEnabledExtensionNames = extensions;
 
-	//デバイス生成
+	//論理デバイス生成,キューも生成される
 	auto res = vkCreateDevice(pDev, &devInfo, nullptr, &device);
 	checkError(res);
+	//キュー取得
 	vkGetDeviceQueue(device, queueFamilyIndex, 0, &devQueue);
+	//VRAMプロパティ取得:頂点バッファ取得時使用
 	vkGetPhysicalDeviceMemoryProperties(pDev, &memProps);
 }
 
@@ -173,24 +181,30 @@ void Device::createCommandPool() {
 	info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 	info.queueFamilyIndex = queueFamilyIndex;
 	info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-
+	//コマンドプールの作成:コマンドバッファーメモリが割り当てられるオブジェクト
 	auto res = vkCreateCommandPool(device, &info, nullptr, &commandPool);
 	checkError(res);
 }
 
 void Device::createSwapchain() {
-	VkSwapchainCreateInfoKHR scinfo{};
 
+	VkSwapchainCreateInfoKHR scinfo{};
+	//デバイスが,スワップチェーンをサポートしているか確認
 	VkBool32 surfaceSupported;
-	vkGetPhysicalDeviceSurfaceSupportKHR(pDev, this->queueFamilyIndex, surface, &surfaceSupported);
+	vkGetPhysicalDeviceSurfaceSupportKHR(pDev, queueFamilyIndex, surface, &surfaceSupported);
+	//サーフェスの機能取得
 	VkSurfaceCapabilitiesKHR surfaceCaps;
 	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(pDev, surface, &surfaceCaps);
+	//サーフェスフォーマット数取得
 	uint32_t surfaceFormatCount;
 	vkGetPhysicalDeviceSurfaceFormatsKHR(pDev, surface, &surfaceFormatCount, nullptr);
+	//サーフェスフォーマット取得
 	auto surfaceFormats = std::make_unique<VkSurfaceFormatKHR[]>(surfaceFormatCount);
 	vkGetPhysicalDeviceSurfaceFormatsKHR(pDev, surface, &surfaceFormatCount, surfaceFormats.get());
+	//サーフェスでサポートされるプレゼンテーションモード数取得
 	uint32_t presentModeCount;
 	vkGetPhysicalDeviceSurfacePresentModesKHR(pDev, surface, &presentModeCount, nullptr);
+	//サーフェスでサポートされるプレゼンテーションモード取得
 	auto presentModes = std::make_unique<VkPresentModeKHR[]>(presentModeCount);
 	vkGetPhysicalDeviceSurfacePresentModesKHR(pDev, surface, &presentModeCount, presentModes.get());
 
@@ -214,21 +228,23 @@ void Device::createSwapchain() {
 	scinfo.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
 	scinfo.presentMode = VK_PRESENT_MODE_FIFO_KHR;
 	scinfo.clipped = VK_TRUE;
-
+	//スワップチェーン生成
 	auto res = vkCreateSwapchainKHR(device, &scinfo, nullptr, &swapchain);
 	checkError(res);
 }
 
 void Device::retrieveImagesFromSwapchain() {
-	auto res = vkGetSwapchainImagesKHR(device, swapchain, &imageCount, nullptr);
+	//ウインドウに直接表示する画像のオブジェクト生成
+	//おそらくポストエフェクトはこのオブジェクトから画像取得して処理をする,VkImageはテクスチャ的なもの？
+	auto res = vkGetSwapchainImagesKHR(device, swapchain, &imageCount, nullptr);//個数imageCount取得
 	checkError(res);
 	images = std::make_unique<VkImage[]>(imageCount);
-	res = vkGetSwapchainImagesKHR(device, swapchain, &imageCount, images.get());
+	res = vkGetSwapchainImagesKHR(device, swapchain, &imageCount, images.get());//個数分生成
 	checkError(res);
 }
 
 void Device::createImageViews() {
-
+	//ビュー生成
 	views = std::make_unique<VkImageView[]>(imageCount);
 
 	for (uint32_t i = 0; i < imageCount; i++)
@@ -272,7 +288,7 @@ void Device::createCommonRenderPass() {
 	renderPassInfo.pAttachments = &attachmentDesc;
 	renderPassInfo.subpassCount = 1;
 	renderPassInfo.pSubpasses = &subpass;
-
+	//ルートシグネチャ的なもの？
 	auto res = vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass);
 	checkError(res);
 }
@@ -423,7 +439,7 @@ void Device::createCommandBuffers() {
 	cbAllocInfo.commandPool = commandPool;
 	cbAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 	cbAllocInfo.commandBufferCount = imageCount;
-
+	//コマンドバッファの作成
 	commandBuffer = std::make_unique<VkCommandBuffer[]>(imageCount);
 	auto res = vkAllocateCommandBuffers(device, &cbAllocInfo, commandBuffer.get());
 	checkError(res);
@@ -444,14 +460,15 @@ void Device::submitCommandAndWait(uint32_t comBufindex) {
 	sinfo.pWaitDstStageMask = &stageFlags;
 	sinfo.commandBufferCount = 1;
 	sinfo.pCommandBuffers = &commandBuffer[comBufindex];
-
+	//コマンドをキューに送信
 	auto res = vkQueueSubmit(devQueue, 1, &sinfo, VK_NULL_HANDLE);
 	checkError(res);
+	//フェンスをキューに送信し,そのフェンスがシグナルを受け取るまで待ち
 	res = vkQueueWaitIdle(devQueue);
 	checkError(res);
 }
 
-void Device::acquireNextImageAndWait(uint32_t currentFrameIndex) {
+void Device::acquireNextImageAndWait(uint32_t& currentFrameIndex) {
 	auto res = vkAcquireNextImageKHR(device, swapchain,
 		UINT64_MAX, VK_NULL_HANDLE, fence, &currentFrameIndex);
 	checkError(res);
@@ -474,6 +491,10 @@ void Device::submitCommands(uint32_t comBufindex) {
 }
 
 VkResult Device::waitForFence() {
+	//コマンドの処理が指定数(ここでは1)終わるまで待つ
+	//条件が満たされた場合待ち解除でVK_SUCCESSを返す
+	//条件が満たされない,かつ
+	//タイムアウト(ここではUINT64_MAX)に達した場合,待ち解除でVK_TIMEOUTを返す
 	return vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX);
 }
 
@@ -490,6 +511,7 @@ void Device::present(uint32_t currentframeIndex) {
 }
 
 void Device::resetFence() {
+	//指定数(ここでは1)のフェンスをリセット
 	auto res = vkResetFences(device, 1, &fence);
 	checkError(res);
 }
@@ -523,7 +545,7 @@ void Device::beginCommandWithFramebuffer(uint32_t comBufindex, VkFramebuffer fb)
 	inhInfo.framebuffer = fb;
 	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 	beginInfo.pInheritanceInfo = &inhInfo;
-
+	//コマンド記録開始
 	vkBeginCommandBuffer(commandBuffer[comBufindex], &beginInfo);
 }
 

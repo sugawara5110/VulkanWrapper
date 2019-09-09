@@ -34,7 +34,7 @@ private:
 	PFN_vkDestroyDebugReportCallbackEXT	_vkDestroyDebugReportCallbackEXT;
 	VkDebugReportCallbackEXT debugReportCallback;
 	VkInstance instance = nullptr;
-	VkSurfaceKHR surface = nullptr;
+	VkSurfaceKHR surface = nullptr;//画面を定義するオブジェクト,現状はwindowsのみ, 後でandroidも
 	std::unique_ptr<VkPhysicalDevice[]> adapters = nullptr;
 	uint32_t adapterCount = 0;
 
@@ -54,8 +54,8 @@ class Device final {
 
 private:
 	friend Vulkan2D;
-	VkPhysicalDevice pDev;
-	VkSurfaceKHR surface;
+	VkPhysicalDevice pDev;//VulkanInstanceからポインタを受け取る
+	VkSurfaceKHR surface;//VulkanInstanceからポインタを受け取る
 	VkDevice device;
 	VkQueue devQueue;
 	uint32_t queueFamilyIndex = 0xffffffff;
@@ -66,7 +66,7 @@ private:
 	uint32_t width, height;
 
 	uint32_t imageCount = 0;
-	std::unique_ptr <VkImage[]> images = nullptr;
+	std::unique_ptr <VkImage[]> images = nullptr;//スワップチェーンの画像表示に使う
 	std::unique_ptr <VkImageView[]> views = nullptr;
 	VkRenderPass renderPass;
 	std::unique_ptr <VkFramebuffer[]> frameBuffer = nullptr;
@@ -92,12 +92,13 @@ private:
 		bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
 		bufferInfo.size = sizeof(T) * num;
 		bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
+		//頂点バッファオブジェクト生成
 		auto res = vkCreateBuffer(device, &bufferInfo, nullptr, &vertexBuffer);
 		checkError(res);
 
 		VkMemoryRequirements memreq;
 		VkMemoryAllocateInfo allocInfo{};
+		//頂点バッファに対してのメモリ条件取得
 		vkGetBufferMemoryRequirements(device, vertexBuffer, &memreq);
 		allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 		allocInfo.allocationSize = memreq.size;
@@ -107,23 +108,26 @@ private:
 		{
 			if ((this->memProps.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0)
 			{
-				allocInfo.memoryTypeIndex = i;
+				allocInfo.memoryTypeIndex = i;//メモリタイプインデックス検索
 				break;
 			}
 		}
 		if (allocInfo.memoryTypeIndex == UINT32_MAX) throw std::runtime_error("No found available heap.");
 
+		//メモリオブジェクトの割り当て
 		res = vkAllocateMemory(device, &allocInfo, nullptr, &deviceMemory);
 		checkError(res);
 
-		// Set data
 		uint8_t* pData;
+		//メモリオブジェクトをマップ
 		res = vkMapMemory(device, deviceMemory, 0, sizeof(T) * num, 0, reinterpret_cast<void**>(&pData));
 		checkError(res);
+		//頂点配列コピー
 		memcpy(pData, ver, sizeof(T) * num);
+		//アンマップ
 		vkUnmapMemory(device, deviceMemory);
 
-		// Associate memory to buffer
+		//バッファオブジェクトとメモリオブジェクト関連付け
 		res = vkBindBufferMemory(device, vertexBuffer, deviceMemory, 0);
 		checkError(res);
 		std::pair<VkBuffer, VkDeviceMemory> buf = std::make_pair(vertexBuffer, deviceMemory);
@@ -142,7 +146,7 @@ private:
 	void createCommandBuffers();
 	void createFence();
 	void submitCommandAndWait(uint32_t comBufindex);
-	void acquireNextImageAndWait(uint32_t currentFrameIndex);
+	void acquireNextImageAndWait(uint32_t& currentFrameIndex);
 	void submitCommands(uint32_t comBufindex);
 	VkResult waitForFence();
 	void present(uint32_t currentframeIndex);

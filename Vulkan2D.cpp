@@ -33,6 +33,7 @@ void Vulkan2D::create(Vertex2D* ver, uint32_t num) {
 
 	device->beginCommandWithFramebuffer(comIndex, VkFramebuffer());
 	device->initialImageLayouting(comIndex);
+	//コマンドの記録終了
 	auto res = vkEndCommandBuffer(device->commandBuffer[comIndex]);
 	checkError(res);
 	device->submitCommandAndWait(comIndex);
