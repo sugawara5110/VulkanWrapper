@@ -167,5 +167,8 @@ public:
 	Device(VkPhysicalDevice pd, VkSurfaceKHR surface, uint32_t width = 640, uint32_t height = 480);
 	~Device();
 	void createDevice();
+	void beginCommand(uint32_t comBufindex);
+	void endCommand(uint32_t comBufindex);
+	void waitFence(uint32_t comBufindex);
 };
 #endif

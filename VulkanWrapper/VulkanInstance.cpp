@@ -98,10 +98,10 @@ VulkanInstance::~VulkanInstance() {
 }
 
 void VulkanInstance::createInstance(HWND hWnd, char* appName) {
-	createinstance(appName);
-	createDebugReportCallback();
-	createSurfaceHwnd(hWnd);
-	createPhysicalDevice();
+	createinstance(appName);//インスタンス生成
+	createDebugReportCallback();//デバック
+	createSurfaceHwnd(hWnd);//ウインドウズ用サーフェス生成
+	createPhysicalDevice();//物理デバイス生成
 }
 
 VkPhysicalDevice VulkanInstance::getPhysicalDevice(int index) {
@@ -307,7 +307,7 @@ void Device::createFramebuffers() {
 	fbinfo.width = width;
 	fbinfo.height = height;
 	fbinfo.layers = 1;
-
+	//1度のDrawCallで描画するバッファをまとめたオブジェクトの生成
 	for (uint32_t i = 0; i < imageCount; i++)
 	{
 		attachmentViews[0] = views[i];
@@ -597,4 +597,47 @@ void Device::createDevice() {
 	createCommonRenderPass();
 	createFramebuffers();
 	createCommandBuffers();
+
+	//バリア初期化
+	beginCommandWithFramebuffer(0, VkFramebuffer());
+	initialImageLayouting(0);
+	//コマンドの記録終了
+	auto res = vkEndCommandBuffer(commandBuffer[0]);
+	checkError(res);
+	submitCommandAndWait(0);
+
+	acquireNextImageAndWait(currentFrameIndex);
+}
+
+void Device::beginCommand(uint32_t comBufindex) {
+	beginCommandWithFramebuffer(comBufindex, frameBuffer[currentFrameIndex]);
+
+	barrierResource(currentFrameIndex, comBufindex,
+		VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+		VK_ACCESS_MEMORY_READ_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+		VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	beginRenderPass(currentFrameIndex, comBufindex);
+}
+
+void Device::endCommand(uint32_t comBufindex) {
+	vkCmdEndRenderPass(commandBuffer[comBufindex]);
+	barrierResource(currentFrameIndex, comBufindex,
+		VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+		VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_MEMORY_READ_BIT,
+		VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+
+	vkEndCommandBuffer(commandBuffer[comBufindex]);
+}
+
+void Device::waitFence(uint32_t comBufindex) {
+	submitCommands(comBufindex);
+	switch (waitForFence())
+	{
+	case VK_SUCCESS: present(currentFrameIndex); break;
+	case VK_TIMEOUT: throw std::runtime_error("Command execution timed out."); break;
+	default: OutputDebugString(L"waitForFence returns unknown value.\n");
+	}
+	resetFence();
+
+	acquireNextImageAndWait(currentFrameIndex);
 }
