@@ -1,36 +1,26 @@
 ﻿//*****************************************************************************************//
 //**                                                                                     **//
-//**                               Vulkan2D.h                                            **//
+//**                            VulkanBasicPolygon                                       **//
 //**                                                                                     **//
 //*****************************************************************************************//
 
-#ifndef Vulkan2D_Header
-#define Vulkan2D_Header
+#ifndef VulkanBasicPolygon_Header
+#define VulkanBasicPolygon_Header
 
 #include "VulkanInstance.h"
 
-struct Vertex2D {
-	float pos[2];
-	float color[4];
-};
-
-class Vulkan2D {
+class VulkanBasicPolygon {
 
 private:
 	Device* device = nullptr;
 	std::pair<VkBuffer, VkDeviceMemory> vertices;
-	VkShaderModule vsModule;
-	VkShaderModule fsModule;
-	VkPipelineLayout pipelineLayout;
-	VkPipelineCache pipelineCache;
 	VkPipeline pipeline;
 	uint32_t comIndex = 0;
 
 public:
-	Vulkan2D(Device* device, uint32_t comIndex = 0);
-	~Vulkan2D();
+	/*VulkanBasicPolygon(Device* device, uint32_t comIndex = 0);
 	void create(Vertex2D* ver, uint32_t num);
-	void draw();
+	void draw();*/
 };
 
 #endif

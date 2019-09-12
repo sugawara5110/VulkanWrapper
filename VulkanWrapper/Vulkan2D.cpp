@@ -12,6 +12,16 @@ Vulkan2D::Vulkan2D(Device* dev, uint32_t comindex) {
 	comIndex = comindex;
 }
 
+Vulkan2D::~Vulkan2D() {
+	vkDestroyPipeline(device->device, pipeline, nullptr);
+	vkDestroyPipelineCache(device->device, pipelineCache, nullptr);
+	vkDestroyPipelineLayout(device->device, pipelineLayout, nullptr);
+	vkDestroyShaderModule(device->device, vsModule, nullptr);
+	vkDestroyShaderModule(device->device, fsModule, nullptr);
+	vkDestroyBuffer(device->device, vertices.first, nullptr);
+	vkFreeMemory(device->device, vertices.second, nullptr);
+}
+
 void Vulkan2D::create(Vertex2D* ver, uint32_t num) {
 
 	static VkVertexInputBindingDescription bindDesc =
@@ -24,12 +34,12 @@ void Vulkan2D::create(Vertex2D* ver, uint32_t num) {
 		{ 1, 0, VK_FORMAT_R32G32B32A32_SFLOAT, sizeof(float) * 2 }
 	};
 	vertices = device->createVertexBuffer<Vertex2D>(ver, sizeof(Vertex2D) * num);
-	auto vs = device->createShaderModule(vsShader);
-	auto fs = device->createShaderModule(fsShader);
+	vsModule = device->createShaderModule(vsShader);
+	fsModule = device->createShaderModule(fsShader);
 
-	auto pLayout = device->createPipelineLayout();
-	auto pCache = device->createPipelineCache();
-	pipeline = device->createGraphicsPipelineVF(vs, fs, bindDesc, attrDescs, 2, pLayout, device->renderPass, pCache);
+	pipelineLayout = device->createPipelineLayout();
+	pipelineCache = device->createPipelineCache();
+	pipeline = device->createGraphicsPipelineVF(vsModule, fsModule, bindDesc, attrDescs, 2, pipelineLayout, device->renderPass, pipelineCache);
 }
 
 void Vulkan2D::draw() {

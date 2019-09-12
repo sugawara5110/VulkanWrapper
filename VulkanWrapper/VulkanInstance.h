@@ -14,6 +14,7 @@
 #include <stdexcept>
 #include <tuple>
 #include <functional>
+#include "VulkanTransformation.h"
 #pragma comment(lib, "vulkan-1")
 #define S_DELETE(p)   if(p){delete p;      p=nullptr;}
 #define ARR_DELETE(p) if(p){delete[] p;    p=nullptr;}
@@ -62,14 +63,27 @@ private:
 	VkPhysicalDeviceMemoryProperties memProps;
 	VkCommandPool commandPool;
 	VkFence fence;
-	VkSwapchainKHR swapchain;
-	uint32_t width, height;
 
-	uint32_t imageCount = 0;
-	std::unique_ptr <VkImage[]> images = nullptr;//スワップチェーンの画像表示に使う
-	std::unique_ptr <VkImageView[]> views = nullptr;
+	struct swapchainBuffer {
+		VkSwapchainKHR swapchain;
+		uint32_t imageCount = 0;
+		std::unique_ptr <VkImage[]> images = nullptr;//スワップチェーンの画像表示に使う
+		std::unique_ptr <VkImageView[]> views = nullptr;
+		std::unique_ptr <VkFramebuffer[]> frameBuffer = nullptr;
+	};
+	swapchainBuffer swBuf;
+
+	struct Depth {
+		VkFormat format;
+		VkImage image;
+		VkDeviceMemory mem;
+		VkImageView view;
+	};
+	Depth depth;
+
+	uint32_t width, height;
 	VkRenderPass renderPass;
-	std::unique_ptr <VkFramebuffer[]> frameBuffer = nullptr;
+	uint32_t commandBufferCount = 1;
 	std::unique_ptr <VkCommandBuffer[]> commandBuffer = nullptr;
 	uint32_t currentFrameIndex = 0;
 
@@ -77,8 +91,7 @@ private:
 	void create();
 	void createCommandPool();
 	void createSwapchain();
-	void retrieveImagesFromSwapchain();
-	void createImageViews();
+	void createDepth();
 	void createCommonRenderPass();
 	void createFramebuffers();
 
@@ -104,9 +117,9 @@ private:
 		allocInfo.allocationSize = memreq.size;
 		allocInfo.memoryTypeIndex = UINT32_MAX;
 		// Search memory index can be visible from host
-		for (size_t i = 0; i < this->memProps.memoryTypeCount; i++)
+		for (uint32_t i = 0; i < memProps.memoryTypeCount; i++)
 		{
-			if ((this->memProps.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0)
+			if ((memProps.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0)
 			{
 				allocInfo.memoryTypeIndex = i;//メモリタイプインデックス検索
 				break;
