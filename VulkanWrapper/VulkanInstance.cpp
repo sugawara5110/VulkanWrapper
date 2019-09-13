@@ -24,10 +24,16 @@ void VulkanInstance::createinstance(char* appName) {
 	const char* layers[] = { "VK_LAYER_LUNARG_standard_validation" };//検証レイヤ
 
 	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+	appInfo.pNext = nullptr;
 	appInfo.applicationVersion = VK_MAKE_VERSION(0, 0, 1);
 	appInfo.pApplicationName = appName;
+	appInfo.pEngineName = appName;
+	appInfo.engineVersion = 1;
 	appInfo.apiVersion = VK_API_VERSION_1_0;
+
 	instanceInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+	instanceInfo.pNext = nullptr;
+	instanceInfo.flags = 0;
 	instanceInfo.pApplicationInfo = &appInfo;
 	instanceInfo.enabledExtensionCount = std::size(extensions);
 	instanceInfo.ppEnabledExtensionNames = extensions;
@@ -121,6 +127,8 @@ Device::Device(VkPhysicalDevice pd, VkSurfaceKHR surfa, uint32_t wid, uint32_t h
 
 Device::~Device() {
 	for (int i = 0; i < commandBufferCount; i++)vkFreeCommandBuffers(device, commandPool, commandBufferCount, commandBuffer.get());
+	vkDestroyBuffer(device, uniform.vkBuf, nullptr);
+	vkFreeMemory(device, uniform.mem, nullptr);
 	vkDestroyImageView(device, depth.view, nullptr);
 	vkDestroyImage(device, depth.image, nullptr);
 	vkFreeMemory(device, depth.mem, nullptr);
@@ -132,6 +140,7 @@ Device::~Device() {
 	vkDestroySwapchainKHR(device, swBuf.swapchain, nullptr);
 	vkDestroyFence(device, fence, nullptr);
 	vkDestroyCommandPool(device, commandPool, nullptr);
+	vkDeviceWaitIdle(device);
 	vkDestroyDevice(device, nullptr);
 }
 
@@ -159,17 +168,20 @@ void Device::create() {
 	const char* extensions[] = { "VK_KHR_swapchain" };//スワップチェーンで必須
 	static float qPriorities[] = { 0.0f };
 	queueInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+	queueInfo.pNext = nullptr;
 	queueInfo.queueCount = 1;
 	queueInfo.queueFamilyIndex = queueFamilyIndex;
 	queueInfo.pQueuePriorities = qPriorities;
 
 	devInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+	devInfo.pNext = nullptr;
 	devInfo.queueCreateInfoCount = 1;
 	devInfo.pQueueCreateInfos = &queueInfo;
 	devInfo.enabledLayerCount = std::size(layers);
 	devInfo.ppEnabledLayerNames = layers;
 	devInfo.enabledExtensionCount = std::size(extensions);
 	devInfo.ppEnabledExtensionNames = extensions;
+	devInfo.pEnabledFeatures = nullptr;
 
 	//論理デバイス生成,キューも生成される
 	auto res = vkCreateDevice(pDev, &devInfo, nullptr, &device);
@@ -184,6 +196,7 @@ void Device::createCommandPool() {
 	VkCommandPoolCreateInfo info{};
 
 	info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+	info.pNext = nullptr;
 	info.queueFamilyIndex = queueFamilyIndex;
 	info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 	//コマンドプールの作成:コマンドバッファーメモリが割り当てられるオブジェクト
@@ -220,6 +233,7 @@ void Device::createSwapchain() {
 	}
 
 	scinfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+	scinfo.pNext = nullptr;
 	scinfo.surface = surface;
 	scinfo.minImageCount = 2;
 	scinfo.imageFormat = VK_FORMAT_B8G8R8A8_UNORM;
@@ -285,7 +299,7 @@ void Device::createDepth() {
 	}
 
 	image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-	image_info.pNext = NULL;
+	image_info.pNext = nullptr;
 	image_info.imageType = VK_IMAGE_TYPE_2D;
 	image_info.format = depth_format;
 	image_info.extent.width = width;
@@ -303,13 +317,13 @@ void Device::createDepth() {
 
 	VkMemoryAllocateInfo mem_alloc = {};
 	mem_alloc.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	mem_alloc.pNext = NULL;
+	mem_alloc.pNext = nullptr;
 	mem_alloc.allocationSize = 0;
 	mem_alloc.memoryTypeIndex = 0;
 
 	VkImageViewCreateInfo view_info = {};
 	view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-	view_info.pNext = NULL;
+	view_info.pNext = nullptr;
 	view_info.image = VK_NULL_HANDLE;
 	view_info.format = depth_format;
 	view_info.components.r = VK_COMPONENT_SWIZZLE_R;
@@ -331,7 +345,7 @@ void Device::createDepth() {
 
 	VkMemoryRequirements mem_reqs;
 
-	res = vkCreateImage(device, &image_info, NULL, &depth.image);
+	res = vkCreateImage(device, &image_info, nullptr, &depth.image);
 	checkError(res);
 
 	vkGetImageMemoryRequirements(device, depth.image, &mem_reqs);
@@ -346,15 +360,16 @@ void Device::createDepth() {
 	}
 	if (mem_alloc.memoryTypeIndex == UINT32_MAX) throw std::runtime_error("No found available heap.");
 
-	res = vkAllocateMemory(device, &mem_alloc, NULL, &depth.mem);
+	res = vkAllocateMemory(device, &mem_alloc, nullptr, &depth.mem);
 	checkError(res);
 
 	res = vkBindImageMemory(device, depth.image, depth.mem, 0);
 	checkError(res);
 
 	view_info.image = depth.image;
-	res = vkCreateImageView(device, &view_info, NULL, &depth.view);
+	res = vkCreateImageView(device, &view_info, nullptr, &depth.view);
 	checkError(res);
+	depth.format = depth_format;
 }
 
 void Device::createCommonRenderPass() {
@@ -417,19 +432,72 @@ void Device::createFramebuffers() {
 
 	VkFramebufferCreateInfo fbinfo{};
 	fbinfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-	fbinfo.pNext = NULL;
+	fbinfo.pNext = nullptr;
 	fbinfo.attachmentCount = 2;
 	fbinfo.renderPass = renderPass;
 	fbinfo.pAttachments = attachmentViews;
 	fbinfo.width = width;
 	fbinfo.height = height;
 	fbinfo.layers = 1;
+	fbinfo.flags = 0;
 	//1度のDrawCallで描画するバッファをまとめたオブジェクトの生成
 	for (uint32_t i = 0; i < swBuf.imageCount; i++) {
 		attachmentViews[0] = swBuf.views[i];
 		auto res = vkCreateFramebuffer(device, &fbinfo, nullptr, &swBuf.frameBuffer[i]);
 		checkError(res);
 	}
+}
+
+void Device::createUniform() {
+	VkResult res;
+	MatrixPerspectiveFovLH(&uniform.proj, 45.0f, (float)width / (float)height, 1.0f, 10000.0f);
+	MatrixLookAtLH(&uniform.view, 0.0f, 0.0f, 0.0f, -5.0f, 3.0f, -10.0f, 0.0f, -1.0f, 0.0f);
+	MatrixMultiply(&uniform.mvp, &uniform.proj, &uniform.view);
+
+	VkBufferCreateInfo buf_info = {};
+	buf_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	buf_info.pNext = NULL;
+	buf_info.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+	buf_info.size = sizeof(uniform.mvp.m);
+	buf_info.queueFamilyIndexCount = 0;
+	buf_info.pQueueFamilyIndices = nullptr;
+	buf_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	buf_info.flags = 0;
+	res = vkCreateBuffer(device, &buf_info, nullptr, &uniform.vkBuf);
+	checkError(res);
+
+	VkMemoryRequirements mem_reqs;
+	vkGetBufferMemoryRequirements(device, uniform.vkBuf, &mem_reqs);
+
+	VkMemoryAllocateInfo allocInfo = {};
+	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	allocInfo.pNext = nullptr;
+	allocInfo.memoryTypeIndex = 0;
+	allocInfo.allocationSize = mem_reqs.size;
+
+	for (uint32_t i = 0; i < memProps.memoryTypeCount; i++)
+	{
+		if ((memProps.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0)
+		{
+			allocInfo.memoryTypeIndex = i;//メモリタイプインデックス検索
+			break;
+		}
+	}
+	if (allocInfo.memoryTypeIndex == UINT32_MAX) throw std::runtime_error("No mappable, coherent memory");
+
+	res = vkAllocateMemory(device, &allocInfo, NULL, &uniform.mem);
+	checkError(res);
+
+	uint8_t* pData;
+	res = vkMapMemory(device, uniform.mem, 0, mem_reqs.size, 0, (void**)& pData);
+	checkError(res);
+
+	memcpy(pData, &uniform.mvp, sizeof(uniform.mvp));
+
+	vkUnmapMemory(device, uniform.mem);
+
+	res = vkBindBufferMemory(device, uniform.vkBuf, uniform.mem, 0);
+	checkError(res);
 }
 
 VkShaderModule Device::createShaderModule(char* shader) {
@@ -741,6 +809,7 @@ void Device::createDevice() {
 	createFence();
 	createSwapchain();
 	createDepth();
+	createUniform();
 	createCommonRenderPass();
 	createFramebuffers();
 	createCommandBuffers();

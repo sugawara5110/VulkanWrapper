@@ -87,6 +87,13 @@ private:
 	std::unique_ptr <VkCommandBuffer[]> commandBuffer = nullptr;
 	uint32_t currentFrameIndex = 0;
 
+	struct Uniform {
+		VkBuffer vkBuf;
+		VkDeviceMemory mem;
+		MATRIX proj, view, mvp;
+	};
+	Uniform uniform;
+
 	Device() {}
 	void create();
 	void createCommandPool();
@@ -94,6 +101,7 @@ private:
 	void createDepth();
 	void createCommonRenderPass();
 	void createFramebuffers();
+	void createUniform();
 
 	//モデル毎(モデル側から呼ばれる)
 	template<typename T>
