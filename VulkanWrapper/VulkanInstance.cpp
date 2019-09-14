@@ -127,8 +127,6 @@ Device::Device(VkPhysicalDevice pd, VkSurfaceKHR surfa, uint32_t wid, uint32_t h
 
 Device::~Device() {
 	for (int i = 0; i < commandBufferCount; i++)vkFreeCommandBuffers(device, commandPool, commandBufferCount, commandBuffer.get());
-	vkDestroyBuffer(device, uniform.vkBuf, nullptr);
-	vkFreeMemory(device, uniform.mem, nullptr);
 	vkDestroyImageView(device, depth.view, nullptr);
 	vkDestroyImage(device, depth.image, nullptr);
 	vkFreeMemory(device, depth.mem, nullptr);
@@ -201,6 +199,13 @@ void Device::createCommandPool() {
 	info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 	//コマンドプールの作成:コマンドバッファーメモリが割り当てられるオブジェクト
 	auto res = vkCreateCommandPool(device, &info, nullptr, &commandPool);
+	checkError(res);
+}
+
+void Device::createFence() {
+	VkFenceCreateInfo finfo{};
+	finfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+	auto res = vkCreateFence(device, &finfo, nullptr, &fence);
 	checkError(res);
 }
 
@@ -447,33 +452,178 @@ void Device::createFramebuffers() {
 	}
 }
 
-void Device::createUniform() {
+void Device::createCommandBuffers() {
+
+	VkCommandBufferAllocateInfo cbAllocInfo{};
+
+	cbAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	cbAllocInfo.commandPool = commandPool;
+	cbAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	cbAllocInfo.commandBufferCount = commandBufferCount;
+	//コマンドバッファの作成
+	commandBuffer = std::make_unique<VkCommandBuffer[]>(commandBufferCount);
+	auto res = vkAllocateCommandBuffers(device, &cbAllocInfo, commandBuffer.get());
+	checkError(res);
+}
+
+void Device::initialImageLayouting(uint32_t comBufindex) {
+	auto barriers = std::make_unique<VkImageMemoryBarrier[]>(swBuf.imageCount);
+
+	for (uint32_t i = 0; i < swBuf.imageCount; i++)
+	{
+		VkImageMemoryBarrier barrier{};
+
+		barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+		barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		barrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+		barrier.image = swBuf.images[i];
+		barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		barrier.subresourceRange.layerCount = 1;
+		barrier.subresourceRange.levelCount = 1;
+		barriers[i] = barrier;
+	}
+
+	vkCmdPipelineBarrier(commandBuffer[comBufindex], VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+		0, 0, nullptr, 0, nullptr, swBuf.imageCount, barriers.get());
+}
+
+void Device::beginCommandWithFramebuffer(uint32_t comBufindex, VkFramebuffer fb) {
+	VkCommandBufferInheritanceInfo inhInfo{};
+	VkCommandBufferBeginInfo beginInfo{};
+
+	inhInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
+	inhInfo.framebuffer = fb;
+	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	beginInfo.pInheritanceInfo = &inhInfo;
+	//コマンド記録開始
+	vkBeginCommandBuffer(commandBuffer[comBufindex], &beginInfo);
+}
+
+void Device::submitCommandAndWait(uint32_t comBufindex) {
+	static VkPipelineStageFlags stageFlags = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+	VkSubmitInfo sinfo{};
+
+	sinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	sinfo.pWaitDstStageMask = &stageFlags;
+	sinfo.commandBufferCount = 1;
+	sinfo.pCommandBuffers = &commandBuffer[comBufindex];
+	//コマンドをキューに送信
+	auto res = vkQueueSubmit(devQueue, 1, &sinfo, VK_NULL_HANDLE);
+	checkError(res);
+	//フェンスをキューに送信し,そのフェンスがシグナルを受け取るまで待ち
+	res = vkQueueWaitIdle(devQueue);
+	checkError(res);
+}
+
+void Device::acquireNextImageAndWait(uint32_t& currentFrameIndex) {
+	auto res = vkAcquireNextImageKHR(device, swBuf.swapchain,
+		UINT64_MAX, VK_NULL_HANDLE, fence, &currentFrameIndex);
+	checkError(res);
+	res = vkWaitForFences(device, 1, &fence, VK_FALSE, UINT64_MAX);
+	checkError(res);
+	res = vkResetFences(device, 1, &fence);
+	checkError(res);
+}
+
+void Device::submitCommands(uint32_t comBufindex) {
+	VkSubmitInfo sinfo{};
+	static const VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+
+	sinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	sinfo.commandBufferCount = 1;
+	sinfo.pCommandBuffers = &commandBuffer[comBufindex];
+	sinfo.pWaitDstStageMask = &waitStageMask;
+	auto res = vkQueueSubmit(devQueue, 1, &sinfo, fence);
+	checkError(res);
+}
+
+VkResult Device::waitForFence() {
+	//コマンドの処理が指定数(ここでは1)終わるまで待つ
+	//条件が満たされた場合待ち解除でVK_SUCCESSを返す
+	//条件が満たされない,かつ
+	//タイムアウト(ここではUINT64_MAX)に達した場合,待ち解除でVK_TIMEOUTを返す
+	return vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX);
+}
+
+void Device::present(uint32_t currentframeIndex) {
+	VkPresentInfoKHR pinfo{};
+
+	pinfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+	pinfo.swapchainCount = 1;
+	pinfo.pSwapchains = &swBuf.swapchain;
+	pinfo.pImageIndices = &currentframeIndex;
+
+	auto res = vkQueuePresentKHR(devQueue, &pinfo);
+	checkError(res);
+}
+
+void Device::resetFence() {
+	//指定数(ここでは1)のフェンスをリセット
+	auto res = vkResetFences(device, 1, &fence);
+	checkError(res);
+}
+
+void Device::barrierResource(uint32_t currentframeIndex, uint32_t comBufindex,
+	VkPipelineStageFlags srcStageFlags,
+	VkPipelineStageFlags dstStageFlags,
+	VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask,
+	VkImageLayout srcImageLayout, VkImageLayout dstImageLayout) {
+
+	VkImageMemoryBarrier barrier{};
+
+	barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+	barrier.image = swBuf.images[currentframeIndex];
+	barrier.srcAccessMask = srcAccessMask;
+	barrier.dstAccessMask = dstAccessMask;
+	barrier.oldLayout = srcImageLayout;
+	barrier.newLayout = dstImageLayout;
+	barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	barrier.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+	vkCmdPipelineBarrier(commandBuffer[comBufindex], srcStageFlags, dstStageFlags, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+}
+
+void Device::beginRenderPass(uint32_t currentframeIndex, uint32_t comBufindex) {
+	static VkClearValue clearValue[2];
+	clearValue[0].color.float32[0] = 0.0f;
+	clearValue[0].color.float32[1] = 0.0f;
+	clearValue[0].color.float32[2] = 0.0f;
+	clearValue[0].color.float32[3] = 1.0f;
+	clearValue[1].depthStencil.depth = 1.0f;
+	clearValue[1].depthStencil.stencil = 0;
+
+	VkRenderPassBeginInfo rpinfo{};
+	rpinfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+	rpinfo.framebuffer = swBuf.frameBuffer[currentframeIndex];
+	rpinfo.renderPass = renderPass;
+	rpinfo.renderArea.extent.width = width;
+	rpinfo.renderArea.extent.height = height;
+	rpinfo.clearValueCount = 2;
+	rpinfo.pClearValues = clearValue;
+
+	vkCmdBeginRenderPass(commandBuffer[comBufindex], &rpinfo, VK_SUBPASS_CONTENTS_INLINE);
+}
+
+void Device::createUniform(Uniform& uni) {
 	VkResult res;
-	MatrixPerspectiveFovLH(&uniform.proj, 45.0f, (float)width / (float)height, 1.0f, 100.0f);
-	MatrixLookAtLH(&uniform.view,
-		0.0f, 0.0f, 0.0f,
-		0.0f, 0.0f, 5.0f,
-		0.0f, 1.0f, 0.0f);
-	MATRIX mov;
-	MatrixTranslation(&mov, 0.0f, 0.0f, 2.0f);
-	MATRIX vm;
-	MatrixMultiply(&vm, &mov, &uniform.view);
-	MatrixMultiply(&uniform.mvp, &vm, &uniform.proj);
+
+	MATRIX dummy;
+	MatrixIdentity(&dummy);
 
 	VkBufferCreateInfo buf_info = {};
 	buf_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 	buf_info.pNext = NULL;
 	buf_info.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-	buf_info.size = sizeof(uniform.mvp.m);
+	buf_info.size = sizeof(dummy.m);
 	buf_info.queueFamilyIndexCount = 0;
 	buf_info.pQueueFamilyIndices = nullptr;
 	buf_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	buf_info.flags = 0;
-	res = vkCreateBuffer(device, &buf_info, nullptr, &uniform.vkBuf);
+	res = vkCreateBuffer(device, &buf_info, nullptr, &uni.vkBuf);
 	checkError(res);
 
 	VkMemoryRequirements mem_reqs;
-	vkGetBufferMemoryRequirements(device, uniform.vkBuf, &mem_reqs);
+	vkGetBufferMemoryRequirements(device, uni.vkBuf, &mem_reqs);
 
 	VkMemoryAllocateInfo allocInfo = {};
 	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -491,23 +641,42 @@ void Device::createUniform() {
 	}
 	if (allocInfo.memoryTypeIndex == UINT32_MAX) throw std::runtime_error("No mappable, coherent memory");
 
-	res = vkAllocateMemory(device, &allocInfo, NULL, &uniform.mem);
+	res = vkAllocateMemory(device, &allocInfo, NULL, &uni.mem);
 	checkError(res);
 
 	uint8_t* pData;
-	res = vkMapMemory(device, uniform.mem, 0, mem_reqs.size, 0, (void**)& pData);
+	res = vkMapMemory(device, uni.mem, 0, mem_reqs.size, 0, (void**)& pData);
+	uni.memSize = mem_reqs.size;
 	checkError(res);
 
-	memcpy(pData, &uniform.mvp, sizeof(uniform.mvp));
+	memcpy(pData, &uni.mvp, sizeof(uni.mvp));
 
-	vkUnmapMemory(device, uniform.mem);
+	vkUnmapMemory(device, uni.mem);
+	uni.info.buffer = uni.vkBuf;
+	uni.info.offset = 0;
+	uni.info.range = sizeof(uni.mvp);
 
-	res = vkBindBufferMemory(device, uniform.vkBuf, uniform.mem, 0);
+	res = vkBindBufferMemory(device, uni.vkBuf, uni.mem, 0);
+	checkError(res);
+}
+
+void Device::updateUniform(Uniform& uni, MATRIX move) {
+
+	MATRIX vm;
+	MatrixMultiply(&vm, &move, &view);
+	MatrixMultiply(&uni.mvp, &vm, &proj);
+
+	uint8_t* pData;
+	auto res = vkMapMemory(device, uni.mem, 0, uni.memSize, 0, (void**)& pData);
+
 	checkError(res);
 
-	uniform.info.buffer = uniform.vkBuf;
-	uniform.info.offset = 0;
-	uniform.info.range = sizeof(uniform.mvp);
+	memcpy(pData, &uni.mvp, sizeof(uni.mvp));
+
+	vkUnmapMemory(device, uni.mem);
+	uni.info.buffer = uni.vkBuf;
+	uni.info.offset = 0;
+	uni.info.range = sizeof(uni.mvp);
 }
 
 void Device::descriptorAndPipelineLayouts(VkPipelineLayout& pipelineLayout, VkDescriptorSetLayout& descSetLayout) {
@@ -596,7 +765,8 @@ void Device::createDescriptorPool(VkDescriptorPool& descPool) {
 	checkError(res);
 }
 
-void Device::upDescriptorSet(VkDescriptorSet& descriptorSet,
+void Device::upDescriptorSet(Uniform& uni,
+	VkDescriptorSet& descriptorSet,
 	VkDescriptorPool& descPool,
 	VkDescriptorSetLayout& descSetLayout)
 {
@@ -620,7 +790,7 @@ void Device::upDescriptorSet(VkDescriptorSet& descriptorSet,
 	writes[0].dstSet = descriptorSet;
 	writes[0].descriptorCount = 1;
 	writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	writes[0].pBufferInfo = &uniform.info;
+	writes[0].pBufferInfo = &uni.info;
 	writes[0].dstArrayElement = 0;
 	writes[0].dstBinding = 0;
 
@@ -760,172 +930,12 @@ VkPipeline Device::createGraphicsPipelineVF(
 	return pipeline;
 }
 
-void Device::createCommandBuffers() {
-
-	VkCommandBufferAllocateInfo cbAllocInfo{};
-
-	cbAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	cbAllocInfo.commandPool = commandPool;
-	cbAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	cbAllocInfo.commandBufferCount = commandBufferCount;
-	//コマンドバッファの作成
-	commandBuffer = std::make_unique<VkCommandBuffer[]>(commandBufferCount);
-	auto res = vkAllocateCommandBuffers(device, &cbAllocInfo, commandBuffer.get());
-	checkError(res);
-}
-
-void Device::createFence() {
-	VkFenceCreateInfo finfo{};
-	finfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-	auto res = vkCreateFence(device, &finfo, nullptr, &fence);
-	checkError(res);
-}
-
-void Device::submitCommandAndWait(uint32_t comBufindex) {
-	static VkPipelineStageFlags stageFlags = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-	VkSubmitInfo sinfo{};
-
-	sinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	sinfo.pWaitDstStageMask = &stageFlags;
-	sinfo.commandBufferCount = 1;
-	sinfo.pCommandBuffers = &commandBuffer[comBufindex];
-	//コマンドをキューに送信
-	auto res = vkQueueSubmit(devQueue, 1, &sinfo, VK_NULL_HANDLE);
-	checkError(res);
-	//フェンスをキューに送信し,そのフェンスがシグナルを受け取るまで待ち
-	res = vkQueueWaitIdle(devQueue);
-	checkError(res);
-}
-
-void Device::acquireNextImageAndWait(uint32_t& currentFrameIndex) {
-	auto res = vkAcquireNextImageKHR(device, swBuf.swapchain,
-		UINT64_MAX, VK_NULL_HANDLE, fence, &currentFrameIndex);
-	checkError(res);
-	res = vkWaitForFences(device, 1, &fence, VK_FALSE, UINT64_MAX);
-	checkError(res);
-	res = vkResetFences(device, 1, &fence);
-	checkError(res);
-}
-
-void Device::submitCommands(uint32_t comBufindex) {
-	VkSubmitInfo sinfo{};
-	static const VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-
-	sinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	sinfo.commandBufferCount = 1;
-	sinfo.pCommandBuffers = &commandBuffer[comBufindex];
-	sinfo.pWaitDstStageMask = &waitStageMask;
-	auto res = vkQueueSubmit(devQueue, 1, &sinfo, fence);
-	checkError(res);
-}
-
-VkResult Device::waitForFence() {
-	//コマンドの処理が指定数(ここでは1)終わるまで待つ
-	//条件が満たされた場合待ち解除でVK_SUCCESSを返す
-	//条件が満たされない,かつ
-	//タイムアウト(ここではUINT64_MAX)に達した場合,待ち解除でVK_TIMEOUTを返す
-	return vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX);
-}
-
-void Device::present(uint32_t currentframeIndex) {
-	VkPresentInfoKHR pinfo{};
-
-	pinfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-	pinfo.swapchainCount = 1;
-	pinfo.pSwapchains = &swBuf.swapchain;
-	pinfo.pImageIndices = &currentframeIndex;
-
-	auto res = vkQueuePresentKHR(devQueue, &pinfo);
-	checkError(res);
-}
-
-void Device::resetFence() {
-	//指定数(ここでは1)のフェンスをリセット
-	auto res = vkResetFences(device, 1, &fence);
-	checkError(res);
-}
-
-void Device::initialImageLayouting(uint32_t comBufindex) {
-	auto barriers = std::make_unique<VkImageMemoryBarrier[]>(swBuf.imageCount);
-
-	for (uint32_t i = 0; i < swBuf.imageCount; i++)
-	{
-		VkImageMemoryBarrier barrier{};
-
-		barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-		barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		barrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-		barrier.image = swBuf.images[i];
-		barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		barrier.subresourceRange.layerCount = 1;
-		barrier.subresourceRange.levelCount = 1;
-		barriers[i] = barrier;
-	}
-
-	vkCmdPipelineBarrier(commandBuffer[comBufindex], VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-		0, 0, nullptr, 0, nullptr, swBuf.imageCount, barriers.get());
-}
-
-void Device::beginCommandWithFramebuffer(uint32_t comBufindex, VkFramebuffer fb) {
-	VkCommandBufferInheritanceInfo inhInfo{};
-	VkCommandBufferBeginInfo beginInfo{};
-
-	inhInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
-	inhInfo.framebuffer = fb;
-	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	beginInfo.pInheritanceInfo = &inhInfo;
-	//コマンド記録開始
-	vkBeginCommandBuffer(commandBuffer[comBufindex], &beginInfo);
-}
-
-void Device::barrierResource(uint32_t currentframeIndex, uint32_t comBufindex,
-	VkPipelineStageFlags srcStageFlags,
-	VkPipelineStageFlags dstStageFlags,
-	VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask,
-	VkImageLayout srcImageLayout, VkImageLayout dstImageLayout) {
-
-	VkImageMemoryBarrier barrier{};
-
-	barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-	barrier.image = swBuf.images[currentframeIndex];
-	barrier.srcAccessMask = srcAccessMask;
-	barrier.dstAccessMask = dstAccessMask;
-	barrier.oldLayout = srcImageLayout;
-	barrier.newLayout = dstImageLayout;
-	barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	barrier.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
-	vkCmdPipelineBarrier(commandBuffer[comBufindex], srcStageFlags, dstStageFlags, 0, 0, nullptr, 0, nullptr, 1, &barrier);
-}
-
-void Device::beginRenderPass(uint32_t currentframeIndex, uint32_t comBufindex) {
-	static VkClearValue clearValue[2];
-	clearValue[0].color.float32[0] = 0.0f;
-	clearValue[0].color.float32[1] = 0.0f;
-	clearValue[0].color.float32[2] = 0.0f;
-	clearValue[0].color.float32[3] = 1.0f;
-	clearValue[1].depthStencil.depth = 1.0f;
-	clearValue[1].depthStencil.stencil = 0;
-
-	VkRenderPassBeginInfo rpinfo{};
-	rpinfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-	rpinfo.framebuffer = swBuf.frameBuffer[currentframeIndex];
-	rpinfo.renderPass = renderPass;
-	rpinfo.renderArea.extent.width = width;
-	rpinfo.renderArea.extent.height = height;
-	rpinfo.clearValueCount = 2;
-	rpinfo.pClearValues = clearValue;
-
-	vkCmdBeginRenderPass(commandBuffer[comBufindex], &rpinfo, VK_SUBPASS_CONTENTS_INLINE);
-}
-
 void Device::createDevice() {
 	create();
 	createCommandPool();
 	createFence();
 	createSwapchain();
 	createDepth();
-	createUniform();
 	createCommonRenderPass();
 	createFramebuffers();
 	createCommandBuffers();
@@ -937,8 +947,18 @@ void Device::createDevice() {
 	auto res = vkEndCommandBuffer(commandBuffer[0]);
 	checkError(res);
 	submitCommandAndWait(0);
-
 	acquireNextImageAndWait(currentFrameIndex);
+}
+
+void Device::updateProjection(float AngleView, float Near, float Far) {
+	MatrixPerspectiveFovLH(&proj, AngleView, (float)width / (float)height, Near, Far);
+}
+
+void Device::updateView(VECTOR3 vi, VECTOR3 gaze, VECTOR3 up) {
+	MatrixLookAtLH(&view,
+		vi.x, vi.y, vi.z,
+		gaze.x, gaze.y, gaze.z,
+		up.x, up.y, up.z);
 }
 
 void Device::beginCommand(uint32_t comBufindex) {
@@ -970,6 +990,5 @@ void Device::waitFence(uint32_t comBufindex) {
 	default: OutputDebugString(L"waitForFence returns unknown value.\n");
 	}
 	resetFence();
-
 	acquireNextImageAndWait(currentFrameIndex);
 }

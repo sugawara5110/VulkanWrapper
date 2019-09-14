@@ -89,22 +89,43 @@ private:
 	std::unique_ptr <VkCommandBuffer[]> commandBuffer = nullptr;
 	uint32_t currentFrameIndex = 0;
 
+	MATRIX proj, view;
+
 	struct Uniform {
 		VkBuffer vkBuf;
 		VkDeviceMemory mem;
-		MATRIX proj, view, mvp;
+		VkDeviceSize memSize;
+		MATRIX mvp;
 		VkDescriptorBufferInfo info;
 	};
-	Uniform uniform;
 
 	Device() {}
 	void create();
 	void createCommandPool();
+	void createFence();
 	void createSwapchain();
 	void createDepth();
 	void createCommonRenderPass();
 	void createFramebuffers();
-	void createUniform();
+	void createCommandBuffers();
+	void initialImageLayouting(uint32_t comBufindex);
+
+	void beginCommandWithFramebuffer(uint32_t comBufindex, VkFramebuffer fb);
+	void submitCommandAndWait(uint32_t comBufindex);
+	void acquireNextImageAndWait(uint32_t& currentFrameIndex);
+	void submitCommands(uint32_t comBufindex);
+	VkResult waitForFence();
+	void present(uint32_t currentframeIndex);
+	void resetFence();
+
+	void barrierResource(uint32_t currentframeIndex, uint32_t comBufindex,
+		VkPipelineStageFlags srcStageFlags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+		VkPipelineStageFlags dstStageFlags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+		VkAccessFlags srcAccessMask = VK_ACCESS_MEMORY_READ_BIT,
+		VkAccessFlags dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+		VkImageLayout srcImageLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+		VkImageLayout dstImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	void beginRenderPass(uint32_t currentframeIndex, uint32_t comBufindex);
 
 	//モデル毎(モデル側から呼ばれる)
 	template<typename T>
@@ -158,11 +179,13 @@ private:
 		return buf;
 	}
 
+	void createUniform(Uniform& uni);
+	void updateUniform(Uniform& uni, MATRIX move);
 	void descriptorAndPipelineLayouts(VkPipelineLayout& pipelineLayout, VkDescriptorSetLayout& descSetLayout);
 	VkPipelineLayout createPipelineLayout2D();
 	VkShaderModule createShaderModule(char* shader);
 	void createDescriptorPool(VkDescriptorPool& descPool);
-	void upDescriptorSet(VkDescriptorSet& descriptorSet, VkDescriptorPool& descPool, VkDescriptorSetLayout& descSetLayout);
+	void upDescriptorSet(Uniform& uni, VkDescriptorSet& descriptorSet, VkDescriptorPool& descPool, VkDescriptorSetLayout& descSetLayout);
 	VkPipelineCache createPipelineCache();
 	VkPipeline createGraphicsPipelineVF(
 		const VkShaderModule& vshader, const VkShaderModule& fshader,
@@ -170,30 +193,12 @@ private:
 		const VkPipelineLayout& pLayout, const VkRenderPass renderPass, const VkPipelineCache& pCache);
 	//モデル毎
 
-	void createCommandBuffers();
-	void createFence();
-	void submitCommandAndWait(uint32_t comBufindex);
-	void acquireNextImageAndWait(uint32_t& currentFrameIndex);
-	void submitCommands(uint32_t comBufindex);
-	VkResult waitForFence();
-	void present(uint32_t currentframeIndex);
-	void resetFence();
-
-	void initialImageLayouting(uint32_t comBufindex);
-	void beginCommandWithFramebuffer(uint32_t comBufindex, VkFramebuffer fb);
-	void barrierResource(uint32_t currentframeIndex, uint32_t comBufindex,
-		VkPipelineStageFlags srcStageFlags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-		VkPipelineStageFlags dstStageFlags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-		VkAccessFlags srcAccessMask = VK_ACCESS_MEMORY_READ_BIT,
-		VkAccessFlags dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-		VkImageLayout srcImageLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-		VkImageLayout dstImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-	void beginRenderPass(uint32_t currentframeIndex, uint32_t comBufindex);
-
 public:
 	Device(VkPhysicalDevice pd, VkSurfaceKHR surface, uint32_t width = 640, uint32_t height = 480);
 	~Device();
 	void createDevice();
+	void updateProjection(float AngleView = 45.0f, float Near = 1.0f, float Far = 100.0f);
+	void updateView(VECTOR3 view, VECTOR3 gaze, VECTOR3 up);
 	void beginCommand(uint32_t comBufindex);
 	void endCommand(uint32_t comBufindex);
 	void waitFence(uint32_t comBufindex);

@@ -28,12 +28,13 @@ private:
 	VkPipelineCache pipelineCache;
 	VkPipeline pipeline;
 	uint32_t comIndex = 0;
+	Device::Uniform uniform;
 
 public:
 	VulkanBasicPolygon(Device* device, uint32_t comIndex = 0);
 	~VulkanBasicPolygon();
 	void create(Vertex3D* ver, uint32_t num);
-	void draw();
+	void draw(VECTOR3 pos = { 0.0f,0.0f,0.0f }, VECTOR3 theta = { 0.0f,0.0f,0.0f }, VECTOR3 scale = { 1.0f,1.0f,1.0f });
 };
 
 #endif

@@ -14,6 +14,8 @@ VulkanBasicPolygon::VulkanBasicPolygon(Device* dev, uint32_t comindex) {
 }
 
 VulkanBasicPolygon::~VulkanBasicPolygon() {
+	vkDestroyBuffer(device->device, uniform.vkBuf, nullptr);
+	vkFreeMemory(device->device, uniform.mem, nullptr);
 	vkDestroyDescriptorSetLayout(device->device, descSetLayout, nullptr);
 	vkDestroyDescriptorPool(device->device, descPool, nullptr);
 	vkDestroyPipeline(device->device, pipeline, nullptr);
@@ -40,17 +42,35 @@ void VulkanBasicPolygon::create(Vertex3D* ver, uint32_t num) {
 	vsModule = device->createShaderModule(vsShaderBasicPolygon);
 	fsModule = device->createShaderModule(fsShaderBasicPolygon);
 
+	device->createUniform(uniform);
 	device->descriptorAndPipelineLayouts(pipelineLayout, descSetLayout);
 	device->createDescriptorPool(descPool);
-	device->upDescriptorSet(descSet, descPool, descSetLayout);
+	device->upDescriptorSet(uniform, descSet, descPool, descSetLayout);
 	pipelineCache = device->createPipelineCache();
 	pipeline = device->createGraphicsPipelineVF(vsModule, fsModule, bindDesc, attrDescs, 2, pipelineLayout, device->renderPass, pipelineCache);
 }
 
-void VulkanBasicPolygon::draw() {
+void VulkanBasicPolygon::draw(VECTOR3 pos, VECTOR3 theta, VECTOR3 scale) {
 	static VkViewport vp = { 0.0f, 0.0f, device->width, device->height, 0.0f, 1.0f };
 	static VkRect2D sc = { { 0, 0 }, { device->width, device->height } };
 	static VkDeviceSize offsets[] = { 0 };
+
+	MATRIX mov;
+	MATRIX rotZ, rotY, rotX, rotZY, rotZYX;
+	MATRIX sca;
+	MATRIX scro;
+	MATRIX world;
+	MatrixScaling(&sca, scale.x, scale.y, scale.z);
+	MatrixRotationZ(&rotZ, theta.z);
+	MatrixRotationY(&rotY, theta.y);
+	MatrixRotationX(&rotX, theta.x);
+	MatrixMultiply(&rotZY, &rotZ, &rotY);
+	MatrixMultiply(&rotZYX, &rotZY, &rotX);
+	MatrixTranslation(&mov, pos.x, pos.y, pos.z);
+	MatrixMultiply(&scro, &rotZYX, &sca);
+	MatrixMultiply(&world, &scro, &mov);
+
+	device->updateUniform(uniform, world);
 
 	vkCmdBindPipeline(device->commandBuffer[comIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 	vkCmdBindDescriptorSets(device->commandBuffer[comIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
