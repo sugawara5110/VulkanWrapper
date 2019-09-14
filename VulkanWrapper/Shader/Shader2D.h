@@ -4,7 +4,7 @@
 //**                                                                                     **//
 //*****************************************************************************************//
 
-char* vsShader =
+char* vsShader2D =
 "#version 400\n"
 "#extension GL_ARB_separate_shader_objects : enable\n"
 "#extension GL_ARB_shading_language_420pack : enable\n"
@@ -21,7 +21,7 @@ char* vsShader =
 "	color_out = color;\n"
 "}\n";
 
-char* fsShader =
+char* fsShader2D =
 "#version 400\n"
 "#extension GL_ARB_separate_shader_objects : enable\n"
 "#extension GL_ARB_shading_language_420pack : enable\n"

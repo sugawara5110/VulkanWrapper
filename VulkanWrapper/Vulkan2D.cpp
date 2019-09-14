@@ -34,10 +34,10 @@ void Vulkan2D::create(Vertex2D* ver, uint32_t num) {
 		{ 1, 0, VK_FORMAT_R32G32B32A32_SFLOAT, sizeof(float) * 2 }
 	};
 	vertices = device->createVertexBuffer<Vertex2D>(ver, sizeof(Vertex2D) * num);
-	vsModule = device->createShaderModule(vsShader);
-	fsModule = device->createShaderModule(fsShader);
+	vsModule = device->createShaderModule(vsShader2D);
+	fsModule = device->createShaderModule(fsShader2D);
 
-	pipelineLayout = device->createPipelineLayout();
+	pipelineLayout = device->createPipelineLayout2D();
 	pipelineCache = device->createPipelineCache();
 	pipeline = device->createGraphicsPipelineVF(vsModule, fsModule, bindDesc, attrDescs, 2, pipelineLayout, device->renderPass, pipelineCache);
 }

@@ -4,7 +4,7 @@
 //**                                                                                     **//
 //*****************************************************************************************//
 
-char* vertShaderText =
+char* vsShaderBasicPolygon =
 "#version 400\n"
 "#extension GL_ARB_separate_shader_objects : enable\n"
 "#extension GL_ARB_shading_language_420pack : enable\n"
@@ -19,7 +19,7 @@ char* vertShaderText =
 "   gl_Position = myBufferVals.mvp * pos;\n"
 "}\n";
 
-char* fragShaderText =
+char* fsShaderBasicPolygon =
 "#version 400\n"
 "#extension GL_ARB_separate_shader_objects : enable\n"
 "#extension GL_ARB_shading_language_420pack : enable\n"

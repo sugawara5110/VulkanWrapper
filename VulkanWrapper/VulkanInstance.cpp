@@ -281,7 +281,6 @@ void Device::createSwapchain() {
 
 void Device::createDepth() {
 	VkResult res;
-	bool pass;
 	VkImageCreateInfo image_info = {};
 
 	const VkFormat depth_format = VK_FORMAT_D16_UNORM;
@@ -450,9 +449,16 @@ void Device::createFramebuffers() {
 
 void Device::createUniform() {
 	VkResult res;
-	MatrixPerspectiveFovLH(&uniform.proj, 45.0f, (float)width / (float)height, 1.0f, 10000.0f);
-	MatrixLookAtLH(&uniform.view, 0.0f, 0.0f, 0.0f, -5.0f, 3.0f, -10.0f, 0.0f, -1.0f, 0.0f);
-	MatrixMultiply(&uniform.mvp, &uniform.proj, &uniform.view);
+	MatrixPerspectiveFovLH(&uniform.proj, 45.0f, (float)width / (float)height, 1.0f, 100.0f);
+	MatrixLookAtLH(&uniform.view,
+		0.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 5.0f,
+		0.0f, 1.0f, 0.0f);
+	MATRIX mov;
+	MatrixTranslation(&mov, 0.0f, 0.0f, 2.0f);
+	MATRIX vm;
+	MatrixMultiply(&vm, &mov, &uniform.view);
+	MatrixMultiply(&uniform.mvp, &vm, &uniform.proj);
 
 	VkBufferCreateInfo buf_info = {};
 	buf_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -498,6 +504,62 @@ void Device::createUniform() {
 
 	res = vkBindBufferMemory(device, uniform.vkBuf, uniform.mem, 0);
 	checkError(res);
+
+	uniform.info.buffer = uniform.vkBuf;
+	uniform.info.offset = 0;
+	uniform.info.range = sizeof(uniform.mvp);
+}
+
+void Device::descriptorAndPipelineLayouts(VkPipelineLayout& pipelineLayout, VkDescriptorSetLayout& descSetLayout) {
+	VkDescriptorSetLayoutBinding layout_bindings[2];
+	layout_bindings[0].binding = 0;
+	layout_bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	layout_bindings[0].descriptorCount = 1;
+	layout_bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	layout_bindings[0].pImmutableSamplers = nullptr;
+
+	/*if (use_texture) {
+		layout_bindings[1].binding = 1;
+		layout_bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		layout_bindings[1].descriptorCount = 1;
+		layout_bindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+		layout_bindings[1].pImmutableSamplers = NULL;
+	}*/
+
+	/* Next take layout bindings and use them to create a descriptor set layout
+	 */
+	VkDescriptorSetLayoutCreateInfo descriptor_layout = {};
+	descriptor_layout.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	descriptor_layout.pNext = NULL;
+	descriptor_layout.flags = 0;
+	descriptor_layout.bindingCount = 1;//use_texture ? 2 : 1;
+	descriptor_layout.pBindings = layout_bindings;
+
+	VkResult res;
+
+	res = vkCreateDescriptorSetLayout(device, &descriptor_layout, nullptr, &descSetLayout);
+	checkError(res);
+
+	/* Now use the descriptor layout to create a pipeline layout */
+	VkPipelineLayoutCreateInfo pPipelineLayoutCreateInfo = {};
+	pPipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	pPipelineLayoutCreateInfo.pNext = nullptr;
+	pPipelineLayoutCreateInfo.pushConstantRangeCount = 0;
+	pPipelineLayoutCreateInfo.pPushConstantRanges = nullptr;
+	pPipelineLayoutCreateInfo.setLayoutCount = 1;
+	pPipelineLayoutCreateInfo.pSetLayouts = &descSetLayout;
+
+	res = vkCreatePipelineLayout(device, &pPipelineLayoutCreateInfo, nullptr, &pipelineLayout);
+	checkError(res);
+}
+
+VkPipelineLayout Device::createPipelineLayout2D() {
+	VkPipelineLayoutCreateInfo pLayoutInfo{};
+	pLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	VkPipelineLayout pipelineLayout;
+	auto res = vkCreatePipelineLayout(device, &pLayoutInfo, nullptr, &pipelineLayout);
+	checkError(res);
+	return pipelineLayout;
 }
 
 VkShaderModule Device::createShaderModule(char* shader) {
@@ -513,13 +575,67 @@ VkShaderModule Device::createShaderModule(char* shader) {
 	return mod;
 }
 
-VkPipelineLayout Device::createPipelineLayout() {
-	VkPipelineLayoutCreateInfo pLayoutInfo{};
-	pLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	VkPipelineLayout pipelineLayout;
-	auto res = vkCreatePipelineLayout(device, &pLayoutInfo, nullptr, &pipelineLayout);
+void Device::createDescriptorPool(VkDescriptorPool& descPool) {
+	VkResult res;
+	VkDescriptorPoolSize type_count[2];
+	type_count[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	type_count[0].descriptorCount = 1;
+	/*if (use_texture) {
+		type_count[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		type_count[1].descriptorCount = 1;
+	}*/
+
+	VkDescriptorPoolCreateInfo descriptor_pool = {};
+	descriptor_pool.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	descriptor_pool.pNext = NULL;
+	descriptor_pool.maxSets = 1;
+	descriptor_pool.poolSizeCount = 1;//use_texture ? 2 : 1;
+	descriptor_pool.pPoolSizes = type_count;
+
+	res = vkCreateDescriptorPool(device, &descriptor_pool, nullptr, &descPool);
 	checkError(res);
-	return pipelineLayout;
+}
+
+void Device::upDescriptorSet(VkDescriptorSet& descriptorSet,
+	VkDescriptorPool& descPool,
+	VkDescriptorSetLayout& descSetLayout)
+{
+	VkResult res;
+
+	VkDescriptorSetAllocateInfo alloc_info[1];
+	alloc_info[0].sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	alloc_info[0].pNext = NULL;
+	alloc_info[0].descriptorPool = descPool;
+	alloc_info[0].descriptorSetCount = 1;
+	alloc_info[0].pSetLayouts = &descSetLayout;
+
+	res = vkAllocateDescriptorSets(device, alloc_info, &descriptorSet);
+	checkError(res);
+
+	VkWriteDescriptorSet writes[2];
+
+	writes[0] = {};
+	writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	writes[0].pNext = nullptr;
+	writes[0].dstSet = descriptorSet;
+	writes[0].descriptorCount = 1;
+	writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	writes[0].pBufferInfo = &uniform.info;
+	writes[0].dstArrayElement = 0;
+	writes[0].dstBinding = 0;
+
+	/*if (use_texture) {
+		writes[1] = {};
+		writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		writes[1].dstSet = info.desc_set[0];
+		writes[1].dstBinding = 1;
+		writes[1].descriptorCount = 1;
+		writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		writes[1].pImageInfo = &info.texture_data.image_info;
+		writes[1].dstArrayElement = 0;
+	}*/
+
+	vkUpdateDescriptorSets(device, 1, writes, 0, nullptr);
 }
 
 VkPipelineCache Device::createPipelineCache() {

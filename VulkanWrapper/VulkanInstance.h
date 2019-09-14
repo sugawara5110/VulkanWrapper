@@ -25,6 +25,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugReportFlagsEXT flags, VkDebu
 	size_t location, int32_t messageCode, const char* pLayerPrefix, const char* pMessage, void* pUserData);
 
 class Vulkan2D;
+class VulkanBasicPolygon;
 
 class VulkanInstance final {
 
@@ -55,6 +56,7 @@ class Device final {
 
 private:
 	friend Vulkan2D;
+	friend VulkanBasicPolygon;
 	VkPhysicalDevice pDev;//VulkanInstanceからポインタを受け取る
 	VkSurfaceKHR surface;//VulkanInstanceからポインタを受け取る
 	VkDevice device;
@@ -91,6 +93,7 @@ private:
 		VkBuffer vkBuf;
 		VkDeviceMemory mem;
 		MATRIX proj, view, mvp;
+		VkDescriptorBufferInfo info;
 	};
 	Uniform uniform;
 
@@ -155,8 +158,11 @@ private:
 		return buf;
 	}
 
+	void descriptorAndPipelineLayouts(VkPipelineLayout& pipelineLayout, VkDescriptorSetLayout& descSetLayout);
+	VkPipelineLayout createPipelineLayout2D();
 	VkShaderModule createShaderModule(char* shader);
-	VkPipelineLayout createPipelineLayout();
+	void createDescriptorPool(VkDescriptorPool& descPool);
+	void upDescriptorSet(VkDescriptorSet& descriptorSet, VkDescriptorPool& descPool, VkDescriptorSetLayout& descSetLayout);
 	VkPipelineCache createPipelineCache();
 	VkPipeline createGraphicsPipelineVF(
 		const VkShaderModule& vshader, const VkShaderModule& fshader,
