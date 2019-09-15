@@ -24,6 +24,7 @@ Vulkan2D::~Vulkan2D() {
 
 void Vulkan2D::create(Vertex2D* ver, uint32_t num) {
 
+	numVer = num;
 	static VkVertexInputBindingDescription bindDesc =
 	{
 		0, sizeof(Vertex2D), VK_VERTEX_INPUT_RATE_VERTEX
@@ -33,7 +34,7 @@ void Vulkan2D::create(Vertex2D* ver, uint32_t num) {
 		{ 0, 0, VK_FORMAT_R32G32_SFLOAT, 0 },
 		{ 1, 0, VK_FORMAT_R32G32B32A32_SFLOAT, sizeof(float) * 2 }
 	};
-	vertices = device->createVertexBuffer<Vertex2D>(ver, sizeof(Vertex2D) * num);
+	vertices = device->createVertexBuffer<Vertex2D>(ver, sizeof(Vertex2D) * num, false);
 	vsModule = device->createShaderModule(vsShader2D);
 	fsModule = device->createShaderModule(fsShader2D);
 
@@ -51,5 +52,5 @@ void Vulkan2D::draw() {
 	vkCmdSetViewport(device->commandBuffer[comIndex], 0, 1, &vp);
 	vkCmdSetScissor(device->commandBuffer[comIndex], 0, 1, &sc);
 	vkCmdBindVertexBuffers(device->commandBuffer[comIndex], 0, 1, &vertices.first, offsets);
-	vkCmdDraw(device->commandBuffer[comIndex], 3, 1, 0, 0);
+	vkCmdDraw(device->commandBuffer[comIndex], numVer, 1, 0, 0);
 }

@@ -19,6 +19,7 @@ class Vulkan2D {
 private:
 	Device* device = nullptr;
 	std::pair<VkBuffer, VkDeviceMemory> vertices;
+	uint32_t numVer;
 	VkShaderModule vsModule;
 	VkShaderModule fsModule;
 	VkPipelineLayout pipelineLayout;

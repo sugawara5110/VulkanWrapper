@@ -129,12 +129,13 @@ private:
 
 	//モデル毎(モデル側から呼ばれる)
 	template<typename T>
-	auto createVertexBuffer(T* ver, int num) {
+	auto createVertexBuffer(T* ver, int num, bool typeIndex) {
 		VkBuffer vertexBuffer;
 		VkDeviceMemory deviceMemory;
 		VkBufferCreateInfo bufferInfo{};
 		bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+		if (typeIndex)bufferInfo.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
 		bufferInfo.size = sizeof(T) * num;
 		bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 		//頂点バッファオブジェクト生成

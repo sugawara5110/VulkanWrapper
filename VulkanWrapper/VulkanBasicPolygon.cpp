@@ -25,10 +25,13 @@ VulkanBasicPolygon::~VulkanBasicPolygon() {
 	vkDestroyShaderModule(device->device, fsModule, nullptr);
 	vkDestroyBuffer(device->device, vertices.first, nullptr);
 	vkFreeMemory(device->device, vertices.second, nullptr);
+	vkDestroyBuffer(device->device, index.first, nullptr);
+	vkFreeMemory(device->device, index.second, nullptr);
 }
 
-void VulkanBasicPolygon::create(Vertex3D* ver, uint32_t num) {
+void VulkanBasicPolygon::create(Vertex3D* ver, uint32_t num, uint32_t* ind, uint32_t indNum) {
 
+	numIndex = indNum;
 	static VkVertexInputBindingDescription bindDesc =
 	{
 		0, sizeof(Vertex3D), VK_VERTEX_INPUT_RATE_VERTEX
@@ -38,7 +41,8 @@ void VulkanBasicPolygon::create(Vertex3D* ver, uint32_t num) {
 		{ 0, 0, VK_FORMAT_R32G32_SFLOAT, 0 },
 		{ 1, 0, VK_FORMAT_R32G32B32A32_SFLOAT, sizeof(float) * 2 }
 	};
-	vertices = device->createVertexBuffer<Vertex3D>(ver, sizeof(Vertex3D) * num);
+	vertices = device->createVertexBuffer<Vertex3D>(ver, sizeof(Vertex3D) * num, false);
+	index = device->createVertexBuffer<uint32_t>(ind, sizeof(uint32_t) * indNum, true);
 	vsModule = device->createShaderModule(vsShaderBasicPolygon);
 	fsModule = device->createShaderModule(fsShaderBasicPolygon);
 
@@ -78,5 +82,6 @@ void VulkanBasicPolygon::draw(VECTOR3 pos, VECTOR3 theta, VECTOR3 scale) {
 	vkCmdSetViewport(device->commandBuffer[comIndex], 0, 1, &vp);
 	vkCmdSetScissor(device->commandBuffer[comIndex], 0, 1, &sc);
 	vkCmdBindVertexBuffers(device->commandBuffer[comIndex], 0, 1, &vertices.first, offsets);
-	vkCmdDraw(device->commandBuffer[comIndex], 3, 1, 0, 0);
+	vkCmdBindIndexBuffer(device->commandBuffer[comIndex], index.first, 0, VK_INDEX_TYPE_UINT32);
+	vkCmdDrawIndexed(device->commandBuffer[comIndex], numIndex, 1, 0, 0, 0);
 }

@@ -71,21 +71,24 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	{ { 0.5f, 0.70f }, { 0.0f, 0.5f, 1.0f, 1.0f } }
 	};
 	static Vertex3D ver11[] = {
-	{ { 0.5f, -0.0f }, { 1.0f, 1.0f, 1.0f, 1.0f } },
-	{ { -0.0f, 0.70f }, { 1.0f, 0.5f, 0.0f, 1.0f } },
-	{ { 1.0f, 0.70f }, { 0.0f, 0.5f, 1.0f, 1.0f } }
+	{ {-0.5f, -0.5f }, { 1.0f, 1.0f, 1.0f, 1.0f } },
+	{ { -0.5f, 0.5f }, { 1.0f, 0.5f, 0.0f, 1.0f } },
+	{ { 0.5f, -0.5f }, { 0.0f, 0.5f, 1.0f, 1.0f } },
+	{ { 0.5f, 0.5f }, { 0.0f, 0.5f, 1.0f, 1.0f } }
 	};
+	uint32_t index[3] = { 0,1,2 };
+	uint32_t index1[6] = { 0,2,1,1,2,3 };
 
 	Vulkan2D* v2 = new Vulkan2D(device);
 	v2->create(ver, 3);
 	Vulkan2D* v20 = new Vulkan2D(device);
 	v20->create(ver0, 3);
 	VulkanBasicPolygon* v21 = new VulkanBasicPolygon(device);
-	v21->create(ver1, 3);
+	v21->create(ver1, 3, index, 3);
 	VulkanBasicPolygon* v22[300];
 	for (int i = 0; i < 300; i++) {
 		v22[i] = new VulkanBasicPolygon(device);
-		v22[i]->create(ver11, 3);
+		v22[i]->create(ver11, 3, index1, 6);
 	}
 	float the = 0.0f;
 	/*g_RenderFunc = [&]()
@@ -131,7 +134,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 		v20->draw();
 		v21->draw({ 0.03f,0.0f,10.0f }, { 0,the,0 });
 		for (int i = 0; i < 300; i++)
-			v22[i]->draw({ 1.5f + 0.1f * (float)i ,0.0f,10.0f }, { 0,the,0 });
+			v22[i]->draw({ 1.5f + 0.4f * (float)i ,0.5f,10.0f }, { 0,the,0 });
 		device->endCommand(0);
 		device->waitFence(0);
 		//ƒ‹[ƒv“àˆ—
