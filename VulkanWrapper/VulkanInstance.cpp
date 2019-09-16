@@ -355,14 +355,7 @@ void Device::createDepth() {
 	vkGetImageMemoryRequirements(device, depth.image, &mem_reqs);
 
 	mem_alloc.allocationSize = mem_reqs.size;
-
-	for (uint32_t i = 0; i < memProps.memoryTypeCount; i++) {
-		if ((memProps.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) {
-			mem_alloc.memoryTypeIndex = i;
-			break;
-		}
-	}
-	if (mem_alloc.memoryTypeIndex == UINT32_MAX) throw std::runtime_error("No found available heap.");
+	mem_alloc.memoryTypeIndex = findMemoryType(mem_reqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
 	res = vkAllocateMemory(device, &mem_alloc, nullptr, &depth.mem);
 	checkError(res);
@@ -631,15 +624,7 @@ void Device::createUniform(Uniform& uni) {
 	allocInfo.memoryTypeIndex = 0;
 	allocInfo.allocationSize = mem_reqs.size;
 
-	for (uint32_t i = 0; i < memProps.memoryTypeCount; i++)
-	{
-		if ((memProps.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0)
-		{
-			allocInfo.memoryTypeIndex = i;//メモリタイプインデックス検索
-			break;
-		}
-	}
-	if (allocInfo.memoryTypeIndex == UINT32_MAX) throw std::runtime_error("No mappable, coherent memory");
+	allocInfo.memoryTypeIndex = findMemoryType(mem_reqs.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 
 	res = vkAllocateMemory(device, &allocInfo, NULL, &uni.mem);
 	checkError(res);
@@ -658,6 +643,80 @@ void Device::createUniform(Uniform& uni) {
 
 	res = vkBindBufferMemory(device, uni.vkBuf, uni.mem, 0);
 	checkError(res);
+}
+
+void Device::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, 
+	VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory) {
+
+	VkBufferCreateInfo bufferInfo = {};
+	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	bufferInfo.size = size;
+	bufferInfo.usage = usage;
+	bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+	if (vkCreateBuffer(device, &bufferInfo, nullptr, &buffer) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create buffer!");
+	}
+
+	VkMemoryRequirements memRequirements;
+	vkGetBufferMemoryRequirements(device, buffer, &memRequirements);
+
+	VkMemoryAllocateInfo allocInfo = {};
+	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	allocInfo.allocationSize = memRequirements.size;
+	allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
+
+	if (vkAllocateMemory(device, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS) {
+		throw std::runtime_error("failed to allocate buffer memory!");
+	}
+
+	vkBindBufferMemory(device, buffer, bufferMemory, 0);
+}
+
+void Device::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
+	VkCommandBufferAllocateInfo allocInfo = {};
+	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	allocInfo.commandPool = commandPool;
+	allocInfo.commandBufferCount = 1;
+
+	VkCommandBuffer commandBuffer;
+	vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer);
+
+	VkCommandBufferBeginInfo beginInfo = {};
+	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+	vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+	VkBufferCopy copyRegion = {};
+	copyRegion.size = size;
+	vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
+
+	vkEndCommandBuffer(commandBuffer);
+
+	VkSubmitInfo submitInfo = {};
+	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers = &commandBuffer;
+
+	vkQueueSubmit(devQueue, 1, &submitInfo, VK_NULL_HANDLE);
+	vkQueueWaitIdle(devQueue);
+
+	vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
+}
+
+uint32_t Device::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
+	VkPhysicalDeviceMemoryProperties memProperties;
+	vkGetPhysicalDeviceMemoryProperties(pDev, &memProperties);
+
+	for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
+		if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+			return i;
+		}
+	}
+
+	throw std::runtime_error("failed to find suitable memory type!");
 }
 
 void Device::updateUniform(Uniform& uni, MATRIX move) {

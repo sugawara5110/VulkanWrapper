@@ -130,56 +130,40 @@ private:
 	//モデル毎(モデル側から呼ばれる)
 	template<typename T>
 	auto createVertexBuffer(T* ver, int num, bool typeIndex) {
+
+		VkDeviceSize bufferSize = sizeof(T) * num;
+
+		VkBuffer stagingBuffer;
+		VkDeviceMemory stagingBufferMemory;
+		createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+			stagingBuffer, stagingBufferMemory);
+
+		void* data;
+		vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+		memcpy(data, ver, (size_t)bufferSize);
+		vkUnmapMemory(device, stagingBufferMemory);
+
 		VkBuffer vertexBuffer;
-		VkDeviceMemory deviceMemory;
-		VkBufferCreateInfo bufferInfo{};
-		bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-		bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-		if (typeIndex)bufferInfo.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-		bufferInfo.size = sizeof(T) * num;
-		bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-		//頂点バッファオブジェクト生成
-		auto res = vkCreateBuffer(device, &bufferInfo, nullptr, &vertexBuffer);
-		checkError(res);
+		VkDeviceMemory vertexBufferMemory;
+		VkBufferUsageFlagBits usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+		if (typeIndex)usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+		createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage,
+			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer, vertexBufferMemory);
 
-		VkMemoryRequirements memreq;
-		VkMemoryAllocateInfo allocInfo{};
-		//頂点バッファに対してのメモリ条件取得
-		vkGetBufferMemoryRequirements(device, vertexBuffer, &memreq);
-		allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-		allocInfo.allocationSize = memreq.size;
-		allocInfo.memoryTypeIndex = UINT32_MAX;
-		// Search memory index can be visible from host
-		for (uint32_t i = 0; i < memProps.memoryTypeCount; i++)
-		{
-			if ((memProps.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0)
-			{
-				allocInfo.memoryTypeIndex = i;//メモリタイプインデックス検索
-				break;
-			}
-		}
-		if (allocInfo.memoryTypeIndex == UINT32_MAX) throw std::runtime_error("No found available heap.");
+		copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
 
-		//メモリオブジェクトの割り当て
-		res = vkAllocateMemory(device, &allocInfo, nullptr, &deviceMemory);
-		checkError(res);
+		vkDestroyBuffer(device, stagingBuffer, nullptr);
+		vkFreeMemory(device, stagingBufferMemory, nullptr);
 
-		uint8_t* pData;
-		//メモリオブジェクトをマップ
-		res = vkMapMemory(device, deviceMemory, 0, sizeof(T) * num, 0, reinterpret_cast<void**>(&pData));
-		checkError(res);
-		//頂点配列コピー
-		memcpy(pData, ver, sizeof(T) * num);
-		//アンマップ
-		vkUnmapMemory(device, deviceMemory);
-
-		//バッファオブジェクトとメモリオブジェクト関連付け
-		res = vkBindBufferMemory(device, vertexBuffer, deviceMemory, 0);
-		checkError(res);
-		std::pair<VkBuffer, VkDeviceMemory> buf = std::make_pair(vertexBuffer, deviceMemory);
+		std::pair<VkBuffer, VkDeviceMemory> buf = std::make_pair(vertexBuffer, vertexBufferMemory);
 		return buf;
 	}
 
+	void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
+		VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
+	void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+	uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 	void createUniform(Uniform& uni);
 	void updateUniform(Uniform& uni, MATRIX move);
 	void descriptorAndPipelineLayouts(VkPipelineLayout& pipelineLayout, VkDescriptorSetLayout& descSetLayout);
