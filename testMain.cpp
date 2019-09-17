@@ -3,6 +3,7 @@
 #include "../../../VulkanWrapper/Vulkan2D.h"
 #include "../../../VulkanWrapper/VulkanBasicPolygon.h"
 #include "../../../T_float/T_float.h"
+#include "../../../ppmLoader/PPMLoader.h"
 
 std::function<void()> g_RenderFunc;
 LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
@@ -78,6 +79,20 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	};
 	uint32_t index[3] = { 0,1,2 };
 	uint32_t index1[6] = { 0,2,1,1,2,3 };
+	PPMLoader* ppm = new PPMLoader(L"../../../nekokin.ppm", 256, 256, NORMAL);
+	//4chÇ…ïœä∑Ç∑ÇÈèàóùí«â¡Å´
+	unsigned char* image = ppm->GetImageArr();
+	unsigned int numImage = ppm->GetFileNum();
+	unsigned char ima[256 * 4 * 256];
+	int imageCnt = 0;
+	for (int i = 0; i < 256 * 4 * 256; i += 4) {
+		ima[i] = image[imageCnt++];
+		ima[i + 1] = image[imageCnt++];
+		ima[i + 2] = image[imageCnt++];
+		ima[i + 3] = 255;
+	}
+
+	device->GetTexture(image, 256, 256);
 
 	Vulkan2D* v2 = new Vulkan2D(device);
 	v2->create(ver, 3);
@@ -85,8 +100,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	v20->create(ver0, 3);
 	VulkanBasicPolygon* v21 = new VulkanBasicPolygon(device);
 	v21->create(ver1, 3, index, 3);
-	VulkanBasicPolygon* v22[300];
-	for (int i = 0; i < 300; i++) {
+	VulkanBasicPolygon* v22[100];
+	for (int i = 0; i < 100; i++) {
 		v22[i] = new VulkanBasicPolygon(device);
 		v22[i]->create(ver11, 3, index1, 6);
 	}
@@ -133,17 +148,18 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 		v2->draw();
 		v20->draw();
 		v21->draw({ 0.03f,0.0f,10.0f }, { 0,the,0 });
-		for (int i = 0; i < 300; i++)
+		for (int i = 0; i < 100; i++)
 			v22[i]->draw({ 1.5f + 0.4f * (float)i ,0.5f,10.0f }, { 0,the,0 });
 		device->endCommand(0);
 		device->waitFence(0);
 		//ÉãÅ[Évì‡èàóù
 	}
 
+	S_DELETE(ppm);
 	S_DELETE(v2);
 	S_DELETE(v20);
 	S_DELETE(v21);
-	for (int i = 0; i < 300; i++)S_DELETE(v22[i]);
+	for (int i = 0; i < 100; i++)S_DELETE(v22[i]);
 	S_DELETE(device);
 	S_DELETE(vins);
 	return msg.wParam;

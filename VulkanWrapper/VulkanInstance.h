@@ -99,6 +99,17 @@ private:
 		VkDescriptorBufferInfo info;
 	};
 
+	struct Texture {
+		VkImage vkIma;
+		VkDeviceMemory mem;
+		VkImageView view;
+		VkDeviceSize memSize;
+		uint32_t width;
+		uint32_t height;
+	};
+	Texture texture[256];
+	uint32_t numTexture = 0;
+
 	Device() {}
 	void create();
 	void createCommandPool();
@@ -125,7 +136,18 @@ private:
 		VkAccessFlags dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
 		VkImageLayout srcImageLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
 		VkImageLayout dstImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+
 	void beginRenderPass(uint32_t currentframeIndex, uint32_t comBufindex);
+
+	//テクスチャ
+	void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
+	void transitionImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout);
+	void createImage(uint32_t width, uint32_t height, VkFormat format,
+		VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties,
+		VkImage& image, VkDeviceMemory& imageMemory);
+	auto createTextureImage(unsigned char* byteArr, uint32_t width, uint32_t height);
+	void destroyTexture();
+	//テクスチャ
 
 	//モデル毎(モデル側から呼ばれる)
 	template<typename T>
@@ -182,6 +204,7 @@ public:
 	Device(VkPhysicalDevice pd, VkSurfaceKHR surface, uint32_t width = 640, uint32_t height = 480);
 	~Device();
 	void createDevice();
+	void GetTexture(unsigned char* byteArr, uint32_t width, uint32_t height);
 	void updateProjection(float AngleView = 45.0f, float Near = 1.0f, float Far = 100.0f);
 	void updateView(VECTOR3 view, VECTOR3 gaze, VECTOR3 up);
 	void beginCommand(uint32_t comBufindex);
