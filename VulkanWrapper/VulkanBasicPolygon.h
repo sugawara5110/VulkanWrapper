@@ -12,6 +12,7 @@
 struct Vertex3D {
 	float pos[3];
 	float color[4];
+	float uv[2];
 };
 
 class VulkanBasicPolygon {

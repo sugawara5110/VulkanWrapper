@@ -102,13 +102,14 @@ private:
 	struct Texture {
 		VkImage vkIma;
 		VkDeviceMemory mem;
-		VkImageView view;
 		VkDeviceSize memSize;
 		uint32_t width;
 		uint32_t height;
+		VkDescriptorImageInfo info;
 	};
 	Texture texture[256];
 	uint32_t numTexture = 0;
+	VkSampler textureSampler;
 
 	Device() {}
 	void create();
@@ -140,12 +141,16 @@ private:
 	void beginRenderPass(uint32_t currentframeIndex, uint32_t comBufindex);
 
 	//テクスチャ
-	void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
-	void transitionImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout);
+	VkCommandBuffer beginSingleTimeCommands();
+	void endSingleTimeCommands(VkCommandBuffer commandBuffer);
+	void copyBufferToImage(VkCommandBuffer commandBuffer, VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
+	void transitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout);
 	void createImage(uint32_t width, uint32_t height, VkFormat format,
 		VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties,
 		VkImage& image, VkDeviceMemory& imageMemory);
 	auto createTextureImage(unsigned char* byteArr, uint32_t width, uint32_t height);
+	VkImageView createImageView(VkImage image, VkFormat format);
+	void createTextureSampler(VkSampler& textureSampler);
 	void destroyTexture();
 	//テクスチャ
 
@@ -188,11 +193,11 @@ private:
 	uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 	void createUniform(Uniform& uni);
 	void updateUniform(Uniform& uni, MATRIX move);
-	void descriptorAndPipelineLayouts(VkPipelineLayout& pipelineLayout, VkDescriptorSetLayout& descSetLayout);
+	void descriptorAndPipelineLayouts(bool useTexture, VkPipelineLayout& pipelineLayout, VkDescriptorSetLayout& descSetLayout);
 	VkPipelineLayout createPipelineLayout2D();
 	VkShaderModule createShaderModule(char* shader);
-	void createDescriptorPool(VkDescriptorPool& descPool);
-	void upDescriptorSet(Uniform& uni, VkDescriptorSet& descriptorSet, VkDescriptorPool& descPool, VkDescriptorSetLayout& descSetLayout);
+	void createDescriptorPool(bool useTexture, VkDescriptorPool& descPool);
+	void upDescriptorSet(bool useTexture, Texture texture, Uniform& uni, VkDescriptorSet& descriptorSet, VkDescriptorPool& descPool, VkDescriptorSetLayout& descSetLayout);
 	VkPipelineCache createPipelineCache();
 	VkPipeline createGraphicsPipelineVF(
 		const VkShaderModule& vshader, const VkShaderModule& fshader,

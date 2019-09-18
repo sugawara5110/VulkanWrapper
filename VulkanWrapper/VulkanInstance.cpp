@@ -133,8 +133,8 @@ Device::~Device() {
 	vkFreeMemory(device, depth.mem, nullptr);
 	vkDestroyRenderPass(device, renderPass, nullptr);
 	for (int i = 0; i < swBuf.imageCount; i++) {
-		vkDestroyFramebuffer(device, swBuf.frameBuffer[i], nullptr);
 		vkDestroyImageView(device, swBuf.views[i], nullptr);
+		vkDestroyFramebuffer(device, swBuf.frameBuffer[i], nullptr);
 	}
 	vkDestroySwapchainKHR(device, swBuf.swapchain, nullptr);
 	vkDestroyFence(device, fence, nullptr);
@@ -598,7 +598,40 @@ void Device::beginRenderPass(uint32_t currentframeIndex, uint32_t comBufindex) {
 	vkCmdBeginRenderPass(commandBuffer[comBufindex], &rpinfo, VK_SUBPASS_CONTENTS_INLINE);
 }
 
-void Device::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) {
+VkCommandBuffer Device::beginSingleTimeCommands() {
+	VkCommandBufferAllocateInfo allocInfo = {};
+	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	allocInfo.commandPool = commandPool;
+	allocInfo.commandBufferCount = 1;
+
+	VkCommandBuffer commandBuffer;
+	vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer);
+
+	VkCommandBufferBeginInfo beginInfo = {};
+	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+	vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+	return commandBuffer;
+}
+
+void Device::endSingleTimeCommands(VkCommandBuffer commandBuffer) {
+	vkEndCommandBuffer(commandBuffer);
+
+	VkSubmitInfo submitInfo = {};
+	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers = &commandBuffer;
+
+	vkQueueSubmit(devQueue, 1, &submitInfo, VK_NULL_HANDLE);
+	vkQueueWaitIdle(devQueue);
+
+	vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
+}
+
+void Device::copyBufferToImage(VkCommandBuffer commandBuffer, VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) {
 
 	VkBufferImageCopy region = {};
 	region.bufferOffset = 0;
@@ -615,10 +648,10 @@ void Device::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, u
 		1
 	};
 
-	vkCmdCopyBufferToImage(commandBuffer[0], buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+	vkCmdCopyBufferToImage(commandBuffer, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 }
 
-void Device::transitionImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout) {
+void Device::transitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout) {
 
 	VkImageMemoryBarrier barrier = {};
 	barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -655,7 +688,7 @@ void Device::transitionImageLayout(VkImage image, VkImageLayout oldLayout, VkIma
 	}
 
 	vkCmdPipelineBarrier(
-		commandBuffer[0],
+		commandBuffer,
 		sourceStage, destinationStage,
 		0,
 		0, nullptr,
@@ -726,9 +759,13 @@ auto Device::createTextureImage(unsigned char* byteArr, uint32_t width, uint32_t
 		VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 		texture.vkIma, texture.mem);
 
-	transitionImageLayout(texture.vkIma, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-	copyBufferToImage(stagingBuffer, texture.vkIma, static_cast<uint32_t>(width), static_cast<uint32_t>(height));
-	transitionImageLayout(texture.vkIma, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	VkCommandBuffer com = beginSingleTimeCommands();
+	transitionImageLayout(com, texture.vkIma, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+	copyBufferToImage(com, stagingBuffer, texture.vkIma, static_cast<uint32_t>(width), static_cast<uint32_t>(height));
+	transitionImageLayout(com, texture.vkIma, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	endSingleTimeCommands(com);
+
+	texture.info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
 	vkDestroyBuffer(device, stagingBuffer, nullptr);
 	vkFreeMemory(device, stagingBufferMemory, nullptr);
@@ -740,9 +777,54 @@ auto Device::createTextureImage(unsigned char* byteArr, uint32_t width, uint32_t
 	return texture;
 }
 
+VkImageView Device::createImageView(VkImage image, VkFormat format) {
+	VkImageViewCreateInfo viewInfo = {};
+	viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+	viewInfo.image = image;
+	viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+	viewInfo.format = format;
+	viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	viewInfo.subresourceRange.baseMipLevel = 0;
+	viewInfo.subresourceRange.levelCount = 1;
+	viewInfo.subresourceRange.baseArrayLayer = 0;
+	viewInfo.subresourceRange.layerCount = 1;
+
+	VkImageView imageView;
+	if (vkCreateImageView(device, &viewInfo, nullptr, &imageView) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create texture image view!");
+	}
+
+	return imageView;
+}
+
+void Device::createTextureSampler(VkSampler& textureSampler) {
+
+	VkSamplerCreateInfo samplerInfo = {};
+	samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+	samplerInfo.magFilter = VK_FILTER_LINEAR;
+	samplerInfo.minFilter = VK_FILTER_LINEAR;
+	samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	samplerInfo.anisotropyEnable = VK_TRUE;
+	samplerInfo.maxAnisotropy = 16;
+	samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+	samplerInfo.unnormalizedCoordinates = VK_FALSE;
+	samplerInfo.compareEnable = VK_FALSE;
+	samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+	samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+	samplerInfo.mipLodBias = 0.0f;
+	samplerInfo.minLod = 0.0f;
+	samplerInfo.maxLod = 0.0f;
+	if (vkCreateSampler(device, &samplerInfo, nullptr, &textureSampler) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create texture sampler!");
+	}
+}
+
 void Device::destroyTexture() {
+	vkDestroySampler(device, textureSampler, nullptr);
 	for (int i = 0; i < numTexture; i++) {
-		vkDestroyImageView(device, texture[i].view, nullptr);
+		vkDestroyImageView(device, texture[i].info.imageView, nullptr);
 		vkDestroyImage(device, texture[i].vkIma, nullptr);
 		vkFreeMemory(device, texture[i].mem, nullptr);
 	}
@@ -889,7 +971,7 @@ void Device::updateUniform(Uniform& uni, MATRIX move) {
 	uni.info.range = sizeof(uni.mvp);
 }
 
-void Device::descriptorAndPipelineLayouts(VkPipelineLayout& pipelineLayout, VkDescriptorSetLayout& descSetLayout) {
+void Device::descriptorAndPipelineLayouts(bool useTexture, VkPipelineLayout& pipelineLayout, VkDescriptorSetLayout& descSetLayout) {
 	VkDescriptorSetLayoutBinding layout_bindings[2];
 	layout_bindings[0].binding = 0;
 	layout_bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -897,21 +979,19 @@ void Device::descriptorAndPipelineLayouts(VkPipelineLayout& pipelineLayout, VkDe
 	layout_bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 	layout_bindings[0].pImmutableSamplers = nullptr;
 
-	/*if (use_texture) {
+	if (useTexture) {
 		layout_bindings[1].binding = 1;
 		layout_bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		layout_bindings[1].descriptorCount = 1;
 		layout_bindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-		layout_bindings[1].pImmutableSamplers = NULL;
-	}*/
+		layout_bindings[1].pImmutableSamplers = nullptr;
+	}
 
-	/* Next take layout bindings and use them to create a descriptor set layout
-	 */
 	VkDescriptorSetLayoutCreateInfo descriptor_layout = {};
 	descriptor_layout.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 	descriptor_layout.pNext = NULL;
 	descriptor_layout.flags = 0;
-	descriptor_layout.bindingCount = 1;//use_texture ? 2 : 1;
+	descriptor_layout.bindingCount = useTexture ? 2 : 1;
 	descriptor_layout.pBindings = layout_bindings;
 
 	VkResult res;
@@ -954,28 +1034,28 @@ VkShaderModule Device::createShaderModule(char* shader) {
 	return mod;
 }
 
-void Device::createDescriptorPool(VkDescriptorPool& descPool) {
+void Device::createDescriptorPool(bool useTexture, VkDescriptorPool& descPool) {
 	VkResult res;
 	VkDescriptorPoolSize type_count[2];
 	type_count[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	type_count[0].descriptorCount = 1;
-	/*if (use_texture) {
+	if (useTexture) {
 		type_count[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		type_count[1].descriptorCount = 1;
-	}*/
+	}
 
 	VkDescriptorPoolCreateInfo descriptor_pool = {};
 	descriptor_pool.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	descriptor_pool.pNext = NULL;
+	descriptor_pool.pNext = nullptr;
 	descriptor_pool.maxSets = 1;
-	descriptor_pool.poolSizeCount = 1;//use_texture ? 2 : 1;
+	descriptor_pool.poolSizeCount = useTexture ? 2 : 1;
 	descriptor_pool.pPoolSizes = type_count;
 
 	res = vkCreateDescriptorPool(device, &descriptor_pool, nullptr, &descPool);
 	checkError(res);
 }
 
-void Device::upDescriptorSet(Uniform& uni,
+void Device::upDescriptorSet(bool useTexture, Texture texture, Uniform& uni,
 	VkDescriptorSet& descriptorSet,
 	VkDescriptorPool& descPool,
 	VkDescriptorSetLayout& descSetLayout)
@@ -1004,18 +1084,18 @@ void Device::upDescriptorSet(Uniform& uni,
 	writes[0].dstArrayElement = 0;
 	writes[0].dstBinding = 0;
 
-	/*if (use_texture) {
+	if (useTexture) {
 		writes[1] = {};
 		writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		writes[1].dstSet = info.desc_set[0];
+		writes[1].dstSet = descriptorSet;
 		writes[1].dstBinding = 1;
 		writes[1].descriptorCount = 1;
 		writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		writes[1].pImageInfo = &info.texture_data.image_info;
+		writes[1].pImageInfo = &texture.info;
 		writes[1].dstArrayElement = 0;
-	}*/
+	}
 
-	vkUpdateDescriptorSets(device, 1, writes, 0, nullptr);
+	vkUpdateDescriptorSets(device, 2, writes, 0, nullptr);
 }
 
 VkPipelineCache Device::createPipelineCache() {
@@ -1161,7 +1241,10 @@ void Device::createDevice() {
 }
 
 void Device::GetTexture(unsigned char* byteArr, uint32_t width, uint32_t height) {
-	texture[numTexture++] = createTextureImage(byteArr, width, height);
+	texture[numTexture] = createTextureImage(byteArr, width, height);
+	texture[numTexture].info.imageView = createImageView(texture[numTexture].vkIma, VK_FORMAT_R8G8B8A8_UNORM);
+	createTextureSampler(texture[numTexture].info.sampler);
+	numTexture++;
 }
 
 void Device::updateProjection(float AngleView, float Near, float Far) {
