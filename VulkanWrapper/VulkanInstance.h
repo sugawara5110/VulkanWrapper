@@ -149,7 +149,8 @@ private:
 		VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties,
 		VkImage& image, VkDeviceMemory& imageMemory);
 	auto createTextureImage(unsigned char* byteArr, uint32_t width, uint32_t height);
-	VkImageView createImageView(VkImage image, VkFormat format);
+	VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags mask,
+		VkComponentMapping components = { VK_COMPONENT_SWIZZLE_IDENTITY });
 	void createTextureSampler(VkSampler& textureSampler);
 	void destroyTexture();
 	//テクスチャ
@@ -159,12 +160,13 @@ private:
 	auto createVertexBuffer(T* ver, int num, bool typeIndex) {
 
 		VkDeviceSize bufferSize = sizeof(T) * num;
+		VkDeviceSize size;
 
 		VkBuffer stagingBuffer;
 		VkDeviceMemory stagingBufferMemory;
 		createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-			stagingBuffer, stagingBufferMemory);
+			stagingBuffer, stagingBufferMemory, size);
 
 		void* data;
 		vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
@@ -176,7 +178,7 @@ private:
 		VkBufferUsageFlagBits usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
 		if (typeIndex)usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
 		createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage,
-			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer, vertexBufferMemory);
+			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer, vertexBufferMemory, size);
 
 		copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
 
@@ -188,7 +190,7 @@ private:
 	}
 
 	void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
-		VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
+		VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory, VkDeviceSize& memSize);
 	void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 	uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 	void createUniform(Uniform& uni);
@@ -197,7 +199,8 @@ private:
 	VkPipelineLayout createPipelineLayout2D();
 	VkShaderModule createShaderModule(char* shader);
 	void createDescriptorPool(bool useTexture, VkDescriptorPool& descPool);
-	void upDescriptorSet(bool useTexture, Texture texture, Uniform& uni, VkDescriptorSet& descriptorSet, VkDescriptorPool& descPool, VkDescriptorSetLayout& descSetLayout);
+	void upDescriptorSet(bool useTexture, Texture texture, Uniform& uni, VkDescriptorSet& descriptorSet,
+		VkDescriptorPool& descPool, VkDescriptorSetLayout& descSetLayout);
 	VkPipelineCache createPipelineCache();
 	VkPipeline createGraphicsPipelineVF(
 		const VkShaderModule& vshader, const VkShaderModule& fshader,

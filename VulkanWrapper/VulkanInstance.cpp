@@ -60,6 +60,7 @@ void VulkanInstance::createDebugReportCallback() {
 	callbackInfo.pfnCallback = &debugCallback;
 	//デバック有効化
 	auto res = _vkCreateDebugReportCallbackEXT(instance, &callbackInfo, nullptr, &debugReportCallback);
+	checkError(res);
 }
 
 void VulkanInstance::createSurfaceHwnd(HWND hWnd) {
@@ -258,7 +259,6 @@ void Device::createSwapchain() {
 	checkError(res);
 
 	//ウインドウに直接表示する画像のオブジェクト生成
-	//おそらくポストエフェクトはこのオブジェクトから画像取得して処理をする,VkImageはテクスチャ的なもの？
 	res = vkGetSwapchainImagesKHR(device, swBuf.swapchain, &swBuf.imageCount, nullptr);//個数imageCount取得
 	checkError(res);
 	swBuf.images = std::make_unique<VkImage[]>(swBuf.imageCount);
@@ -268,105 +268,43 @@ void Device::createSwapchain() {
 	//ビュー生成
 	swBuf.views = std::make_unique<VkImageView[]>(swBuf.imageCount);
 
-	for (uint32_t i = 0; i < swBuf.imageCount; i++)
-	{
-		VkImageViewCreateInfo vinfo{};
-		vinfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-		vinfo.image = swBuf.images[i];
-		vinfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-		vinfo.format = VK_FORMAT_B8G8R8A8_UNORM;
-		vinfo.components = {
-			VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A
-		};
-		vinfo.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
-
-		auto res = vkCreateImageView(device, &vinfo, nullptr, &swBuf.views[i]);
-		checkError(res);
+	for (uint32_t i = 0; i < swBuf.imageCount; i++) {
+		swBuf.views[i] = createImageView(swBuf.images[i], VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT,
+			{ VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A });
 	}
 }
 
 void Device::createDepth() {
 	VkResult res;
-	VkImageCreateInfo image_info = {};
 
 	const VkFormat depth_format = VK_FORMAT_D16_UNORM;
+	VkImageTiling tiling;
 	VkFormatProperties props;
 	vkGetPhysicalDeviceFormatProperties(pDev, depth_format, &props);
 	if (props.linearTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) {
-		image_info.tiling = VK_IMAGE_TILING_LINEAR;
+		tiling = VK_IMAGE_TILING_LINEAR;
 	}
 	else if (props.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) {
-		image_info.tiling = VK_IMAGE_TILING_OPTIMAL;
+		tiling = VK_IMAGE_TILING_OPTIMAL;
 	}
 	else {
 		OutputDebugString(L"depth_formatUnsupported.\n");
 		exit(-1);
 	}
 
-	image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-	image_info.pNext = nullptr;
-	image_info.imageType = VK_IMAGE_TYPE_2D;
-	image_info.format = depth_format;
-	image_info.extent.width = width;
-	image_info.extent.height = height;
-	image_info.extent.depth = 1;
-	image_info.mipLevels = 1;
-	image_info.arrayLayers = 1;
-	image_info.samples = VK_SAMPLE_COUNT_1_BIT;
-	image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	image_info.queueFamilyIndexCount = 0;
-	image_info.pQueueFamilyIndices = NULL;
-	image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	image_info.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-	image_info.flags = 0;
+	//深度Image生成
+	createImage(width, height, depth_format,
+		tiling, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+		depth.image, depth.mem);
 
-	VkMemoryAllocateInfo mem_alloc = {};
-	mem_alloc.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	mem_alloc.pNext = nullptr;
-	mem_alloc.allocationSize = 0;
-	mem_alloc.memoryTypeIndex = 0;
-
-	VkImageViewCreateInfo view_info = {};
-	view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-	view_info.pNext = nullptr;
-	view_info.image = VK_NULL_HANDLE;
-	view_info.format = depth_format;
-	view_info.components.r = VK_COMPONENT_SWIZZLE_R;
-	view_info.components.g = VK_COMPONENT_SWIZZLE_G;
-	view_info.components.b = VK_COMPONENT_SWIZZLE_B;
-	view_info.components.a = VK_COMPONENT_SWIZZLE_A;
-	view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-	view_info.subresourceRange.baseMipLevel = 0;
-	view_info.subresourceRange.levelCount = 1;
-	view_info.subresourceRange.baseArrayLayer = 0;
-	view_info.subresourceRange.layerCount = 1;
-	view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-	view_info.flags = 0;
-
+	VkImageAspectFlags depthMask = VK_IMAGE_ASPECT_DEPTH_BIT;
 	if (depth_format == VK_FORMAT_D16_UNORM_S8_UINT || depth_format == VK_FORMAT_D24_UNORM_S8_UINT ||
 		depth_format == VK_FORMAT_D32_SFLOAT_S8_UINT) {
-		view_info.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+		depthMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
 	}
-
-	VkMemoryRequirements mem_reqs;
-
-	res = vkCreateImage(device, &image_info, nullptr, &depth.image);
-	checkError(res);
-
-	vkGetImageMemoryRequirements(device, depth.image, &mem_reqs);
-
-	mem_alloc.allocationSize = mem_reqs.size;
-	mem_alloc.memoryTypeIndex = findMemoryType(mem_reqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-	res = vkAllocateMemory(device, &mem_alloc, nullptr, &depth.mem);
-	checkError(res);
-
-	res = vkBindImageMemory(device, depth.image, depth.mem, 0);
-	checkError(res);
-
-	view_info.image = depth.image;
-	res = vkCreateImageView(device, &view_info, nullptr, &depth.view);
-	checkError(res);
+	//view生成
+	depth.view = createImageView(depth.image, depth_format, depthMask,
+		{ VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A });
 	depth.format = depth_format;
 }
 
@@ -716,9 +654,8 @@ void Device::createImage(uint32_t width, uint32_t height, VkFormat format,
 	imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
 	imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-	if (vkCreateImage(device, &imageInfo, nullptr, &image) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create image!");
-	}
+	auto res = vkCreateImage(device, &imageInfo, nullptr, &image);
+	checkError(res);
 
 	VkMemoryRequirements memRequirements;
 	vkGetImageMemoryRequirements(device, image, &memRequirements);
@@ -728,11 +665,11 @@ void Device::createImage(uint32_t width, uint32_t height, VkFormat format,
 	allocInfo.allocationSize = memRequirements.size;
 	allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
 
-	if (vkAllocateMemory(device, &allocInfo, nullptr, &imageMemory) != VK_SUCCESS) {
-		throw std::runtime_error("failed to allocate image memory!");
-	}
+	res = vkAllocateMemory(device, &allocInfo, nullptr, &imageMemory);
+	checkError(res);
 
-	vkBindImageMemory(device, image, imageMemory, 0);
+	res = vkBindImageMemory(device, image, imageMemory, 0);
+	checkError(res);
 }
 
 auto Device::createTextureImage(unsigned char* byteArr, uint32_t width, uint32_t height) {
@@ -745,9 +682,10 @@ auto Device::createTextureImage(unsigned char* byteArr, uint32_t width, uint32_t
 
 	VkBuffer stagingBuffer;
 	VkDeviceMemory stagingBufferMemory;
+	VkDeviceSize size;
 	createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-		stagingBuffer, stagingBufferMemory);
+		stagingBuffer, stagingBufferMemory, size);
 
 	void* data;
 	vkMapMemory(device, stagingBufferMemory, 0, imageSize, 0, &data);
@@ -777,23 +715,27 @@ auto Device::createTextureImage(unsigned char* byteArr, uint32_t width, uint32_t
 	return texture;
 }
 
-VkImageView Device::createImageView(VkImage image, VkFormat format) {
+VkImageView Device::createImageView(VkImage image, VkFormat format,
+	VkImageAspectFlags mask, VkComponentMapping components) {
+
 	VkImageViewCreateInfo viewInfo = {};
 	viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 	viewInfo.image = image;
 	viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
 	viewInfo.format = format;
-	viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	viewInfo.components.r = components.r;
+	viewInfo.components.g = components.g;
+	viewInfo.components.b = components.b;
+	viewInfo.components.a = components.a;
+	viewInfo.subresourceRange.aspectMask = mask;
 	viewInfo.subresourceRange.baseMipLevel = 0;
 	viewInfo.subresourceRange.levelCount = 1;
 	viewInfo.subresourceRange.baseArrayLayer = 0;
 	viewInfo.subresourceRange.layerCount = 1;
 
 	VkImageView imageView;
-	if (vkCreateImageView(device, &viewInfo, nullptr, &imageView) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create texture image view!");
-	}
-
+	VkResult res = vkCreateImageView(device, &viewInfo, nullptr, &imageView);
+	checkError(res);
 	return imageView;
 }
 
@@ -816,9 +758,8 @@ void Device::createTextureSampler(VkSampler& textureSampler) {
 	samplerInfo.mipLodBias = 0.0f;
 	samplerInfo.minLod = 0.0f;
 	samplerInfo.maxLod = 0.0f;
-	if (vkCreateSampler(device, &samplerInfo, nullptr, &textureSampler) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create texture sampler!");
-	}
+	auto res = vkCreateSampler(device, &samplerInfo, nullptr, &textureSampler);
+	checkError(res);
 }
 
 void Device::destroyTexture() {
@@ -836,50 +777,16 @@ void Device::createUniform(Uniform& uni) {
 	MATRIX dummy;
 	MatrixIdentity(&dummy);
 
-	VkBufferCreateInfo buf_info = {};
-	buf_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	buf_info.pNext = NULL;
-	buf_info.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-	buf_info.size = sizeof(dummy.m);
-	buf_info.queueFamilyIndexCount = 0;
-	buf_info.pQueueFamilyIndices = nullptr;
-	buf_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	buf_info.flags = 0;
-	res = vkCreateBuffer(device, &buf_info, nullptr, &uni.vkBuf);
-	checkError(res);
+	createBuffer(sizeof(dummy.m), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, uni.vkBuf, uni.mem, uni.memSize);
 
-	VkMemoryRequirements mem_reqs;
-	vkGetBufferMemoryRequirements(device, uni.vkBuf, &mem_reqs);
-
-	VkMemoryAllocateInfo allocInfo = {};
-	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	allocInfo.pNext = nullptr;
-	allocInfo.memoryTypeIndex = 0;
-	allocInfo.allocationSize = mem_reqs.size;
-
-	allocInfo.memoryTypeIndex = findMemoryType(mem_reqs.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-
-	res = vkAllocateMemory(device, &allocInfo, NULL, &uni.mem);
-	checkError(res);
-
-	uint8_t* pData;
-	res = vkMapMemory(device, uni.mem, 0, mem_reqs.size, 0, (void**)& pData);
-	uni.memSize = mem_reqs.size;
-	checkError(res);
-
-	memcpy(pData, &uni.mvp, sizeof(uni.mvp));
-
-	vkUnmapMemory(device, uni.mem);
 	uni.info.buffer = uni.vkBuf;
 	uni.info.offset = 0;
 	uni.info.range = sizeof(uni.mvp);
-
-	res = vkBindBufferMemory(device, uni.vkBuf, uni.mem, 0);
-	checkError(res);
 }
 
-void Device::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, 
-	VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory) {
+void Device::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
+	VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory, VkDeviceSize& memSize) {
 
 	VkBufferCreateInfo bufferInfo = {};
 	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -887,9 +794,8 @@ void Device::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
 	bufferInfo.usage = usage;
 	bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-	if (vkCreateBuffer(device, &bufferInfo, nullptr, &buffer) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create buffer!");
-	}
+	auto res = vkCreateBuffer(device, &bufferInfo, nullptr, &buffer);
+	checkError(res);
 
 	VkMemoryRequirements memRequirements;
 	vkGetBufferMemoryRequirements(device, buffer, &memRequirements);
@@ -897,11 +803,11 @@ void Device::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
 	VkMemoryAllocateInfo allocInfo = {};
 	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	allocInfo.allocationSize = memRequirements.size;
+	memSize = memRequirements.size;
 	allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
 
-	if (vkAllocateMemory(device, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS) {
-		throw std::runtime_error("failed to allocate buffer memory!");
-	}
+	res = vkAllocateMemory(device, &allocInfo, nullptr, &bufferMemory);
+	checkError(res);
 
 	vkBindBufferMemory(device, buffer, bufferMemory, 0);
 }
@@ -949,7 +855,7 @@ uint32_t Device::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags prope
 		}
 	}
 
-	throw std::runtime_error("failed to find suitable memory type!");
+	throw std::runtime_error("failed to findMemoryType");
 }
 
 void Device::updateUniform(Uniform& uni, MATRIX move) {
@@ -1242,7 +1148,8 @@ void Device::createDevice() {
 
 void Device::GetTexture(unsigned char* byteArr, uint32_t width, uint32_t height) {
 	texture[numTexture] = createTextureImage(byteArr, width, height);
-	texture[numTexture].info.imageView = createImageView(texture[numTexture].vkIma, VK_FORMAT_R8G8B8A8_UNORM);
+	texture[numTexture].info.imageView = createImageView(texture[numTexture].vkIma,
+		VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT);
 	createTextureSampler(texture[numTexture].info.sampler);
 	numTexture++;
 }

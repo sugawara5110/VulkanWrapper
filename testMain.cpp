@@ -92,7 +92,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 		ima[i + 3] = 255;
 	}
 
-	device->GetTexture(image, 256, 256);
+	device->GetTexture(ima, 256, 256);
 
 	Vulkan2D* v2 = new Vulkan2D(device);
 	v2->create(ver, 3);
@@ -100,8 +100,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	v20->create(ver0, 3);
 	VulkanBasicPolygon* v21 = new VulkanBasicPolygon(device);
 	v21->create(ver1, 3, index, 3);
-	VulkanBasicPolygon* v22[1];
-	for (int i = 0; i < 1; i++) {
+	const int Num = 20;
+	VulkanBasicPolygon* v22[Num];
+	for (int i = 0; i < Num; i++) {
 		v22[i] = new VulkanBasicPolygon(device);
 		v22[i]->create(ver11, 3, index1, 6);
 	}
@@ -148,7 +149,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 		v2->draw();
 		v20->draw();
 		v21->draw({ 0.03f,0.0f,10.0f }, { 0,the,0 });
-		for (int i = 0; i < 1; i++)
+		for (int i = 0; i < Num; i++)
 			v22[i]->draw({ 1.5f + 0.4f * (float)i ,0.5f,10.0f }, { 0,the,0 });
 		device->endCommand(0);
 		device->waitFence(0);
@@ -159,7 +160,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	S_DELETE(v2);
 	S_DELETE(v20);
 	S_DELETE(v21);
-	for (int i = 0; i < 1; i++)S_DELETE(v22[i]);
+	for (int i = 0; i < Num; i++)S_DELETE(v22[i]);
 	S_DELETE(device);
 	S_DELETE(vins);
 	return msg.wParam;
