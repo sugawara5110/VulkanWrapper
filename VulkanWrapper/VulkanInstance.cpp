@@ -148,7 +148,7 @@ void Device::create() {
 	VkDeviceCreateInfo devInfo{};
 	VkDeviceQueueCreateInfo queueInfo{};
 
-	//グラフィックス用のデバイスキューのファミリー番号を取得
+	//グラフィックス用のデバイスキューのファミリー番号を取得:VK_QUEUE_GRAPHICS_BIT
 	uint32_t propertyCount;
 	//nullptr指定でプロパティ数取得
 	vkGetPhysicalDeviceQueueFamilyProperties(pDev, &propertyCount, nullptr);
@@ -431,32 +431,6 @@ void Device::beginCommandWithFramebuffer(uint32_t comBufindex, VkFramebuffer fb)
 	vkBeginCommandBuffer(commandBuffer[comBufindex], &beginInfo);
 }
 
-void Device::submitCommandAndWait(uint32_t comBufindex) {
-	static VkPipelineStageFlags stageFlags = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-	VkSubmitInfo sinfo{};
-
-	sinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	sinfo.pWaitDstStageMask = &stageFlags;
-	sinfo.commandBufferCount = 1;
-	sinfo.pCommandBuffers = &commandBuffer[comBufindex];
-	//コマンドをキューに送信
-	auto res = vkQueueSubmit(devQueue, 1, &sinfo, VK_NULL_HANDLE);
-	checkError(res);
-	//フェンスをキューに送信し,そのフェンスがシグナルを受け取るまで待ち
-	res = vkQueueWaitIdle(devQueue);
-	checkError(res);
-}
-
-void Device::acquireNextImageAndWait(uint32_t& currentFrameIndex) {
-	auto res = vkAcquireNextImageKHR(device, swBuf.swapchain,
-		UINT64_MAX, VK_NULL_HANDLE, fence, &currentFrameIndex);
-	checkError(res);
-	res = vkWaitForFences(device, 1, &fence, VK_FALSE, UINT64_MAX);
-	checkError(res);
-	res = vkResetFences(device, 1, &fence);
-	checkError(res);
-}
-
 void Device::submitCommands(uint32_t comBufindex) {
 	VkSubmitInfo sinfo{};
 	static const VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
@@ -466,6 +440,17 @@ void Device::submitCommands(uint32_t comBufindex) {
 	sinfo.pCommandBuffers = &commandBuffer[comBufindex];
 	sinfo.pWaitDstStageMask = &waitStageMask;
 	auto res = vkQueueSubmit(devQueue, 1, &sinfo, fence);
+	checkError(res);
+}
+
+void Device::acquireNextImageAndWait(uint32_t& currentFrameIndex) {
+	//vkAcquireNextImageKHR:命令はバックバッファのスワップを行い,次に描画されるべきImageのインデックスを返す
+	auto res = vkAcquireNextImageKHR(device, swBuf.swapchain,
+		UINT64_MAX, VK_NULL_HANDLE, fence, &currentFrameIndex);
+	checkError(res);
+	res = vkWaitForFences(device, 1, &fence, VK_FALSE, UINT64_MAX);
+	checkError(res);
+	res = vkResetFences(device, 1, &fence);
 	checkError(res);
 }
 
@@ -534,39 +519,6 @@ void Device::beginRenderPass(uint32_t currentframeIndex, uint32_t comBufindex) {
 	rpinfo.pClearValues = clearValue;
 
 	vkCmdBeginRenderPass(commandBuffer[comBufindex], &rpinfo, VK_SUBPASS_CONTENTS_INLINE);
-}
-
-VkCommandBuffer Device::beginSingleTimeCommands() {
-	VkCommandBufferAllocateInfo allocInfo = {};
-	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	allocInfo.commandPool = commandPool;
-	allocInfo.commandBufferCount = 1;
-
-	VkCommandBuffer commandBuffer;
-	vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer);
-
-	VkCommandBufferBeginInfo beginInfo = {};
-	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-	vkBeginCommandBuffer(commandBuffer, &beginInfo);
-
-	return commandBuffer;
-}
-
-void Device::endSingleTimeCommands(VkCommandBuffer commandBuffer) {
-	vkEndCommandBuffer(commandBuffer);
-
-	VkSubmitInfo submitInfo = {};
-	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	submitInfo.commandBufferCount = 1;
-	submitInfo.pCommandBuffers = &commandBuffer;
-
-	vkQueueSubmit(devQueue, 1, &submitInfo, VK_NULL_HANDLE);
-	vkQueueWaitIdle(devQueue);
-
-	vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
 }
 
 void Device::copyBufferToImage(VkCommandBuffer commandBuffer, VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) {
@@ -697,11 +649,14 @@ auto Device::createTextureImage(unsigned char* byteArr, uint32_t width, uint32_t
 		VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 		texture.vkIma, texture.mem);
 
-	VkCommandBuffer com = beginSingleTimeCommands();
-	transitionImageLayout(com, texture.vkIma, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-	copyBufferToImage(com, stagingBuffer, texture.vkIma, static_cast<uint32_t>(width), static_cast<uint32_t>(height));
-	transitionImageLayout(com, texture.vkIma, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-	endSingleTimeCommands(com);
+	beginCommandWithFramebuffer(0, swBuf.frameBuffer[currentFrameIndex]);
+	transitionImageLayout(commandBuffer[0], texture.vkIma, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+	copyBufferToImage(commandBuffer[0], stagingBuffer, texture.vkIma, static_cast<uint32_t>(width), static_cast<uint32_t>(height));
+	transitionImageLayout(commandBuffer[0], texture.vkIma, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	vkEndCommandBuffer(commandBuffer[0]);
+	submitCommands(0);
+	waitForFence();
+	resetFence();
 
 	texture.info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
@@ -1142,8 +1097,11 @@ void Device::createDevice() {
 	//コマンドの記録終了
 	auto res = vkEndCommandBuffer(commandBuffer[0]);
 	checkError(res);
-	submitCommandAndWait(0);
-	acquireNextImageAndWait(currentFrameIndex);
+	submitCommands(0);
+	res = vkWaitForFences(device, 1, &fence, VK_FALSE, UINT64_MAX);
+	checkError(res);
+	res = vkResetFences(device, 1, &fence);
+	checkError(res);
 }
 
 void Device::GetTexture(unsigned char* byteArr, uint32_t width, uint32_t height) {
@@ -1166,6 +1124,7 @@ void Device::updateView(VECTOR3 vi, VECTOR3 gaze, VECTOR3 up) {
 }
 
 void Device::beginCommand(uint32_t comBufindex) {
+	acquireNextImageAndWait(currentFrameIndex);
 	beginCommandWithFramebuffer(comBufindex, swBuf.frameBuffer[currentFrameIndex]);
 
 	barrierResource(currentFrameIndex, comBufindex,
@@ -1194,5 +1153,4 @@ void Device::waitFence(uint32_t comBufindex) {
 	default: OutputDebugString(L"waitForFence returns unknown value.\n");
 	}
 	resetFence();
-	acquireNextImageAndWait(currentFrameIndex);
 }

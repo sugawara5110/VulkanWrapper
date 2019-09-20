@@ -123,9 +123,8 @@ private:
 	void initialImageLayouting(uint32_t comBufindex);
 
 	void beginCommandWithFramebuffer(uint32_t comBufindex, VkFramebuffer fb);
-	void submitCommandAndWait(uint32_t comBufindex);
-	void acquireNextImageAndWait(uint32_t& currentFrameIndex);
 	void submitCommands(uint32_t comBufindex);
+	void acquireNextImageAndWait(uint32_t& currentFrameIndex);
 	VkResult waitForFence();
 	void present(uint32_t currentframeIndex);
 	void resetFence();
@@ -141,8 +140,6 @@ private:
 	void beginRenderPass(uint32_t currentframeIndex, uint32_t comBufindex);
 
 	//テクスチャ
-	VkCommandBuffer beginSingleTimeCommands();
-	void endSingleTimeCommands(VkCommandBuffer commandBuffer);
 	void copyBufferToImage(VkCommandBuffer commandBuffer, VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
 	void transitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout);
 	void createImage(uint32_t width, uint32_t height, VkFormat format,
