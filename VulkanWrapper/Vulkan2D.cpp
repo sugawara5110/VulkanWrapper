@@ -34,7 +34,7 @@ void Vulkan2D::create(Vertex2D* ver, uint32_t num) {
 		{ 0, 0, VK_FORMAT_R32G32_SFLOAT, 0 },
 		{ 1, 0, VK_FORMAT_R32G32B32A32_SFLOAT, sizeof(float) * 2 }
 	};
-	vertices = device->createVertexBuffer<Vertex2D>(ver, sizeof(Vertex2D) * num, false);
+	vertices = device->createVertexBuffer<Vertex2D>(comIndex, ver, sizeof(Vertex2D) * num, false);
 	vsModule = device->createShaderModule(vsShader2D);
 	fsModule = device->createShaderModule(fsShader2D);
 
@@ -44,7 +44,7 @@ void Vulkan2D::create(Vertex2D* ver, uint32_t num) {
 }
 
 void Vulkan2D::draw() {
-	static VkViewport vp = { 0.0f, 0.0f, device->width, device->height, 0.0f, 1.0f };
+	static VkViewport vp = { 0.0f, 0.0f, (float)device->width, (float)device->height, 0.0f, 1.0f };
 	static VkRect2D sc = { { 0, 0 }, { device->width, device->height } };
 	static VkDeviceSize offsets[] = { 0 };
 

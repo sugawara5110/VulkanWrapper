@@ -129,19 +129,10 @@ private:
 	void present(uint32_t currentframeIndex);
 	void resetFence();
 
-	void barrierResource(uint32_t currentframeIndex, uint32_t comBufindex,
-		VkPipelineStageFlags srcStageFlags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-		VkPipelineStageFlags dstStageFlags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-		VkAccessFlags srcAccessMask = VK_ACCESS_MEMORY_READ_BIT,
-		VkAccessFlags dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-		VkImageLayout srcImageLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-		VkImageLayout dstImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	void barrierResource(uint32_t comBufindex, VkImage image, VkImageLayout srcImageLayout, VkImageLayout dstImageLayout);
+	void beginRenderPass(uint32_t comBufindex, uint32_t currentframeIndex);
 
-	void beginRenderPass(uint32_t currentframeIndex, uint32_t comBufindex);
-
-	//テクスチャ
 	void copyBufferToImage(VkCommandBuffer commandBuffer, VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
-	void transitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout);
 	void createImage(uint32_t width, uint32_t height, VkFormat format,
 		VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties,
 		VkImage& image, VkDeviceMemory& imageMemory);
@@ -150,11 +141,10 @@ private:
 		VkComponentMapping components = { VK_COMPONENT_SWIZZLE_IDENTITY });
 	void createTextureSampler(VkSampler& textureSampler);
 	void destroyTexture();
-	//テクスチャ
 
 	//モデル毎(モデル側から呼ばれる)
 	template<typename T>
-	auto createVertexBuffer(T* ver, int num, bool typeIndex) {
+	auto createVertexBuffer(uint32_t comBufindex, T* ver, int num, bool typeIndex) {
 
 		VkDeviceSize bufferSize = sizeof(T) * num;
 		VkDeviceSize size;
@@ -177,7 +167,7 @@ private:
 		createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage,
 			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer, vertexBufferMemory, size);
 
-		copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
+		copyBuffer(comBufindex, stagingBuffer, vertexBuffer, bufferSize);
 
 		vkDestroyBuffer(device, stagingBuffer, nullptr);
 		vkFreeMemory(device, stagingBufferMemory, nullptr);
@@ -188,7 +178,7 @@ private:
 
 	void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
 		VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory, VkDeviceSize& memSize);
-	void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+	void copyBuffer(uint32_t comBufindex, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 	uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 	void createUniform(Uniform& uni);
 	void updateUniform(Uniform& uni, MATRIX move);

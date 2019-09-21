@@ -35,9 +35,9 @@ void VulkanInstance::createinstance(char* appName) {
 	instanceInfo.pNext = nullptr;
 	instanceInfo.flags = 0;
 	instanceInfo.pApplicationInfo = &appInfo;
-	instanceInfo.enabledExtensionCount = std::size(extensions);
+	instanceInfo.enabledExtensionCount = (uint32_t)std::size(extensions);
 	instanceInfo.ppEnabledExtensionNames = extensions;
-	instanceInfo.enabledLayerCount = std::size(layers);
+	instanceInfo.enabledLayerCount = (uint32_t)std::size(layers);
 	instanceInfo.ppEnabledLayerNames = layers;
 
 	//Vulkanインスタンス生成
@@ -128,12 +128,12 @@ Device::Device(VkPhysicalDevice pd, VkSurfaceKHR surfa, uint32_t wid, uint32_t h
 
 Device::~Device() {
 	destroyTexture();
-	for (int i = 0; i < commandBufferCount; i++)vkFreeCommandBuffers(device, commandPool, commandBufferCount, commandBuffer.get());
+	for (uint32_t i = 0; i < commandBufferCount; i++)vkFreeCommandBuffers(device, commandPool, commandBufferCount, commandBuffer.get());
 	vkDestroyImageView(device, depth.view, nullptr);
 	vkDestroyImage(device, depth.image, nullptr);
 	vkFreeMemory(device, depth.mem, nullptr);
 	vkDestroyRenderPass(device, renderPass, nullptr);
-	for (int i = 0; i < swBuf.imageCount; i++) {
+	for (uint32_t i = 0; i < swBuf.imageCount; i++) {
 		vkDestroyImageView(device, swBuf.views[i], nullptr);
 		vkDestroyFramebuffer(device, swBuf.frameBuffer[i], nullptr);
 	}
@@ -177,9 +177,9 @@ void Device::create() {
 	devInfo.pNext = nullptr;
 	devInfo.queueCreateInfoCount = 1;
 	devInfo.pQueueCreateInfos = &queueInfo;
-	devInfo.enabledLayerCount = std::size(layers);
+	devInfo.enabledLayerCount = (uint32_t)std::size(layers);
 	devInfo.ppEnabledLayerNames = layers;
-	devInfo.enabledExtensionCount = std::size(extensions);
+	devInfo.enabledExtensionCount = (uint32_t)std::size(extensions);
 	devInfo.ppEnabledExtensionNames = extensions;
 	devInfo.pEnabledFeatures = nullptr;
 
@@ -275,7 +275,6 @@ void Device::createSwapchain() {
 }
 
 void Device::createDepth() {
-	VkResult res;
 
 	const VkFormat depth_format = VK_FORMAT_D16_UNORM;
 	VkImageTiling tiling;
@@ -480,27 +479,54 @@ void Device::resetFence() {
 	checkError(res);
 }
 
-void Device::barrierResource(uint32_t currentframeIndex, uint32_t comBufindex,
-	VkPipelineStageFlags srcStageFlags,
-	VkPipelineStageFlags dstStageFlags,
-	VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask,
+void Device::barrierResource(uint32_t comBufindex, VkImage image,
 	VkImageLayout srcImageLayout, VkImageLayout dstImageLayout) {
 
-	VkImageMemoryBarrier barrier{};
-
+	VkImageMemoryBarrier barrier = {};
 	barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-	barrier.image = swBuf.images[currentframeIndex];
-	barrier.srcAccessMask = srcAccessMask;
-	barrier.dstAccessMask = dstAccessMask;
 	barrier.oldLayout = srcImageLayout;
 	barrier.newLayout = dstImageLayout;
 	barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 	barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	barrier.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
-	vkCmdPipelineBarrier(commandBuffer[comBufindex], srcStageFlags, dstStageFlags, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+	barrier.image = image;
+	barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	barrier.subresourceRange.baseMipLevel = 0;
+	barrier.subresourceRange.levelCount = 1;
+	barrier.subresourceRange.baseArrayLayer = 0;
+	barrier.subresourceRange.layerCount = 1;
+
+	VkPipelineStageFlags srcStage;
+	VkPipelineStageFlags dstStage;
+
+	if (srcImageLayout == VK_IMAGE_LAYOUT_UNDEFINED && dstImageLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+		barrier.srcAccessMask = 0;
+		barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+		srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+		dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+	}
+	else if (srcImageLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && dstImageLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+		barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+		srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+		dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+	}
+	else if (srcImageLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR && dstImageLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) {
+		barrier.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+		barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+		srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+		dstStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	}
+	else {
+		throw std::invalid_argument("unsupported layout transition!");
+	}
+
+	vkCmdPipelineBarrier(commandBuffer[comBufindex], srcStage, dstStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 }
 
-void Device::beginRenderPass(uint32_t currentframeIndex, uint32_t comBufindex) {
+void Device::beginRenderPass(uint32_t comBufindex, uint32_t currentframeIndex) {
 	static VkClearValue clearValue[2];
 	clearValue[0].color.float32[0] = 0.0f;
 	clearValue[0].color.float32[1] = 0.0f;
@@ -539,52 +565,6 @@ void Device::copyBufferToImage(VkCommandBuffer commandBuffer, VkBuffer buffer, V
 	};
 
 	vkCmdCopyBufferToImage(commandBuffer, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-}
-
-void Device::transitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout) {
-
-	VkImageMemoryBarrier barrier = {};
-	barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-	barrier.oldLayout = oldLayout;
-	barrier.newLayout = newLayout;
-	barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	barrier.image = image;
-	barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	barrier.subresourceRange.baseMipLevel = 0;
-	barrier.subresourceRange.levelCount = 1;
-	barrier.subresourceRange.baseArrayLayer = 0;
-	barrier.subresourceRange.layerCount = 1;
-
-	VkPipelineStageFlags sourceStage;
-	VkPipelineStageFlags destinationStage;
-
-	if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
-		barrier.srcAccessMask = 0;
-		barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-
-		sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-		destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-	}
-	else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
-		barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-		barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
-		sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-		destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-	}
-	else {
-		throw std::invalid_argument("unsupported layout transition!");
-	}
-
-	vkCmdPipelineBarrier(
-		commandBuffer,
-		sourceStage, destinationStage,
-		0,
-		0, nullptr,
-		0, nullptr,
-		1, &barrier
-	);
 }
 
 void Device::createImage(uint32_t width, uint32_t height, VkFormat format,
@@ -650,9 +630,9 @@ auto Device::createTextureImage(unsigned char* byteArr, uint32_t width, uint32_t
 		texture.vkIma, texture.mem);
 
 	beginCommandWithFramebuffer(0, swBuf.frameBuffer[currentFrameIndex]);
-	transitionImageLayout(commandBuffer[0], texture.vkIma, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+	barrierResource(0, texture.vkIma, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 	copyBufferToImage(commandBuffer[0], stagingBuffer, texture.vkIma, static_cast<uint32_t>(width), static_cast<uint32_t>(height));
-	transitionImageLayout(commandBuffer[0], texture.vkIma, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	barrierResource(0, texture.vkIma, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	vkEndCommandBuffer(commandBuffer[0]);
 	submitCommands(0);
 	waitForFence();
@@ -703,7 +683,7 @@ void Device::createTextureSampler(VkSampler& textureSampler) {
 	samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 	samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 	samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	samplerInfo.anisotropyEnable = VK_TRUE;
+	samplerInfo.anisotropyEnable = VK_FALSE;
 	samplerInfo.maxAnisotropy = 16;
 	samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
 	samplerInfo.unnormalizedCoordinates = VK_FALSE;
@@ -713,13 +693,14 @@ void Device::createTextureSampler(VkSampler& textureSampler) {
 	samplerInfo.mipLodBias = 0.0f;
 	samplerInfo.minLod = 0.0f;
 	samplerInfo.maxLod = 0.0f;
+	samplerInfo.flags = VK_SAMPLER_CREATE_SUBSAMPLED_BIT_EXT;
 	auto res = vkCreateSampler(device, &samplerInfo, nullptr, &textureSampler);
 	checkError(res);
 }
 
 void Device::destroyTexture() {
 	vkDestroySampler(device, textureSampler, nullptr);
-	for (int i = 0; i < numTexture; i++) {
+	for (uint32_t i = 0; i < numTexture; i++) {
 		vkDestroyImageView(device, texture[i].info.imageView, nullptr);
 		vkDestroyImage(device, texture[i].vkIma, nullptr);
 		vkFreeMemory(device, texture[i].mem, nullptr);
@@ -727,7 +708,6 @@ void Device::destroyTexture() {
 }
 
 void Device::createUniform(Uniform& uni) {
-	VkResult res;
 
 	MATRIX dummy;
 	MatrixIdentity(&dummy);
@@ -767,37 +747,21 @@ void Device::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
 	vkBindBufferMemory(device, buffer, bufferMemory, 0);
 }
 
-void Device::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
-	VkCommandBufferAllocateInfo allocInfo = {};
-	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	allocInfo.commandPool = commandPool;
-	allocInfo.commandBufferCount = 1;
+void Device::copyBuffer(uint32_t comBufindex, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
 
-	VkCommandBuffer commandBuffer;
-	vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer);
-
-	VkCommandBufferBeginInfo beginInfo = {};
-	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-	vkBeginCommandBuffer(commandBuffer, &beginInfo);
+	beginCommandWithFramebuffer(comBufindex, VkFramebuffer());
 
 	VkBufferCopy copyRegion = {};
 	copyRegion.size = size;
-	vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
+	vkCmdCopyBuffer(commandBuffer[comBufindex], srcBuffer, dstBuffer, 1, &copyRegion);
 
-	vkEndCommandBuffer(commandBuffer);
-
-	VkSubmitInfo submitInfo = {};
-	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	submitInfo.commandBufferCount = 1;
-	submitInfo.pCommandBuffers = &commandBuffer;
-
-	vkQueueSubmit(devQueue, 1, &submitInfo, VK_NULL_HANDLE);
-	vkQueueWaitIdle(devQueue);
-
-	vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
+	auto res = vkEndCommandBuffer(commandBuffer[comBufindex]);
+	checkError(res);
+	submitCommands(comBufindex);
+	res = vkWaitForFences(device, 1, &fence, VK_FALSE, UINT64_MAX);
+	checkError(res);
+	res = vkResetFences(device, 1, &fence);
+	checkError(res);
 }
 
 uint32_t Device::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
@@ -973,7 +937,7 @@ VkPipeline Device::createGraphicsPipelineVF(
 	const VkVertexInputBindingDescription& bindDesc, const VkVertexInputAttributeDescription* attrDescs, uint32_t numAttr,
 	const VkPipelineLayout& pLayout, const VkRenderPass renderPass, const VkPipelineCache& pCache) {
 
-	static VkViewport vports[] = { { 0.0f, 0.0f, width, height, 0.0f, 1.0f } };
+	static VkViewport vports[] = { { 0.0f, 0.0f, (float)width, (float)height, 0.0f, 1.0f } };
 	static VkRect2D scissors[] = { { { 0, 0 }, { width, height } } };
 	static VkDynamicState dynamicStates[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
 
@@ -1035,7 +999,7 @@ VkPipeline Device::createGraphicsPipelineVF(
 
 	VkPipelineDynamicStateCreateInfo dynamicInfo{};
 	dynamicInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-	dynamicInfo.dynamicStateCount = std::size(dynamicStates);
+	dynamicInfo.dynamicStateCount = (uint32_t)std::size(dynamicStates);
 	dynamicInfo.pDynamicStates = dynamicStates;
 
 	VkPipelineDepthStencilStateCreateInfo ds;
@@ -1061,7 +1025,7 @@ VkPipeline Device::createGraphicsPipelineVF(
 
 	VkGraphicsPipelineCreateInfo gpInfo{};
 	gpInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-	gpInfo.stageCount = std::size(stageInfo);
+	gpInfo.stageCount = (uint32_t)std::size(stageInfo);
 	gpInfo.pStages = stageInfo;
 	gpInfo.pVertexInputState = &vinStateInfo;
 	gpInfo.pInputAssemblyState = &iaInfo;
@@ -1127,20 +1091,13 @@ void Device::beginCommand(uint32_t comBufindex) {
 	acquireNextImageAndWait(currentFrameIndex);
 	beginCommandWithFramebuffer(comBufindex, swBuf.frameBuffer[currentFrameIndex]);
 
-	barrierResource(currentFrameIndex, comBufindex,
-		VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-		VK_ACCESS_MEMORY_READ_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+	barrierResource(comBufindex, swBuf.images[currentFrameIndex],
 		VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-	beginRenderPass(currentFrameIndex, comBufindex);
+	beginRenderPass(comBufindex, currentFrameIndex);
 }
 
 void Device::endCommand(uint32_t comBufindex) {
 	vkCmdEndRenderPass(commandBuffer[comBufindex]);
-	/*barrierResource(currentFrameIndex, comBufindex,
-		VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-		VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_MEMORY_READ_BIT,
-		VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);*/
-
 	vkEndCommandBuffer(commandBuffer[comBufindex]);
 }
 

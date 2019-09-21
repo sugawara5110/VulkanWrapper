@@ -42,8 +42,8 @@ void VulkanBasicPolygon::create(Vertex3D* ver, uint32_t num, uint32_t* ind, uint
 		{ 1, 0, VK_FORMAT_R32G32B32A32_SFLOAT, sizeof(float) * 3 },
 		{ 2, 0, VK_FORMAT_R32G32_SFLOAT, sizeof(float) * 7 },
 	};
-	vertices = device->createVertexBuffer<Vertex3D>(ver, sizeof(Vertex3D) * num, false);
-	index = device->createVertexBuffer<uint32_t>(ind, sizeof(uint32_t) * indNum, true);
+	vertices = device->createVertexBuffer<Vertex3D>(comIndex, ver, sizeof(Vertex3D) * num, false);
+	index = device->createVertexBuffer<uint32_t>(comIndex, ind, sizeof(uint32_t) * indNum, true);
 	vsModule = device->createShaderModule(vsShaderBasicPolygon);
 	fsModule = device->createShaderModule(fsShaderBasicPolygon);
 
@@ -56,7 +56,7 @@ void VulkanBasicPolygon::create(Vertex3D* ver, uint32_t num, uint32_t* ind, uint
 }
 
 void VulkanBasicPolygon::draw(VECTOR3 pos, VECTOR3 theta, VECTOR3 scale) {
-	static VkViewport vp = { 0.0f, 0.0f, device->width, device->height, 0.0f, 1.0f };
+	static VkViewport vp = { 0.0f, 0.0f, (float)device->width, (float)device->height, 0.0f, 1.0f };
 	static VkRect2D sc = { { 0, 0 }, { device->width, device->height } };
 	static VkDeviceSize offsets[] = { 0 };
 
