@@ -39,18 +39,18 @@ void VulkanBasicPolygon::create(Vertex3D* ver, uint32_t num, uint32_t* ind, uint
 	static VkVertexInputAttributeDescription attrDescs[] =
 	{
 		{ 0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0 },
-		{ 1, 0, VK_FORMAT_R32G32B32A32_SFLOAT, sizeof(float) * 3 },
-		{ 2, 0, VK_FORMAT_R32G32_SFLOAT, sizeof(float) * 7 },
+		{ 1, 0, VK_FORMAT_R32G32B32_SFLOAT, sizeof(float) * 3 },
+		{ 2, 0, VK_FORMAT_R32G32_SFLOAT, sizeof(float) * 6 },
 	};
 	vertices = device->createVertexBuffer<Vertex3D>(comIndex, ver, sizeof(Vertex3D) * num, false);
 	index = device->createVertexBuffer<uint32_t>(comIndex, ind, sizeof(uint32_t) * indNum, true);
 	vsModule = device->createShaderModule(vsShaderBasicPolygon);
 	fsModule = device->createShaderModule(fsShaderBasicPolygon);
 
-	device->createUniform(uniform);
+	device->createUniform(uniform, material);
 	device->descriptorAndPipelineLayouts(true, pipelineLayout, descSetLayout);
 	device->createDescriptorPool(true, descPool);
-	device->upDescriptorSet(true, device->texture[0], uniform, descSet, descPool, descSetLayout);
+	device->upDescriptorSet(true, device->texture[0], uniform, material, descSet, descPool, descSetLayout);
 	pipelineCache = device->createPipelineCache();
 	pipeline = device->createGraphicsPipelineVF(vsModule, fsModule, bindDesc, attrDescs, 3, pipelineLayout, device->renderPass, pipelineCache);
 }
@@ -75,7 +75,7 @@ void VulkanBasicPolygon::draw(VECTOR3 pos, VECTOR3 theta, VECTOR3 scale) {
 	MatrixMultiply(&scro, &rotZYX, &sca);
 	MatrixMultiply(&world, &scro, &mov);
 
-	device->updateUniform(uniform, world);
+	device->updateUniform(uniform, world, material);
 
 	vkCmdBindPipeline(device->commandBuffer[comIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 	vkCmdBindDescriptorSets(device->commandBuffer[comIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,

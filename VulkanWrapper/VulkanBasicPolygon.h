@@ -11,7 +11,7 @@
 
 struct Vertex3D {
 	float pos[3];
-	float color[4];
+	float normal[3];
 	float uv[2];
 };
 
@@ -31,7 +31,8 @@ private:
 	VkPipelineCache pipelineCache;
 	VkPipeline pipeline;
 	uint32_t comIndex = 0;
-	Device::Uniform uniform;
+	Device::UniformSet uniform;
+	Device::UniformSetMaterial material;
 
 public:
 	VulkanBasicPolygon(Device* device, uint32_t comIndex = 0);
