@@ -29,7 +29,7 @@ VulkanBasicPolygon::~VulkanBasicPolygon() {
 	vkFreeMemory(device->device, index.second, nullptr);
 }
 
-void VulkanBasicPolygon::create(Vertex3D* ver, uint32_t num, uint32_t* ind, uint32_t indNum) {
+void VulkanBasicPolygon::create(uint32_t difTexInd, uint32_t norTexInd, Vertex3D* ver, uint32_t num, uint32_t* ind, uint32_t indNum) {
 
 	numIndex = indNum;
 	static VkVertexInputBindingDescription bindDesc =
@@ -50,7 +50,7 @@ void VulkanBasicPolygon::create(Vertex3D* ver, uint32_t num, uint32_t* ind, uint
 	device->createUniform(uniform, material);
 	device->descriptorAndPipelineLayouts(true, pipelineLayout, descSetLayout);
 	device->createDescriptorPool(true, descPool);
-	device->upDescriptorSet(true, device->texture[0], uniform, material, descSet, descPool, descSetLayout);
+	device->upDescriptorSet(true, device->texture[difTexInd], device->texture[norTexInd], uniform, material, descSet, descPool, descSetLayout);
 	pipelineCache = device->createPipelineCache();
 	pipeline = device->createGraphicsPipelineVF(vsModule, fsModule, bindDesc, attrDescs, 3, pipelineLayout, device->renderPass, pipelineCache);
 }

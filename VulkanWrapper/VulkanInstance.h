@@ -88,11 +88,14 @@ private:
 	uint32_t commandBufferCount = 1;
 	std::unique_ptr <VkCommandBuffer[]> commandBuffer = nullptr;
 	uint32_t currentFrameIndex = 0;
+	const static uint32_t numLightMax = 256;
+	const static uint32_t numTextureMax = 256;
+	const static uint32_t numTexFileNamelenMax = 256;
 
 	MATRIX proj, view;
 	VECTOR4 viewPos;
-	VECTOR4 lightPos[256];
-	VECTOR4 lightColor[256];
+	VECTOR4 lightPos[numLightMax];
+	VECTOR4 lightColor[numLightMax];
 	uint32_t numLight = 1;
 	float attenuation1 = 1.0f;
 	float attenuation2 = 0.001f;
@@ -115,8 +118,8 @@ private:
 		VECTOR4 specular = { 0.0f,0.0f,0.0f,0.0f };
 		VECTOR4 ambient = { 0.0f,0.0f,0.0f,0.0f };
 		VECTOR4 viewPos;
-		VECTOR4 lightPos[256];
-		VECTOR4 lightColor[256];
+		VECTOR4 lightPos[numLightMax];
+		VECTOR4 lightColor[numLightMax];
 		VECTOR4 numLight;//ライト数,減衰1,減衰2,減衰3
 	};
 	struct UniformSetMaterial {
@@ -135,9 +138,10 @@ private:
 		uint32_t height;
 		VkDescriptorImageInfo info;
 	};
-	Texture texture[256];
+	Texture texture[numTextureMax];
 	uint32_t numTexture = 0;
 	VkSampler textureSampler;
+	char textureNameList[numTextureMax][numTexFileNamelenMax];
 
 	Device() {}
 	void create();
@@ -169,6 +173,7 @@ private:
 		VkComponentMapping components = { VK_COMPONENT_SWIZZLE_IDENTITY });
 	void createTextureSampler(VkSampler& textureSampler);
 	void destroyTexture();
+	char* getNameFromPass(char* pass);
 
 	//モデル毎(モデル側から呼ばれる)
 	template<typename T>
@@ -214,7 +219,7 @@ private:
 	VkPipelineLayout createPipelineLayout2D();
 	VkShaderModule createShaderModule(char* shader);
 	void createDescriptorPool(bool useTexture, VkDescriptorPool& descPool);
-	void upDescriptorSet(bool useTexture, Texture texture, UniformSet& uni, UniformSetMaterial& material, VkDescriptorSet& descriptorSet,
+	void upDescriptorSet(bool useTexture, Texture difTexture, Texture norTexture, UniformSet& uni, UniformSetMaterial& material, VkDescriptorSet& descriptorSet,
 		VkDescriptorPool& descPool, VkDescriptorSetLayout& descSetLayout);
 	VkPipelineCache createPipelineCache();
 	VkPipeline createGraphicsPipelineVF(
@@ -227,7 +232,8 @@ public:
 	Device(VkPhysicalDevice pd, VkSurfaceKHR surface, uint32_t width = 640, uint32_t height = 480);
 	~Device();
 	void createDevice();
-	void GetTexture(unsigned char* byteArr, uint32_t width, uint32_t height);
+	void GetTexture(char* fileName, unsigned char* byteArr, uint32_t width, uint32_t height);
+	int32_t getTextureNum(char* pass);
 	void updateProjection(float AngleView = 45.0f, float Near = 1.0f, float Far = 100.0f);
 	void updateView(VECTOR3 view, VECTOR3 gaze, VECTOR3 up);
 	void setNumLight(uint32_t num);

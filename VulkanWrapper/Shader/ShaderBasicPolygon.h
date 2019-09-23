@@ -33,7 +33,8 @@ char* fsShaderBasicPolygon =
 "##extension GL_ARB_separate_shader_objects : enable\n"
 
 "layout (binding = 1) uniform sampler2D texSampler;\n"
-"layout (binding = 2) uniform bufferMaterial {\n"
+"layout (binding = 2) uniform sampler2D norSampler;\n"
+"layout (binding = 3) uniform bufferMaterial {\n"
 "    vec4 diffuse;\n"
 "    vec4 specular;\n"
 "    vec4 ambient;\n"
@@ -51,6 +52,8 @@ char* fsShaderBasicPolygon =
 
 "void main() {\n"
 
+"   vec4 NT = texture(norSampler, inTexCoord);\n"
+"   vec3 norTex = normalize(inNormal * NT.xyz);\n"
 "   vec4 col = vec4(0.0f, 0.0f, 0.0f, 1.0f);\n"
 "   for(int i = 0; i < gMaterial.numLight.x; i++)\n"
 "   {\n"
@@ -60,7 +63,7 @@ char* fsShaderBasicPolygon =
 "                           gMaterial.numLight.z * distance + \n"
 "                           pow(gMaterial.numLight.w * distance, 2.0f));\n"
 "      vec3 lightVec = normalize(gMaterial.lightPos[i].xyz - inWpos);\n"
-"      float lightScalar = dot(inNormal,lightVec);\n"
+"      float lightScalar = dot(norTex,lightVec);\n"
 "      float ScaCla = clamp(lightScalar,0.0f,1.0f);\n"
 "      col.xyz += ScaCla * gMaterial.diffuse.xyz * gMaterial.lightColor[i].xyz * attenuation;\n"
 "   }\n"

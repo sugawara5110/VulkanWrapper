@@ -4,6 +4,7 @@
 //**                                                                                     **//
 //*****************************************************************************************//
 
+#define _CRT_SECURE_NO_WARNINGS
 #include "VulkanInstance.h"
 
 void checkError(VkResult res) { if (res != VK_SUCCESS) throw std::runtime_error(std::to_string(res).c_str()); }
@@ -707,6 +708,21 @@ void Device::destroyTexture() {
 	}
 }
 
+char* Device::getNameFromPass(char* pass) {
+
+	uint32_t len = (uint32_t)strlen(pass);
+	pass += len;//終端文字を指している
+
+	for (uint32_t i = 0; i < len; i++) {
+		pass--;
+		if (*pass == '\\' || *pass == '/') {
+			pass++;
+			break;
+		}
+	}
+	return pass;//ポインタ操作してるので返り値を使用させる
+}
+
 void Device::createUniform(UniformSet& uni, UniformSetMaterial& material) {
 
 	createBuffer(sizeof(Uniform), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
@@ -816,7 +832,7 @@ void Device::updateUniform(UniformSet& uni, MATRIX move, UniformSetMaterial& mat
 }
 
 void Device::descriptorAndPipelineLayouts(bool useTexture, VkPipelineLayout& pipelineLayout, VkDescriptorSetLayout& descSetLayout) {
-	VkDescriptorSetLayoutBinding layout_bindings[3];
+	VkDescriptorSetLayoutBinding layout_bindings[4];
 	layout_bindings[0].binding = 0;
 	layout_bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	layout_bindings[0].descriptorCount = 1;
@@ -824,6 +840,7 @@ void Device::descriptorAndPipelineLayouts(bool useTexture, VkPipelineLayout& pip
 	layout_bindings[0].pImmutableSamplers = nullptr;
 
 	if (useTexture) {
+
 		layout_bindings[1].binding = 1;
 		layout_bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		layout_bindings[1].descriptorCount = 1;
@@ -831,17 +848,23 @@ void Device::descriptorAndPipelineLayouts(bool useTexture, VkPipelineLayout& pip
 		layout_bindings[1].pImmutableSamplers = nullptr;
 
 		layout_bindings[2].binding = 2;
-		layout_bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		layout_bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		layout_bindings[2].descriptorCount = 1;
 		layout_bindings[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 		layout_bindings[2].pImmutableSamplers = nullptr;
+
+		layout_bindings[3].binding = 3;
+		layout_bindings[3].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		layout_bindings[3].descriptorCount = 1;
+		layout_bindings[3].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+		layout_bindings[3].pImmutableSamplers = nullptr;
 	}
 
 	VkDescriptorSetLayoutCreateInfo descriptor_layout = {};
 	descriptor_layout.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 	descriptor_layout.pNext = NULL;
 	descriptor_layout.flags = 0;
-	descriptor_layout.bindingCount = useTexture ? 3 : 1;
+	descriptor_layout.bindingCount = useTexture ? 4 : 1;
 	descriptor_layout.pBindings = layout_bindings;
 
 	VkResult res;
@@ -885,29 +908,32 @@ VkShaderModule Device::createShaderModule(char* shader) {
 
 void Device::createDescriptorPool(bool useTexture, VkDescriptorPool& descPool) {
 	VkResult res;
-	VkDescriptorPoolSize type_count[3];
+	VkDescriptorPoolSize type_count[4];
 	type_count[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	type_count[0].descriptorCount = 1;
 	if (useTexture) {
 		type_count[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		type_count[1].descriptorCount = 1;
 
-		type_count[2].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		type_count[2].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		type_count[2].descriptorCount = 1;
+
+		type_count[3].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		type_count[3].descriptorCount = 1;
 	}
 
 	VkDescriptorPoolCreateInfo descriptor_pool = {};
 	descriptor_pool.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 	descriptor_pool.pNext = nullptr;
 	descriptor_pool.maxSets = 1;
-	descriptor_pool.poolSizeCount = useTexture ? 3 : 1;
+	descriptor_pool.poolSizeCount = useTexture ? 4 : 1;
 	descriptor_pool.pPoolSizes = type_count;
 
 	res = vkCreateDescriptorPool(device, &descriptor_pool, nullptr, &descPool);
 	checkError(res);
 }
 
-void Device::upDescriptorSet(bool useTexture, Texture texture, UniformSet& uni, UniformSetMaterial& material,
+void Device::upDescriptorSet(bool useTexture, Texture difTexture, Texture norTexture, UniformSet& uni, UniformSetMaterial& material,
 	VkDescriptorSet& descriptorSet, VkDescriptorPool& descPool, VkDescriptorSetLayout& descSetLayout) {
 
 	VkResult res;
@@ -922,7 +948,7 @@ void Device::upDescriptorSet(bool useTexture, Texture texture, UniformSet& uni, 
 	res = vkAllocateDescriptorSets(device, alloc_info, &descriptorSet);
 	checkError(res);
 
-	VkWriteDescriptorSet writes[3];
+	VkWriteDescriptorSet writes[4];
 
 	writes[0] = {};
 	writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -941,21 +967,30 @@ void Device::upDescriptorSet(bool useTexture, Texture texture, UniformSet& uni, 
 		writes[1].dstBinding = 1;
 		writes[1].descriptorCount = 1;
 		writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		writes[1].pImageInfo = &texture.info;
+		writes[1].pImageInfo = &difTexture.info;
 		writes[1].dstArrayElement = 0;
 
 		writes[2] = {};
 		writes[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		writes[2].pNext = nullptr;
 		writes[2].dstSet = descriptorSet;
-		writes[2].descriptorCount = 1;
-		writes[2].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		writes[2].pBufferInfo = &material.info;
-		writes[2].dstArrayElement = 0;
 		writes[2].dstBinding = 2;
+		writes[2].descriptorCount = 1;
+		writes[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		writes[2].pImageInfo = &norTexture.info;
+		writes[2].dstArrayElement = 0;
+
+		writes[3] = {};
+		writes[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		writes[3].pNext = nullptr;
+		writes[3].dstSet = descriptorSet;
+		writes[3].descriptorCount = 1;
+		writes[3].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		writes[3].pBufferInfo = &material.info;
+		writes[3].dstArrayElement = 0;
+		writes[3].dstBinding = 3;
 	}
 
-	vkUpdateDescriptorSets(device, 3, writes, 0, nullptr);
+	vkUpdateDescriptorSets(device, 4, writes, 0, nullptr);
 }
 
 VkPipelineCache Device::createPipelineCache() {
@@ -1103,12 +1138,29 @@ void Device::createDevice() {
 	checkError(res);
 }
 
-void Device::GetTexture(unsigned char* byteArr, uint32_t width, uint32_t height) {
+void Device::GetTexture(char* fileName, unsigned char* byteArr, uint32_t width, uint32_t height) {
+	char* filename = getNameFromPass(fileName);
+	if (strlen(filename) >= (size_t)numTexFileNamelenMax)
+		throw std::runtime_error("The file name limit has been.");
+	strcpy(textureNameList[numTexture], filename);
 	texture[numTexture] = createTextureImage(byteArr, width, height);
 	texture[numTexture].info.imageView = createImageView(texture[numTexture].vkIma,
 		VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT);
 	createTextureSampler(texture[numTexture].info.sampler);
 	numTexture++;
+	if (numTexture >= numTextureMax)
+		throw std::runtime_error("The file limit has been.");
+}
+
+int32_t Device::getTextureNum(char* pass) {
+	for (uint32_t i = 0; i < numTexture; i++) {
+		size_t len1 = strlen(textureNameList[i]);
+		size_t len2 = strlen(pass);
+
+		if (len1 == len2 && !strcmp(textureNameList[i], pass))return i;
+	}
+	throw std::runtime_error("File name does not exist.");
+	return -1;
 }
 
 void Device::updateProjection(float AngleView, float Near, float Far) {
