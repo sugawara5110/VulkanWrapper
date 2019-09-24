@@ -1185,9 +1185,9 @@ void Device::setLightAttenuation(float att1, float att2, float att3) {
 	attenuation3 = att3;
 }
 
-void Device::setLight(uint32_t index, VECTOR3 pos, VECTOR4 color) {
+void Device::setLight(uint32_t index, VECTOR3 pos, VECTOR3 color) {
 	lightPos[index].as(pos.x, pos.y, pos.z, 0.0f);
-	lightColor[index].as(color.x, color.y, color.z, color.w);
+	lightColor[index].as(color.x, color.y, color.z, 1.0f);
 }
 
 void Device::beginCommand(uint32_t comBufindex) {

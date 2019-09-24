@@ -196,14 +196,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 		if (the++ > 360.0f)the = 0.0f;
 		device->updateView({ 0,-0.2f,0 }, { 0,0,30 }, { 0,1,0 });
 		device->setNumLight(2);
-		device->setLight(0, { 0.3f,0.4f,2.3f }, { 0.3f,0.3f,1,1 });
-		device->setLight(1, { -0.3f,-0.4f,2.3f }, { 1,0.3f,0.3f,1 });
+		device->setLight(0, { 0.3f,0.4f,2.3f }, { 1.0f,1.0f,1.0f });
+		device->setLight(1, { -0.3f,-0.4f,2.3f }, { 1,0.3f,0.3f });
 		device->beginCommand(0);
 		//v2->draw();
 		//v20->draw();
 		//v21->draw({ 0.03f,0.0f,10.0f }, { 0,the,0 });
-		for (int i = 0; i < Num; i++)
+		for (int i = 0; i < Num; i++) {
+			v22[i]->setMaterialParameter({ 0.5f,0.5f,0.5f }, { 1.0f,1.0f,1.0f }, { 0.0f,0.0f,0.0f });
 			v22[i]->draw({ 0.4f * (float)i ,0.0f,3.0f }, { 0,the,0 });
+		}
 		device->endCommand(0);
 		device->waitFence(0);
 		//ƒ‹[ƒv“àˆ—

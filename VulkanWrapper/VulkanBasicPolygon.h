@@ -38,6 +38,7 @@ public:
 	VulkanBasicPolygon(Device* device, uint32_t comIndex = 0);
 	~VulkanBasicPolygon();
 	void create(uint32_t difTexInd, uint32_t norTexInd, Vertex3D* ver, uint32_t num, uint32_t* ind, uint32_t indNum);
+	void setMaterialParameter(VECTOR3 diffuse, VECTOR3 specular, VECTOR3 ambient);
 	void draw(VECTOR3 pos = { 0.0f,0.0f,0.0f }, VECTOR3 theta = { 0.0f,0.0f,0.0f }, VECTOR3 scale = { 1.0f,1.0f,1.0f });
 };
 

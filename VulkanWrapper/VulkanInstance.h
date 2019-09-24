@@ -238,7 +238,7 @@ public:
 	void updateView(VECTOR3 view, VECTOR3 gaze, VECTOR3 up);
 	void setNumLight(uint32_t num);
 	void setLightAttenuation(float att1, float att2, float att3);
-	void setLight(uint32_t index, VECTOR3 pos, VECTOR4 color);
+	void setLight(uint32_t index, VECTOR3 pos, VECTOR3 color);
 	void beginCommand(uint32_t comBufindex);
 	void endCommand(uint32_t comBufindex);
 	void waitFence(uint32_t comBufindex);

@@ -55,6 +55,12 @@ void VulkanBasicPolygon::create(uint32_t difTexInd, uint32_t norTexInd, Vertex3D
 	pipeline = device->createGraphicsPipelineVF(vsModule, fsModule, bindDesc, attrDescs, 3, pipelineLayout, device->renderPass, pipelineCache);
 }
 
+void VulkanBasicPolygon::setMaterialParameter(VECTOR3 diffuse, VECTOR3 specular, VECTOR3 ambient) {
+	material.uni.diffuse.as(diffuse.x, diffuse.y, diffuse.z, 1.0f);
+	material.uni.specular.as(specular.x, specular.y, specular.z, 1.0f);
+	material.uni.ambient.as(ambient.x, ambient.y, ambient.z, 1.0f);
+}
+
 void VulkanBasicPolygon::draw(VECTOR3 pos, VECTOR3 theta, VECTOR3 scale) {
 	static VkViewport vp = { 0.0f, 0.0f, (float)device->width, (float)device->height, 0.0f, 1.0f };
 	static VkRect2D sc = { { 0, 0 }, { device->width, device->height } };
