@@ -21,8 +21,6 @@ VulkanBasicPolygon::~VulkanBasicPolygon() {
 	vkDestroyPipeline(device->device, pipeline, nullptr);
 	vkDestroyPipelineCache(device->device, pipelineCache, nullptr);
 	vkDestroyPipelineLayout(device->device, pipelineLayout, nullptr);
-	vkDestroyShaderModule(device->device, vsModule, nullptr);
-	vkDestroyShaderModule(device->device, fsModule, nullptr);
 	vkDestroyBuffer(device->device, vertices.first, nullptr);
 	vkFreeMemory(device->device, vertices.second, nullptr);
 	vkDestroyBuffer(device->device, index.first, nullptr);
@@ -31,28 +29,14 @@ VulkanBasicPolygon::~VulkanBasicPolygon() {
 
 void VulkanBasicPolygon::create(uint32_t difTexInd, uint32_t norTexInd, Vertex3D* ver, uint32_t num, uint32_t* ind, uint32_t indNum) {
 
-	numIndex = indNum;
-	static VkVertexInputBindingDescription bindDesc =
-	{
-		0, sizeof(Vertex3D), VK_VERTEX_INPUT_RATE_VERTEX
-	};
 	static VkVertexInputAttributeDescription attrDescs[] =
 	{
 		{ 0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0 },
 		{ 1, 0, VK_FORMAT_R32G32B32_SFLOAT, sizeof(float) * 3 },
 		{ 2, 0, VK_FORMAT_R32G32_SFLOAT, sizeof(float) * 6 },
 	};
-	vertices = device->createVertexBuffer<Vertex3D>(comIndex, ver, sizeof(Vertex3D) * num, false);
-	index = device->createVertexBuffer<uint32_t>(comIndex, ind, sizeof(uint32_t) * indNum, true);
-	vsModule = device->createShaderModule(vsShaderBasicPolygon);
-	fsModule = device->createShaderModule(fsShaderBasicPolygon);
 
-	device->createUniform(uniform, material);
-	device->descriptorAndPipelineLayouts(true, pipelineLayout, descSetLayout);
-	device->createDescriptorPool(true, descPool);
-	device->upDescriptorSet(true, device->texture[difTexInd], device->texture[norTexInd], uniform, material, descSet, descPool, descSetLayout);
-	pipelineCache = device->createPipelineCache();
-	pipeline = device->createGraphicsPipelineVF(vsModule, fsModule, bindDesc, attrDescs, 3, pipelineLayout, device->renderPass, pipelineCache);
+	create0<Vertex3D>(difTexInd, norTexInd, ver, num, ind, indNum, attrDescs, 3, vsShaderBasicPolygon);
 }
 
 void VulkanBasicPolygon::setMaterialParameter(VECTOR3 diffuse, VECTOR3 specular, VECTOR3 ambient) {

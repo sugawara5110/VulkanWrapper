@@ -26,6 +26,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugReportFlagsEXT flags, VkDebu
 
 class Vulkan2D;
 class VulkanBasicPolygon;
+class VulkanSkinMesh;
 
 class VulkanInstance final {
 
@@ -57,6 +58,7 @@ class Device final {
 private:
 	friend Vulkan2D;
 	friend VulkanBasicPolygon;
+	friend VulkanSkinMesh;
 	VkPhysicalDevice pDev;//VulkanInstanceからポインタを受け取る
 	VkSurfaceKHR surface;//VulkanInstanceからポインタを受け取る
 	VkDevice device;
