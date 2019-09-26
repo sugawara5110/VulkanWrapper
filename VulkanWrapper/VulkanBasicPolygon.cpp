@@ -27,7 +27,7 @@ VulkanBasicPolygon::~VulkanBasicPolygon() {
 	vkFreeMemory(device->device, index.second, nullptr);
 }
 
-void VulkanBasicPolygon::create(uint32_t difTexInd, uint32_t norTexInd, Vertex3D* ver, uint32_t num, uint32_t* ind, uint32_t indNum) {
+void VulkanBasicPolygon::create(int32_t difTexInd, int32_t norTexInd, Vertex3D* ver, uint32_t num, uint32_t* ind, uint32_t indNum) {
 
 	static VkVertexInputAttributeDescription attrDescs[] =
 	{

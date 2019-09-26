@@ -13,7 +13,7 @@ VulkanSkinMesh::VulkanSkinMesh(Device* dev, uint32_t comindex) {
 }
 
 VulkanSkinMesh::~VulkanSkinMesh() {
-	//for (uint32_t i = 0; i < numMesh; i++)S_DELETE(bp[i]);
+	for (uint32_t i = 0; i < numMesh; i++)S_DELETE(bp[i]);
 }
 
 void VulkanSkinMesh::create(char* pass, float endfra) {
@@ -30,11 +30,31 @@ void VulkanSkinMesh::create(char* pass, float endfra) {
 
 	//各mesh読み込み
 	for (uint32_t mI = 0; mI < numMesh; mI++) {
-		auto mesh = fbx.getFbxMeshNode(mI);
-		auto index = mesh->getPolygonVertices();
-		auto ver = mesh->getVertices();
-		auto nor = mesh->getNormal(0);
-		auto uv = mesh->getAlignedUV(0);
+		FbxMeshNode* mesh = fbx.getFbxMeshNode(mI);//mI番目のMesh取得
+		auto index = mesh->getPolygonVertices();//頂点Index取得
+		auto ver = mesh->getVertices();//頂点取得
+		auto nor = mesh->getNormal(0);//法線取得
+		auto uv = mesh->getAlignedUV(0);//UV取得
+
+		//ディフェーズテクスチャId取得, 無い場合ダミー
+		int32_t diffTexId = -1;
+		if (mesh->getDiffuseTextureName(0) != nullptr) {
+			auto diffName = device->getNameFromPass(mesh->getDiffuseTextureName(0));
+			diffTexId = device->getTextureNo(diffName);
+		}
+		//ノーマルテクスチャId取得, 無い場合ダミー
+		int32_t norTexId = -1;
+		if (mesh->getNormalTextureName(0) != nullptr) {
+			auto norName = device->getNameFromPass(mesh->getNormalTextureName(0));
+			norTexId = device->getTextureNo(norName);
+		}
+
+		//マテリアルカラー取得
+		VECTOR3 diffuse = { (float)mesh->getDiffuseColor(0,0),(float)mesh->getDiffuseColor(0,1),(float)mesh->getDiffuseColor(0,2) };
+		VECTOR3 specular = { (float)mesh->getSpecularColor(0,0),(float)mesh->getSpecularColor(0,1),(float)mesh->getSpecularColor(0,2) };
+		VECTOR3 ambient = { (float)mesh->getAmbientColor(0,0),(float)mesh->getAmbientColor(0,1),(float)mesh->getAmbientColor(0,2) };
+
+		//ボーン取得
 
 	}
 }

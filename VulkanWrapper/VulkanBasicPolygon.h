@@ -36,7 +36,7 @@ private:
 	Device::UniformSetMaterial material;
 
 	template<typename T>
-	void create0(uint32_t difTexInd, uint32_t norTexInd,
+	void create0(int32_t difTexInd, int32_t norTexInd,
 		T* ver, uint32_t num,
 		uint32_t* ind, uint32_t indNum,
 		VkVertexInputAttributeDescription* attrDescs, uint32_t numAttr, char* vs) {
@@ -55,7 +55,23 @@ private:
 		device->createUniform(uniform, material);
 		device->descriptorAndPipelineLayouts(true, pipelineLayout, descSetLayout);
 		device->createDescriptorPool(true, descPool);
-		device->upDescriptorSet(true, device->texture[difTexInd], device->texture[norTexInd], uniform, material, descSet, descPool, descSetLayout);
+
+		Device::Texture* diff = nullptr;
+		if (difTexInd < 0) {
+			diff = &device->texture[device->numTextureMax];//-1の場合テクスチャー無いので, ダミーを入れる
+		}
+		else {
+			diff = &device->texture[difTexInd];
+		}
+		Device::Texture* nor = nullptr;
+		if (norTexInd < 0) {
+			nor = &device->texture[device->numTextureMax];
+		}
+		else {
+			nor = &device->texture[norTexInd];
+		}
+
+		device->upDescriptorSet(true, *diff, *nor, uniform, material, descSet, descPool, descSetLayout);
 		pipelineCache = device->createPipelineCache();
 		pipeline = device->createGraphicsPipelineVF(vsModule, fsModule, bindDesc, attrDescs, numAttr, pipelineLayout, device->renderPass, pipelineCache);
 		vkDestroyShaderModule(device->device, vsModule, nullptr);
@@ -65,7 +81,7 @@ private:
 public:
 	VulkanBasicPolygon(Device* device, uint32_t comIndex = 0);
 	~VulkanBasicPolygon();
-	void create(uint32_t difTexInd, uint32_t norTexInd, Vertex3D* ver, uint32_t num, uint32_t* ind, uint32_t indNum);
+	void create(int32_t difTexInd, int32_t norTexInd, Vertex3D* ver, uint32_t num, uint32_t* ind, uint32_t indNum);
 	void setMaterialParameter(VECTOR3 diffuse, VECTOR3 specular, VECTOR3 ambient);
 	void draw(VECTOR3 pos = { 0.0f,0.0f,0.0f }, VECTOR3 theta = { 0.0f,0.0f,0.0f }, VECTOR3 scale = { 1.0f,1.0f,1.0f });
 };

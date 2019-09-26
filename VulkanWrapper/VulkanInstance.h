@@ -91,7 +91,7 @@ private:
 	std::unique_ptr <VkCommandBuffer[]> commandBuffer = nullptr;
 	uint32_t currentFrameIndex = 0;
 	const static uint32_t numLightMax = 256;
-	const static uint32_t numTextureMax = 256;
+	const static uint32_t numTextureMax = 255;
 	const static uint32_t numTexFileNamelenMax = 256;
 
 	MATRIX proj, view;
@@ -140,9 +140,8 @@ private:
 		uint32_t height;
 		VkDescriptorImageInfo info;
 	};
-	Texture texture[numTextureMax];
+	Texture texture[numTextureMax + 1];
 	uint32_t numTexture = 0;
-	VkSampler textureSampler;
 	char textureNameList[numTextureMax][numTexFileNamelenMax];
 
 	Device() {}
@@ -221,7 +220,7 @@ private:
 	VkPipelineLayout createPipelineLayout2D();
 	VkShaderModule createShaderModule(char* shader);
 	void createDescriptorPool(bool useTexture, VkDescriptorPool& descPool);
-	void upDescriptorSet(bool useTexture, Texture difTexture, Texture norTexture, UniformSet& uni, UniformSetMaterial& material, VkDescriptorSet& descriptorSet,
+	void upDescriptorSet(bool useTexture, Texture& difTexture, Texture& norTexture, UniformSet& uni, UniformSetMaterial& material, VkDescriptorSet& descriptorSet,
 		VkDescriptorPool& descPool, VkDescriptorSetLayout& descSetLayout);
 	VkPipelineCache createPipelineCache();
 	VkPipeline createGraphicsPipelineVF(
@@ -229,13 +228,14 @@ private:
 		const VkVertexInputBindingDescription& bindDesc, const VkVertexInputAttributeDescription* attrDescs, uint32_t numAttr,
 		const VkPipelineLayout& pLayout, const VkRenderPass renderPass, const VkPipelineCache& pCache);
 	//モデル毎
+	void getTextureSub(uint32_t texNo, unsigned char* byteArr, uint32_t width, uint32_t height);
 
 public:
 	Device(VkPhysicalDevice pd, VkSurfaceKHR surface, uint32_t width = 640, uint32_t height = 480);
 	~Device();
 	void createDevice();
 	void GetTexture(char* fileName, unsigned char* byteArr, uint32_t width, uint32_t height);
-	int32_t getTextureNum(char* pass);
+	int32_t getTextureNo(char* pass);
 	void updateProjection(float AngleView = 45.0f, float Near = 1.0f, float Far = 100.0f);
 	void updateView(VECTOR3 view, VECTOR3 gaze, VECTOR3 up);
 	void setNumLight(uint32_t num);

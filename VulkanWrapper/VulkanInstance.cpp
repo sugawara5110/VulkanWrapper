@@ -700,12 +700,16 @@ void Device::createTextureSampler(VkSampler& textureSampler) {
 }
 
 void Device::destroyTexture() {
-	vkDestroySampler(device, textureSampler, nullptr);
 	for (uint32_t i = 0; i < numTexture; i++) {
 		vkDestroyImageView(device, texture[i].info.imageView, nullptr);
+		vkDestroySampler(device, texture[i].info.sampler, nullptr);
 		vkDestroyImage(device, texture[i].vkIma, nullptr);
 		vkFreeMemory(device, texture[i].mem, nullptr);
 	}
+	vkDestroyImageView(device, texture[numTextureMax].info.imageView, nullptr);
+	vkDestroySampler(device, texture[numTextureMax].info.sampler, nullptr);
+	vkDestroyImage(device, texture[numTextureMax].vkIma, nullptr);
+	vkFreeMemory(device, texture[numTextureMax].mem, nullptr);
 }
 
 char* Device::getNameFromPass(char* pass) {
@@ -933,7 +937,7 @@ void Device::createDescriptorPool(bool useTexture, VkDescriptorPool& descPool) {
 	checkError(res);
 }
 
-void Device::upDescriptorSet(bool useTexture, Texture difTexture, Texture norTexture, UniformSet& uni, UniformSetMaterial& material,
+void Device::upDescriptorSet(bool useTexture, Texture& difTexture, Texture& norTexture, UniformSet& uni, UniformSetMaterial& material,
 	VkDescriptorSet& descriptorSet, VkDescriptorPool& descPool, VkDescriptorSetLayout& descSetLayout) {
 
 	VkResult res;
@@ -1136,23 +1140,36 @@ void Device::createDevice() {
 	checkError(res);
 	res = vkResetFences(device, 1, &fence);
 	checkError(res);
+
+	//ダミーテクスチャ生成(テクスチャーが無い場合に代わりに入れる)
+	unsigned char dummy[64 * 4 * 64];
+	memset(dummy, 255, 64 * 4 * 64);
+	getTextureSub(numTextureMax, dummy, 64, 64);
+}
+
+void Device::getTextureSub(uint32_t texNo, unsigned char* byteArr, uint32_t width, uint32_t height) {
+	texture[texNo] = createTextureImage(byteArr, width, height);
+	texture[texNo].info.imageView = createImageView(texture[texNo].vkIma,
+		VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT);
+	createTextureSampler(texture[texNo].info.sampler);
 }
 
 void Device::GetTexture(char* fileName, unsigned char* byteArr, uint32_t width, uint32_t height) {
+	//ファイル名登録
 	char* filename = getNameFromPass(fileName);
 	if (strlen(filename) >= (size_t)numTexFileNamelenMax)
 		throw std::runtime_error("The file name limit has been.");
 	strcpy(textureNameList[numTexture], filename);
-	texture[numTexture] = createTextureImage(byteArr, width, height);
-	texture[numTexture].info.imageView = createImageView(texture[numTexture].vkIma,
-		VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT);
-	createTextureSampler(texture[numTexture].info.sampler);
+
+	//テクスチャ生成
+	getTextureSub(numTexture, byteArr, width, height);
+
 	numTexture++;
 	if (numTexture >= numTextureMax)
 		throw std::runtime_error("The file limit has been.");
 }
 
-int32_t Device::getTextureNum(char* pass) {
+int32_t Device::getTextureNo(char* pass) {
 	for (uint32_t i = 0; i < numTexture; i++) {
 		size_t len1 = strlen(textureNameList[i]);
 		size_t len2 = strlen(pass);
