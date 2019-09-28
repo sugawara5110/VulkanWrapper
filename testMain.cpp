@@ -2,6 +2,7 @@
 #include "../../../VulkanWrapper/VulkanInstance.h"
 #include "../../../VulkanWrapper/Vulkan2D.h"
 #include "../../../VulkanWrapper/VulkanBasicPolygon.h"
+#include "../../../VulkanWrapper/VulkanSkinMesh.h"
 #include "../../../T_float/T_float.h"
 #include "../../../ppmLoader/PPMLoader.h"
 #include <iostream>
@@ -115,14 +116,32 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 
 
 	//4chに変換する処理追加↓
-	wchar_t pass[2][50] = {
+	wchar_t pass[14][60] = {
 		L"../../../wall1.ppm",
-		L"../../../wallNor1.ppm"
+	    L"../../../wallNor1.ppm",
+		L"../../../texturePPM/boss1.ppm",
+		L"../../../texturePPM/boss1_normal.ppm",
+		L"../../../texturePPM/brown_eye.ppm",
+		L"../../../texturePPM/classicshoes_texture_diffuse.ppm",
+		L"../../../texturePPM/classicshoes_texture_normals.ppm",
+		L"../../../texturePPM/eyebrow001.ppm",
+		L"../../../texturePPM/jacket01_diffuse.ppm",
+		L"../../../texturePPM/jacket01_normals.ppm",
+		L"../../../texturePPM/jeans01_black_diffuse.ppm",
+		L"../../../texturePPM/jeans01_normals.ppm",
+		L"../../../texturePPM/male01_diffuse_black.ppm",
+		L"../../../texturePPM/young_lightskinned_male_diffuse.ppm"
 	};
 
-	int tex1, tex2;
-	unsigned char ima[2][256 * 4 * 256];
-	for (int j = 0; j < 2; j++) {
+	int tex1, tex2,tex3,tex4;
+	int fnum = 13;
+	int numstr = 256 * 4 * 256;
+	unsigned char** ima = nullptr;
+	ima = new unsigned char* [fnum];
+	for (int i = 0; i < fnum; i++) {
+		ima[i] = new unsigned char[numstr];
+	}
+	for (int j = 0; j < fnum; j++) {
 		ppm = new PPMLoader(pass[j], 256, 256, NORMAL);
 		unsigned char* image = ppm->GetImageArr();
 		int imageCnt = 0;
@@ -137,8 +156,25 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	try {
 		device->GetTexture("../../../wall1.ppm", ima[0], 256, 256);
 		device->GetTexture("../../../wallNor1.ppm", ima[1], 256, 256);
-		tex1 = device->getTextureNum("wall1.ppm");
-		tex2 = device->getTextureNum("wallNor1.ppm");
+		device->GetTexture("../../../texturePPM/boss1.jpg", ima[2], 256, 256);
+		device->GetTexture("../../../texturePPM/boss1_normal.png", ima[3], 256, 256);
+		device->GetTexture("../../../texturePPM/brown_eye.png", ima[3], 256, 256);
+		device->GetTexture("../../../texturePPM/classicshoes_texture_diffuse.png", ima[4], 256, 256);
+		device->GetTexture("../../../texturePPM/classicshoes_texture_normals.png", ima[5], 256, 256);
+		device->GetTexture("../../../texturePPM/eyebrow001.png", ima[6], 256, 256);
+		device->GetTexture("../../../texturePPM/jacket01_diffuse.png", ima[7], 256, 256);
+		device->GetTexture("../../../texturePPM/jacket01_normals.png", ima[8], 256, 256);
+		device->GetTexture("../../../texturePPM/jeans01_black_diffuse.png", ima[9], 256, 256);
+		device->GetTexture("../../../texturePPM/jeans01_normals.png", ima[10], 256, 256);
+		device->GetTexture("../../../texturePPM/male01_diffuse_black.png", ima[11], 256, 256);
+		device->GetTexture("../../../texturePPM/young_lightskinned_male_diffusepng", ima[12], 256, 256);
+
+		tex1 = device->getTextureNo("wall1.ppm");
+		tex2 = device->getTextureNo("wallNor1.ppm");
+		tex3 = device->getTextureNo("boss1.jpg");
+		tex4 = device->getTextureNo("boss1_normal.png");
+		//tex1 = -1;
+		//tex2 = -1;
 	}
 	catch (std::runtime_error e) {
 		std::cerr << "runtime_error: " << e.what() << std::endl;
@@ -154,9 +190,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	VulkanBasicPolygon* v22[Num];
 	for (int i = 0; i < Num; i++) {
 		v22[i] = new VulkanBasicPolygon(device);
-		v22[i]->create(tex1, tex2, ver11, 24, index1, 36);
+		v22[i]->create(0, 1, ver11, 24, index1, 36);
 	}
+	VulkanSkinMesh* sk = new VulkanSkinMesh(device);
+	VulkanSkinMesh* sk1 = new VulkanSkinMesh(device);
+	sk->create("../../../texturePPM/boss1bone.fbx", 200.0f);
+	sk1->create("../../../texturePPM/player1_fbx_att.fbx", 500.0f);
 	float the = 180.0f;
+	float frame = 0;
 	/*g_RenderFunc = [&]()
 	{
 
@@ -194,6 +235,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 		//ループ内処理
 		T_float::GetTime(hWnd);
 		if (the++ > 360.0f)the = 0.0f;
+		if (frame++ > 200.0f)frame = 0.0f;
 		device->updateView({ 0,-0.2f,0 }, { 0,0,30 }, { 0,1,0 });
 		device->setNumLight(2);
 		device->setLight(0, { 0.3f,0.4f,2.3f }, { 1.0f,1.0f,1.0f });
@@ -204,13 +246,17 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 		//v21->draw({ 0.03f,0.0f,10.0f }, { 0,the,0 });
 		for (int i = 0; i < Num; i++) {
 			v22[i]->setMaterialParameter({ 0.5f,0.5f,0.5f }, { 1.0f,1.0f,1.0f }, { 0.0f,0.0f,0.0f });
-			v22[i]->draw({ 0.4f * (float)i ,0.0f,3.0f }, { 0,the,0 });
+			v22[i]->draw({ 0.4f * (float)i - 0.7f ,0.7f,3.0f }, { 0,the,0 });
 		}
+		sk->draw(frame, { 0,0,3 }, {180,0,0});
+		sk1->draw(frame, { 7,0,20 }, {90,0.0f,0});
 		device->endCommand(0);
 		device->waitFence(0);
 		//ループ内処理
 	}
-
+	for (int i = 0; i < fnum; i++)ARR_DELETE(ima[i]);
+	ARR_DELETE(ima);
+	S_DELETE(sk);
 	S_DELETE(v2);
 	S_DELETE(v20);
 	//S_DELETE(v21);
