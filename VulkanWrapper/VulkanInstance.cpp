@@ -801,7 +801,7 @@ uint32_t Device::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags prope
 	throw std::runtime_error("failed to findMemoryType");
 }
 
-void Device::updateUniform(UniformSet& uni, MATRIX move, UniformSetMaterial& material) {
+void Device::updateUniform(UniformSet& uni, MATRIX& move, UniformSetMaterial& material) {
 
 	MATRIX vm;
 	MatrixMultiply(&vm, &move, &view);
@@ -1176,7 +1176,6 @@ int32_t Device::getTextureNo(char* pass) {
 
 		if (len1 == len2 && !strcmp(textureNameList[i], pass))return i;
 	}
-	throw std::runtime_error("File name does not exist.");
 	return -1;
 }
 

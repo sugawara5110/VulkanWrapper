@@ -11,6 +11,8 @@
 VulkanBasicPolygon::VulkanBasicPolygon(Device* dev, uint32_t comindex) {
 	device = dev;
 	comIndex = comindex;
+	vs = vsShaderBasicPolygon;
+	fs = fsShaderBasicPolygon;
 }
 
 VulkanBasicPolygon::~VulkanBasicPolygon() {
@@ -36,7 +38,7 @@ void VulkanBasicPolygon::create(int32_t difTexInd, int32_t norTexInd, Vertex3D* 
 		{ 2, 0, VK_FORMAT_R32G32_SFLOAT, sizeof(float) * 6 },
 	};
 
-	create0<Vertex3D>(difTexInd, norTexInd, ver, num, ind, indNum, attrDescs, 3, vsShaderBasicPolygon);
+	create0<Vertex3D>(difTexInd, norTexInd, ver, num, ind, indNum, attrDescs, 3, vsShaderBasicPolygon, fsShaderBasicPolygon);
 }
 
 void VulkanBasicPolygon::setMaterialParameter(VECTOR3 diffuse, VECTOR3 specular, VECTOR3 ambient) {
@@ -45,10 +47,7 @@ void VulkanBasicPolygon::setMaterialParameter(VECTOR3 diffuse, VECTOR3 specular,
 	material.uni.ambient.as(ambient.x, ambient.y, ambient.z, 1.0f);
 }
 
-void VulkanBasicPolygon::draw(VECTOR3 pos, VECTOR3 theta, VECTOR3 scale) {
-	static VkViewport vp = { 0.0f, 0.0f, (float)device->width, (float)device->height, 0.0f, 1.0f };
-	static VkRect2D sc = { { 0, 0 }, { device->width, device->height } };
-	static VkDeviceSize offsets[] = { 0 };
+void VulkanBasicPolygon::draw0(VECTOR3 pos, VECTOR3 theta, VECTOR3 scale, MATRIX* bone, uint32_t numBone) {
 
 	MATRIX mov;
 	MATRIX rotZ, rotY, rotX, rotZY, rotZYX;
@@ -65,7 +64,13 @@ void VulkanBasicPolygon::draw(VECTOR3 pos, VECTOR3 theta, VECTOR3 scale) {
 	MatrixMultiply(&scro, &rotZYX, &sca);
 	MatrixMultiply(&world, &scro, &mov);
 
+	if (numBone > 0)memcpy(uniform.uni.bone, bone, sizeof(MATRIX) * numBone);
+
 	device->updateUniform(uniform, world, material);
+
+	static VkViewport vp = { 0.0f, 0.0f, (float)device->width, (float)device->height, 0.0f, 1.0f };
+	static VkRect2D sc = { { 0, 0 }, { device->width, device->height } };
+	static VkDeviceSize offsets[] = { 0 };
 
 	vkCmdBindPipeline(device->commandBuffer[comIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 	vkCmdBindDescriptorSets(device->commandBuffer[comIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
@@ -75,4 +80,8 @@ void VulkanBasicPolygon::draw(VECTOR3 pos, VECTOR3 theta, VECTOR3 scale) {
 	vkCmdBindVertexBuffers(device->commandBuffer[comIndex], 0, 1, &vertices.first, offsets);
 	vkCmdBindIndexBuffer(device->commandBuffer[comIndex], index.first, 0, VK_INDEX_TYPE_UINT32);
 	vkCmdDrawIndexed(device->commandBuffer[comIndex], numIndex, 1, 0, 0, 0);
+}
+
+void VulkanBasicPolygon::draw(VECTOR3 pos, VECTOR3 theta, VECTOR3 scale) {
+	draw0(pos, theta, scale, nullptr, 0);
 }

@@ -11,6 +11,7 @@ char* vsShaderBasicPolygon =
 "layout (binding = 0) uniform bufferMat {\n"
 "    mat4 world;\n"
 "    mat4 mvp;\n"
+"    mat4 bone[256];\n"
 "} gBufferMat;\n"
 
 "layout (location = 0) in vec4 inPos;\n"
@@ -92,6 +93,7 @@ char* fsShaderBasicPolygon =
 
 "      col.xyz += (diffuse + specular) * gMaterial.lightColor[i].xyz * attenuation;\n"
 "   }\n"
+"   col.xyz += gMaterial.ambient.xyz;\n"
 "   vec4 tex = texture(texSampler, inTexCoord);\n"
-"   outColor = tex * col + gMaterial.ambient;\n"
+"   outColor = tex * col;\n"
 "}\n";

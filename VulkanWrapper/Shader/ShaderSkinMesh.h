@@ -31,6 +31,7 @@ char* vsShaderSkinMesh =
 "   vec3 sInNor = inNormal;\n"
 "   vec4 sOutPos = vec4(0.0f, 0.0f, 0.0f, 1.0f);\n"
 "   vec3 sOutNor = vec3(0.0f, 0.0f, 0.0f);\n"
+
 //bone0
 "   int iBone = int(boneIndex.x);\n"//1個目のBoneIndex取り出し
 "   float wei = boneWeight.x;\n"//1個目のBoneWeight取り出し

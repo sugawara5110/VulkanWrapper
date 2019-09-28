@@ -91,6 +91,7 @@ private:
 	std::unique_ptr <VkCommandBuffer[]> commandBuffer = nullptr;
 	uint32_t currentFrameIndex = 0;
 	const static uint32_t numLightMax = 256;
+	const static uint32_t numBoneMax = 256;
 	const static uint32_t numTextureMax = 255;
 	const static uint32_t numTexFileNamelenMax = 256;
 
@@ -106,6 +107,7 @@ private:
 	struct Uniform {
 		MATRIX world;
 		MATRIX mvp;
+		MATRIX bone[numBoneMax];
 	};
 	struct UniformSet {
 		VkBuffer vkBuf;
@@ -215,7 +217,7 @@ private:
 	void copyBuffer(uint32_t comBufindex, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 	uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 	void createUniform(UniformSet& uni, UniformSetMaterial& material);
-	void updateUniform(UniformSet& uni, MATRIX move, UniformSetMaterial& material);
+	void updateUniform(UniformSet& uni, MATRIX& move, UniformSetMaterial& material);
 	void descriptorAndPipelineLayouts(bool useTexture, VkPipelineLayout& pipelineLayout, VkDescriptorSetLayout& descSetLayout);
 	VkPipelineLayout createPipelineLayout2D();
 	VkShaderModule createShaderModule(char* shader);

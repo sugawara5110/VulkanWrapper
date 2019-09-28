@@ -34,12 +34,14 @@ private:
 	uint32_t comIndex = 0;
 	Device::UniformSet uniform;
 	Device::UniformSetMaterial material;
+	char* vs = nullptr;
+	char* fs = nullptr;
 
 	template<typename T>
 	void create0(int32_t difTexInd, int32_t norTexInd,
 		T* ver, uint32_t num,
 		uint32_t* ind, uint32_t indNum,
-		VkVertexInputAttributeDescription* attrDescs, uint32_t numAttr, char* vs) {
+		VkVertexInputAttributeDescription* attrDescs, uint32_t numAttr, char* vs, char* fs) {
 
 		numIndex = indNum;
 		static VkVertexInputBindingDescription bindDesc =
@@ -47,10 +49,10 @@ private:
 			0, sizeof(T), VK_VERTEX_INPUT_RATE_VERTEX
 		};
 
-		vertices = device->createVertexBuffer<T>(comIndex, ver, sizeof(T) * num, false);
-		index = device->createVertexBuffer<uint32_t>(comIndex, ind, sizeof(uint32_t) * indNum, true);
+		vertices = device->createVertexBuffer<T>(comIndex, ver, num, false);
+		index = device->createVertexBuffer<uint32_t>(comIndex, ind, indNum, true);
 		VkShaderModule vsModule = device->createShaderModule(vs);
-		VkShaderModule fsModule = device->createShaderModule(fsShaderBasicPolygon);
+		VkShaderModule fsModule = device->createShaderModule(fs);
 
 		device->createUniform(uniform, material);
 		device->descriptorAndPipelineLayouts(true, pipelineLayout, descSetLayout);
@@ -77,6 +79,8 @@ private:
 		vkDestroyShaderModule(device->device, vsModule, nullptr);
 		vkDestroyShaderModule(device->device, fsModule, nullptr);
 	}
+
+	void draw0(VECTOR3 pos, VECTOR3 theta, VECTOR3 scale, MATRIX* bone = nullptr, uint32_t numBone = 0);
 
 public:
 	VulkanBasicPolygon(Device* device, uint32_t comIndex = 0);
