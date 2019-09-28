@@ -4,7 +4,7 @@
 #include "../../../VulkanWrapper/VulkanBasicPolygon.h"
 #include "../../../VulkanWrapper/VulkanSkinMesh.h"
 #include "../../../T_float/T_float.h"
-#include "../../../ppmLoader/PPMLoader.h"
+#include "../../../CNN/PPMLoader.h"
 #include <iostream>
 
 std::function<void()> g_RenderFunc;
@@ -194,7 +194,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	}
 	VulkanSkinMesh* sk = new VulkanSkinMesh(device);
 	VulkanSkinMesh* sk1 = new VulkanSkinMesh(device);
+	sk->createChangeTextureArray(1);
+	sk->setChangeTexture(0, -1, 3);
 	sk->create("../../../texturePPM/boss1bone.fbx", 200.0f);
+	sk->setMaterialParameter(0, { 1,1,1 }, { 0.1f,0.1f,0.1f }, { 0.3f,0.3f,0.3f });
 	sk1->create("../../../texturePPM/player1_fbx_att.fbx", 500.0f);
 	float the = 180.0f;
 	float frame = 0;
@@ -236,20 +239,20 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 		T_float::GetTime(hWnd);
 		if (the++ > 360.0f)the = 0.0f;
 		if (frame++ > 200.0f)frame = 0.0f;
-		device->updateView({ 0,-0.2f,0 }, { 0,0,30 }, { 0,1,0 });
+		device->updateView({ 0,-0.2f,-5 }, { 0,0,25 }, { 0,1,0 });
 		device->setNumLight(2);
-		device->setLight(0, { 0.3f,0.4f,2.3f }, { 1.0f,1.0f,1.0f });
-		device->setLight(1, { -0.3f,-0.4f,2.3f }, { 1,0.3f,0.3f });
+		device->setLight(0, { 0.3f,0.4f,-0.5f }, { 1.0f,1.0f,1.0f });
+		device->setLight(1, { -0.3f,-0.4f,-0.5f }, { 1,0.3f,0.3f });
 		device->beginCommand(0);
 		//v2->draw();
 		//v20->draw();
 		//v21->draw({ 0.03f,0.0f,10.0f }, { 0,the,0 });
 		for (int i = 0; i < Num; i++) {
 			v22[i]->setMaterialParameter({ 0.5f,0.5f,0.5f }, { 1.0f,1.0f,1.0f }, { 0.0f,0.0f,0.0f });
-			v22[i]->draw({ 0.4f * (float)i - 0.7f ,0.7f,3.0f }, { 0,the,0 });
+			v22[i]->draw({ 0.4f * (float)i - 0.7f ,0.7f,0.0f }, { 0,the,0 });
 		}
-		sk->draw(frame, { 0,0,3 }, {180,0,0});
-		sk1->draw(frame, { 7,0,20 }, {90,0.0f,0});
+		sk->draw(frame, { 0,0,0 }, { 180,0,0 }, {2.0f,2.0f,2.0f});
+		sk1->draw(frame, { 2,0,0 }, { 90,0.0f,0 }, {0.2f,0.2f,0.2f});
 		device->endCommand(0);
 		device->waitFence(0);
 		//ƒ‹[ƒv“àˆ—

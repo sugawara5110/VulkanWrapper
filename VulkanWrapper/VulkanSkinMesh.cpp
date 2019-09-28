@@ -52,6 +52,11 @@ void VulkanSkinMesh::create(char* pass, float endfra) {
 			norTexId = device->getTextureNo(norName);
 		}
 
+		if (cTexId) {
+			if (cTexId[mI].diffuseId != -1)diffTexId = cTexId[mI].diffuseId;
+			if (cTexId[mI].normalId != -1)norTexId = cTexId[mI].normalId;
+		}
+
 		//マテリアルカラー取得
 		VECTOR3 diffuse = { (float)mesh->getDiffuseColor(0,0),(float)mesh->getDiffuseColor(0,1),(float)mesh->getDiffuseColor(0,2) };
 		VECTOR3 specular = { (float)mesh->getSpecularColor(0,0),(float)mesh->getSpecularColor(0,1),(float)mesh->getSpecularColor(0,2) };
@@ -185,7 +190,7 @@ void VulkanSkinMesh::create(char* pass, float endfra) {
 void VulkanSkinMesh::setNewPoseMatrix(float time) {
 	FbxMeshNode* mesh = fbx.getFbxMeshNode(0);
 	Deformer de;
-	auto ti = de.getTimeFRAMES60(time);
+	auto ti = de.getTimeFRAMES60((int)time);
 	for (uint32_t bI = 0; bI < numBone; bI++) {
 		auto defo = mesh->getDeformer(bI);
 		defo->EvaluateGlobalTransform(ti);
@@ -205,6 +210,21 @@ MATRIX VulkanSkinMesh::getCurrentPoseMatrix(uint32_t index) {
 	MatrixIdentity(&ret);
 	MatrixMultiply(&ret, &inv, &bone[index].newPose);
 	return ret;
+}
+
+void VulkanSkinMesh::setMaterialParameter(uint32_t meshIndex, VECTOR3 diffuse, VECTOR3 specular, VECTOR3 ambient) {
+	bp[meshIndex]->setMaterialParameter(diffuse, specular, ambient);
+}
+
+void VulkanSkinMesh::createChangeTextureArray(uint32_t num) {
+	cTexId = std::make_unique<changeTextureId[]>(num);
+}
+
+void VulkanSkinMesh::setChangeTexture(uint32_t meshIndex, int diffuseTexId, int normalTexId) {
+	if (cTexId) {
+		cTexId[meshIndex].diffuseId = diffuseTexId;
+		cTexId[meshIndex].normalId = normalTexId;
+	}
 }
 
 void VulkanSkinMesh::draw(float time, VECTOR3 pos, VECTOR3 theta, VECTOR3 scale) {
