@@ -134,7 +134,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	};
 
 	int tex1, tex2,tex3,tex4;
-	int fnum = 13;
+	int fnum = 14;
 	int numstr = 256 * 4 * 256;
 	unsigned char** ima = nullptr;
 	ima = new unsigned char* [fnum];
@@ -158,16 +158,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 		device->GetTexture("../../../wallNor1.ppm", ima[1], 256, 256);
 		device->GetTexture("../../../texturePPM/boss1.jpg", ima[2], 256, 256);
 		device->GetTexture("../../../texturePPM/boss1_normal.png", ima[3], 256, 256);
-		device->GetTexture("../../../texturePPM/brown_eye.png", ima[3], 256, 256);
-		device->GetTexture("../../../texturePPM/classicshoes_texture_diffuse.png", ima[4], 256, 256);
-		device->GetTexture("../../../texturePPM/classicshoes_texture_normals.png", ima[5], 256, 256);
-		device->GetTexture("../../../texturePPM/eyebrow001.png", ima[6], 256, 256);
-		device->GetTexture("../../../texturePPM/jacket01_diffuse.png", ima[7], 256, 256);
-		device->GetTexture("../../../texturePPM/jacket01_normals.png", ima[8], 256, 256);
-		device->GetTexture("../../../texturePPM/jeans01_black_diffuse.png", ima[9], 256, 256);
-		device->GetTexture("../../../texturePPM/jeans01_normals.png", ima[10], 256, 256);
-		device->GetTexture("../../../texturePPM/male01_diffuse_black.png", ima[11], 256, 256);
-		device->GetTexture("../../../texturePPM/young_lightskinned_male_diffusepng", ima[12], 256, 256);
+		device->GetTexture("../../../texturePPM/brown_eye.png", ima[4], 256, 256);
+		device->GetTexture("../../../texturePPM/classicshoes_texture_diffuse.png", ima[5], 256, 256);//
+		device->GetTexture("../../../texturePPM/classicshoes_texture_normals.png", ima[6], 256, 256);
+		device->GetTexture("../../../texturePPM/eyebrow001.png", ima[7], 256, 256);
+		device->GetTexture("../../../texturePPM/jacket01_diffuse.png", ima[8], 256, 256);
+		device->GetTexture("../../../texturePPM/jacket01_normals.png", ima[9], 256, 256);
+		device->GetTexture("../../../texturePPM/jeans01_black_diffuse.png", ima[10], 256, 256);//
+		device->GetTexture("../../../texturePPM/jeans01_normals.png", ima[11], 256, 256);
+		device->GetTexture("../../../texturePPM/male01_diffuse_black.png", ima[12], 256, 256);
+		device->GetTexture("../../../texturePPM/young_lightskinned_male_diffuse.png", ima[13], 256, 256);
 
 		tex1 = device->getTextureNo("wall1.ppm");
 		tex2 = device->getTextureNo("wallNor1.ppm");
