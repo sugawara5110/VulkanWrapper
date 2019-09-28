@@ -118,7 +118,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	//4chに変換する処理追加↓
 	wchar_t pass[14][60] = {
 		L"../../../wall1.ppm",
-	    L"../../../wallNor1.ppm",
+		L"../../../wallNor1.ppm",
 		L"../../../texturePPM/boss1.ppm",
 		L"../../../texturePPM/boss1_normal.ppm",
 		L"../../../texturePPM/brown_eye.ppm",
@@ -133,7 +133,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 		L"../../../texturePPM/young_lightskinned_male_diffuse.ppm"
 	};
 
-	int tex1, tex2,tex3,tex4;
+	int tex1, tex2, tex3, tex4;
 	int fnum = 14;
 	int numstr = 256 * 4 * 256;
 	unsigned char** ima = nullptr;
@@ -238,11 +238,17 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 		//ループ内処理
 		T_float::GetTime(hWnd);
 		if (the++ > 360.0f)the = 0.0f;
+		MATRIX thetaY;
+		VECTOR3 light1 = { 0.3f,0.4f,-2.0f };
+		VECTOR3 light2 = { -0.3f,-0.4f,2.0f };
+		MatrixRotationY(&thetaY, the);
+		VectorMatrixMultiply(&light1, &thetaY);
+		VectorMatrixMultiply(&light2, &thetaY);
 		if (frame++ > 200.0f)frame = 0.0f;
 		device->updateView({ 0,-0.2f,-5 }, { 0,0,25 }, { 0,1,0 });
 		device->setNumLight(2);
-		device->setLight(0, { 0.3f,0.4f,-0.5f }, { 1.0f,1.0f,1.0f });
-		device->setLight(1, { -0.3f,-0.4f,-0.5f }, { 1,0.3f,0.3f });
+		device->setLight(0, light1, { 1.0f,1.0f,1.0f });
+		device->setLight(1, light2, { 1,0.3f,0.3f });
 		device->beginCommand(0);
 		//v2->draw();
 		//v20->draw();
@@ -251,8 +257,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 			v22[i]->setMaterialParameter({ 0.5f,0.5f,0.5f }, { 1.0f,1.0f,1.0f }, { 0.0f,0.0f,0.0f });
 			v22[i]->draw({ 0.4f * (float)i - 0.7f ,0.7f,0.0f }, { 0,the,0 });
 		}
-		sk->draw(frame, { 0,0,0 }, { 180,0,0 }, {2.0f,2.0f,2.0f});
-		sk1->draw(frame, { 2,0,0 }, { 90,0.0f,0 }, {0.2f,0.2f,0.2f});
+		sk->draw(frame, { 0,0,0 }, { 180,0,0 }, { 2.0f,2.0f,2.0f });
+		sk1->draw(frame, { 2,0,0 }, { 90,0.0f,0 }, { 0.2f,0.2f,0.2f });
 		device->endCommand(0);
 		device->waitFence(0);
 		//ループ内処理
