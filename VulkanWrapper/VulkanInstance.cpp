@@ -315,7 +315,7 @@ void Device::createCommonRenderPass() {
 	attachmentDesc[0].samples = VK_SAMPLE_COUNT_1_BIT;
 	attachmentDesc[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	attachmentDesc[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-	attachmentDesc[0].initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	attachmentDesc[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	attachmentDesc[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
 	attachmentDesc[1].format = depth.format;
@@ -396,27 +396,6 @@ void Device::createCommandBuffers() {
 	commandBuffer = std::make_unique<VkCommandBuffer[]>(commandBufferCount);
 	auto res = vkAllocateCommandBuffers(device, &cbAllocInfo, commandBuffer.get());
 	checkError(res);
-}
-
-void Device::initialImageLayouting(uint32_t comBufindex) {
-	auto barriers = std::make_unique<VkImageMemoryBarrier[]>(swBuf.imageCount);
-
-	for (uint32_t i = 0; i < swBuf.imageCount; i++)
-	{
-		VkImageMemoryBarrier barrier{};
-
-		barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-		barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		barrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-		barrier.image = swBuf.images[i];
-		barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		barrier.subresourceRange.layerCount = 1;
-		barrier.subresourceRange.levelCount = 1;
-		barriers[i] = barrier;
-	}
-
-	vkCmdPipelineBarrier(commandBuffer[comBufindex], VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-		0, 0, nullptr, 0, nullptr, swBuf.imageCount, barriers.get());
 }
 
 void Device::beginCommandWithFramebuffer(uint32_t comBufindex, VkFramebuffer fb) {
@@ -1129,18 +1108,6 @@ void Device::createDevice() {
 	createFramebuffers();
 	createCommandBuffers();
 
-	//バリア初期化
-	beginCommandWithFramebuffer(0, VkFramebuffer());
-	initialImageLayouting(0);
-	//コマンドの記録終了
-	auto res = vkEndCommandBuffer(commandBuffer[0]);
-	checkError(res);
-	submitCommands(0);
-	res = vkWaitForFences(device, 1, &fence, VK_FALSE, UINT64_MAX);
-	checkError(res);
-	res = vkResetFences(device, 1, &fence);
-	checkError(res);
-
 	//ダミーテクスチャ生成(テクスチャーが無い場合に代わりに入れる)
 	unsigned char dummy[64 * 4 * 64];
 	memset(dummy, 255, 64 * 4 * 64);
@@ -1209,9 +1176,6 @@ void Device::setLight(uint32_t index, VECTOR3 pos, VECTOR3 color) {
 void Device::beginCommand(uint32_t comBufindex) {
 	acquireNextImageAndWait(currentFrameIndex);
 	beginCommandWithFramebuffer(comBufindex, swBuf.frameBuffer[currentFrameIndex]);
-
-	barrierResource(comBufindex, swBuf.images[currentFrameIndex],
-		VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 	beginRenderPass(comBufindex, currentFrameIndex);
 }
 

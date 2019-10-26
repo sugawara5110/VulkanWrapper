@@ -155,7 +155,6 @@ private:
 	void createCommonRenderPass();
 	void createFramebuffers();
 	void createCommandBuffers();
-	void initialImageLayouting(uint32_t comBufindex);
 
 	void beginCommandWithFramebuffer(uint32_t comBufindex, VkFramebuffer fb);
 	void submitCommands(uint32_t comBufindex);
