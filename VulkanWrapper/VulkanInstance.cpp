@@ -137,9 +137,12 @@ Device::~Device() {
 	for (uint32_t i = 0; i < swBuf.imageCount; i++) {
 		vkDestroyImageView(device, swBuf.views[i], nullptr);
 		vkDestroyFramebuffer(device, swBuf.frameBuffer[i], nullptr);
+		vkDestroyFence(device, swFence[i], nullptr);
 	}
 	vkDestroySwapchainKHR(device, swBuf.swapchain, nullptr);
-	vkDestroyFence(device, fence, nullptr);
+	vkDestroyFence(device, sFence, nullptr);
+	vkDestroySemaphore(device, presentCompletedSem, nullptr);
+	vkDestroySemaphore(device, renderCompletedSem, nullptr);
 	vkDestroyCommandPool(device, commandPool, nullptr);
 	vkDeviceWaitIdle(device);
 	vkDestroyDevice(device, nullptr);
@@ -208,8 +211,22 @@ void Device::createCommandPool() {
 void Device::createFence() {
 	VkFenceCreateInfo finfo{};
 	finfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-	auto res = vkCreateFence(device, &finfo, nullptr, &fence);
+	auto res = vkCreateFence(device, &finfo, nullptr, &sFence);
 	checkError(res);
+	swFence = std::make_unique<VkFence[]>(swBuf.imageCount);
+	firstswFence = std::make_unique<bool[]>(swBuf.imageCount);
+	for (uint32_t i = 0; i < swBuf.imageCount; i++) {
+		auto res = vkCreateFence(device, &finfo, nullptr, &swFence[i]);
+		checkError(res);
+		firstswFence[i] = false;
+	}
+}
+
+void Device::createSemaphore() {
+	VkSemaphoreCreateInfo ci{};
+	ci.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+	vkCreateSemaphore(device, &ci, nullptr, &renderCompletedSem);
+	vkCreateSemaphore(device, &ci, nullptr, &presentCompletedSem);
 }
 
 void Device::createSwapchain() {
@@ -410,14 +427,21 @@ void Device::beginCommandWithFramebuffer(uint32_t comBufindex, VkFramebuffer fb)
 	vkBeginCommandBuffer(commandBuffer[comBufindex], &beginInfo);
 }
 
-void Device::submitCommands(uint32_t comBufindex) {
+void Device::submitCommands(uint32_t comBufindex, VkFence fence, bool useRender) {
 	VkSubmitInfo sinfo{};
-	static const VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+	static const VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 
 	sinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	sinfo.commandBufferCount = 1;
 	sinfo.pCommandBuffers = &commandBuffer[comBufindex];
 	sinfo.pWaitDstStageMask = &waitStageMask;
+	if (useRender) {
+		sinfo.waitSemaphoreCount = 1;
+		sinfo.pWaitSemaphores = &presentCompletedSem;
+		sinfo.signalSemaphoreCount = 1;
+		sinfo.pSignalSemaphores = &renderCompletedSem;
+		resetFence(fence);
+	}
 	auto res = vkQueueSubmit(devQueue, 1, &sinfo, fence);
 	checkError(res);
 }
@@ -425,15 +449,13 @@ void Device::submitCommands(uint32_t comBufindex) {
 void Device::acquireNextImageAndWait(uint32_t& currentFrameIndex) {
 	//vkAcquireNextImageKHR:命令はバックバッファのスワップを行い,次に描画されるべきImageのインデックスを返す
 	auto res = vkAcquireNextImageKHR(device, swBuf.swapchain,
-		UINT64_MAX, VK_NULL_HANDLE, fence, &currentFrameIndex);
+		UINT64_MAX, presentCompletedSem, VK_NULL_HANDLE, &currentFrameIndex);
 	checkError(res);
-	res = vkWaitForFences(device, 1, &fence, VK_FALSE, UINT64_MAX);
-	checkError(res);
-	res = vkResetFences(device, 1, &fence);
-	checkError(res);
+	if (!firstswFence[currentFrameIndex]) { firstswFence[currentFrameIndex] = true; return; }
+	waitForFence(swFence[currentFrameIndex]);
 }
 
-VkResult Device::waitForFence() {
+VkResult Device::waitForFence(VkFence fence) {
 	//コマンドの処理が指定数(ここでは1)終わるまで待つ
 	//条件が満たされた場合待ち解除でVK_SUCCESSを返す
 	//条件が満たされない,かつ
@@ -448,12 +470,14 @@ void Device::present(uint32_t currentframeIndex) {
 	pinfo.swapchainCount = 1;
 	pinfo.pSwapchains = &swBuf.swapchain;
 	pinfo.pImageIndices = &currentframeIndex;
+	pinfo.waitSemaphoreCount = 1;
+	pinfo.pWaitSemaphores = &renderCompletedSem;
 
 	auto res = vkQueuePresentKHR(devQueue, &pinfo);
 	checkError(res);
 }
 
-void Device::resetFence() {
+void Device::resetFence(VkFence fence) {
 	//指定数(ここでは1)のフェンスをリセット
 	auto res = vkResetFences(device, 1, &fence);
 	checkError(res);
@@ -614,9 +638,9 @@ auto Device::createTextureImage(unsigned char* byteArr, uint32_t width, uint32_t
 	copyBufferToImage(commandBuffer[0], stagingBuffer, texture.vkIma, static_cast<uint32_t>(width), static_cast<uint32_t>(height));
 	barrierResource(0, texture.vkIma, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	vkEndCommandBuffer(commandBuffer[0]);
-	submitCommands(0);
-	waitForFence();
-	resetFence();
+	submitCommands(0, sFence, false);
+	waitForFence(sFence);
+	resetFence(sFence);
 
 	texture.info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
@@ -760,11 +784,9 @@ void Device::copyBuffer(uint32_t comBufindex, VkBuffer srcBuffer, VkBuffer dstBu
 
 	auto res = vkEndCommandBuffer(commandBuffer[comBufindex]);
 	checkError(res);
-	submitCommands(comBufindex);
-	res = vkWaitForFences(device, 1, &fence, VK_FALSE, UINT64_MAX);
-	checkError(res);
-	res = vkResetFences(device, 1, &fence);
-	checkError(res);
+	submitCommands(comBufindex, sFence, false);
+	waitForFence(sFence);
+	resetFence(sFence);
 }
 
 uint32_t Device::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
@@ -1101,9 +1123,10 @@ VkPipeline Device::createGraphicsPipelineVF(
 void Device::createDevice() {
 	create();
 	createCommandPool();
-	createFence();
 	createSwapchain();
 	createDepth();
+	createFence();
+	createSemaphore();
 	createCommonRenderPass();
 	createFramebuffers();
 	createCommandBuffers();
@@ -1184,13 +1207,7 @@ void Device::endCommand(uint32_t comBufindex) {
 	vkEndCommandBuffer(commandBuffer[comBufindex]);
 }
 
-void Device::waitFence(uint32_t comBufindex) {
-	submitCommands(comBufindex);
-	switch (waitForFence())
-	{
-	case VK_SUCCESS: present(currentFrameIndex); break;
-	case VK_TIMEOUT: throw std::runtime_error("Command execution timed out."); break;
-	default: OutputDebugString(L"waitForFence returns unknown value.\n");
-	}
-	resetFence();
+void Device::Present(uint32_t comBufindex) {
+	submitCommands(comBufindex, swFence[currentFrameIndex], true);
+	present(currentFrameIndex);
 }

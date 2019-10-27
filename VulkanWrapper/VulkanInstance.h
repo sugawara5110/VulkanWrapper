@@ -66,7 +66,10 @@ private:
 	uint32_t queueFamilyIndex = 0xffffffff;
 	VkPhysicalDeviceMemoryProperties memProps;
 	VkCommandPool commandPool;
-	VkFence fence;
+	VkFence sFence;
+	std::unique_ptr <VkFence[]>swFence;
+	std::unique_ptr <bool[]> firstswFence;
+	VkSemaphore renderCompletedSem, presentCompletedSem;
 
 	struct swapchainBuffer {
 		VkSwapchainKHR swapchain;
@@ -150,6 +153,7 @@ private:
 	void create();
 	void createCommandPool();
 	void createFence();
+	void createSemaphore();
 	void createSwapchain();
 	void createDepth();
 	void createCommonRenderPass();
@@ -157,11 +161,11 @@ private:
 	void createCommandBuffers();
 
 	void beginCommandWithFramebuffer(uint32_t comBufindex, VkFramebuffer fb);
-	void submitCommands(uint32_t comBufindex);
+	void submitCommands(uint32_t comBufindex, VkFence fence, bool useRender);
 	void acquireNextImageAndWait(uint32_t& currentFrameIndex);
-	VkResult waitForFence();
+	VkResult waitForFence(VkFence fence);
 	void present(uint32_t currentframeIndex);
-	void resetFence();
+	void resetFence(VkFence fence);
 
 	void barrierResource(uint32_t comBufindex, VkImage image, VkImageLayout srcImageLayout, VkImageLayout dstImageLayout);
 	void beginRenderPass(uint32_t comBufindex, uint32_t currentframeIndex);
@@ -244,6 +248,6 @@ public:
 	void setLight(uint32_t index, VECTOR3 pos, VECTOR3 color);
 	void beginCommand(uint32_t comBufindex);
 	void endCommand(uint32_t comBufindex);
-	void waitFence(uint32_t comBufindex);
+	void Present(uint32_t comBufindex);
 };
 #endif

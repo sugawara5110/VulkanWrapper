@@ -116,7 +116,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 
 
 	//4ch‚É•ÏŠ·‚·‚éˆ—’Ç‰Á«
-	wchar_t pass[14][60] = {
+	wchar_t pass[16][60] = {
 		L"../../../wall1.ppm",
 		L"../../../wallNor1.ppm",
 		L"../../../texturePPM/boss1.ppm",
@@ -130,11 +130,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 		L"../../../texturePPM/jeans01_black_diffuse.ppm",
 		L"../../../texturePPM/jeans01_normals.ppm",
 		L"../../../texturePPM/male01_diffuse_black.ppm",
-		L"../../../texturePPM/young_lightskinned_male_diffuse.ppm"
+		L"../../../texturePPM/young_lightskinned_male_diffuse.ppm",
+		L"../../../Black Dragon NEW/textures/Dragon_Bump_Col2.ppm",
+		//L"../../../color_grid.ppm",
+		L"../../../Black Dragon NEW/textures/Dragon_Nor_mirror2.ppm"
 	};
 
-	int tex1, tex2, tex3, tex4;
-	int fnum = 14;
+	int tex1, tex2, tex3, tex4, tex5, tex6;
+	int fnum = 16;
 	int numstr = 256 * 4 * 256;
 	unsigned char** ima = nullptr;
 	ima = new unsigned char* [fnum];
@@ -168,13 +171,17 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 		device->GetTexture("../../../texturePPM/jeans01_normals.png", ima[11], 256, 256);
 		device->GetTexture("../../../texturePPM/male01_diffuse_black.png", ima[12], 256, 256);
 		device->GetTexture("../../../texturePPM/young_lightskinned_male_diffuse.png", ima[13], 256, 256);
+		device->GetTexture("../../../Black Dragon NEW/textures/Dragon_Bump_Col2.jpg", ima[14], 256, 256);
+		//device->GetTexture("../../../color_grid.png", ima[14], 256, 256);
+		device->GetTexture("../../../Black Dragon NEW/textures/Dragon_Nor_mirror2.jpg", ima[15], 256, 256);
 
 		tex1 = device->getTextureNo("wall1.ppm");
 		tex2 = device->getTextureNo("wallNor1.ppm");
 		tex3 = device->getTextureNo("boss1.jpg");
 		tex4 = device->getTextureNo("boss1_normal.png");
-		//tex1 = -1;
-		//tex2 = -1;
+		tex5 = device->getTextureNo("Dragon_Bump_Col2.jpg");
+		//tex5 = device->getTextureNo("color_grid.png");
+		tex6 = device->getTextureNo("Dragon_Nor_mirror2.jpg");
 	}
 	catch (std::runtime_error e) {
 		std::cerr << "runtime_error: " << e.what() << std::endl;
@@ -194,6 +201,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	}
 	VulkanSkinMesh* sk = new VulkanSkinMesh(device);
 	VulkanSkinMesh* sk1 = new VulkanSkinMesh(device);
+	VulkanSkinMesh* sk2 = new VulkanSkinMesh(device);
+	//VulkanSkinMesh* sk3 = new VulkanSkinMesh(device);
+
+	sk2->createChangeTextureArray(1);
+	sk2->setChangeTexture(0, tex5, tex6);
+	sk2->create("../../../Black Dragon NEW/Dragon_Baked_Actions2.fbx", 100);
+	//sk3->create("../../../39-alienanimal_fbx/untitled.fbx", 100);
 	sk->createChangeTextureArray(1);
 	sk->setChangeTexture(0, -1, 3);
 	sk->create("../../../texturePPM/boss1bone.fbx", 200.0f);
@@ -244,8 +258,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 		MatrixRotationY(&thetaY, the);
 		VectorMatrixMultiply(&light1, &thetaY);
 		VectorMatrixMultiply(&light2, &thetaY);
-		if (frame++ > 200.0f)frame = 0.0f;
-		device->updateView({ 0,-0.2f,-5 }, { 0,0,25 }, { 0,1,0 });
+		if (frame++ > 600.0f)frame = 0.0f;
+		device->updateView({ 0,-0.2f,-8 }, { 0,0,25 }, { 0,1,0 });
 		device->setNumLight(2);
 		device->setLight(0, light1, { 1.0f,1.0f,1.0f });
 		device->setLight(1, light2, { 1,0.3f,0.3f });
@@ -259,13 +273,18 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 		}
 		sk->draw(frame, { 0,0,0 }, { 180,0,0 }, { 2.0f,2.0f,2.0f });
 		sk1->draw(frame, { 2,0,0 }, { 90,0.0f,0 }, { 0.2f,0.2f,0.2f });
+		sk2->draw(frame, { -2,0,0 }, { 90,0,0 }, { 0.1f,0.1f,0.1f });
+		//sk3->draw(frame, { -3,0,0 }, { 90,0,0 }, { 0.1f,0.1f,0.1f });
 		device->endCommand(0);
-		device->waitFence(0);
+		device->Present(0);
 		//ƒ‹[ƒv“àˆ—
 	}
 	for (int i = 0; i < fnum; i++)ARR_DELETE(ima[i]);
 	ARR_DELETE(ima);
 	S_DELETE(sk);
+	S_DELETE(sk1);
+	S_DELETE(sk2);
+	//S_DELETE(sk3);
 	S_DELETE(v2);
 	S_DELETE(v20);
 	//S_DELETE(v21);
