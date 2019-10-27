@@ -55,7 +55,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	vins->createInstance(hWnd, "vulkanTest");
 	auto pd = vins->getPhysicalDevice(0);
 	auto sur = vins->getSurface();
-	Device* device = new Device(pd, sur);
+	Device* device = new Device(pd, sur, 2, false);
 	device->createDevice();
 	device->updateProjection();
 
@@ -157,23 +157,23 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 		S_DELETE(ppm);
 	}
 	try {
-		device->GetTexture("../../../wall1.ppm", ima[0], 256, 256);
-		device->GetTexture("../../../wallNor1.ppm", ima[1], 256, 256);
-		device->GetTexture("../../../texturePPM/boss1.jpg", ima[2], 256, 256);
-		device->GetTexture("../../../texturePPM/boss1_normal.png", ima[3], 256, 256);
-		device->GetTexture("../../../texturePPM/brown_eye.png", ima[4], 256, 256);
-		device->GetTexture("../../../texturePPM/classicshoes_texture_diffuse.png", ima[5], 256, 256);//
-		device->GetTexture("../../../texturePPM/classicshoes_texture_normals.png", ima[6], 256, 256);
-		device->GetTexture("../../../texturePPM/eyebrow001.png", ima[7], 256, 256);
-		device->GetTexture("../../../texturePPM/jacket01_diffuse.png", ima[8], 256, 256);
-		device->GetTexture("../../../texturePPM/jacket01_normals.png", ima[9], 256, 256);
-		device->GetTexture("../../../texturePPM/jeans01_black_diffuse.png", ima[10], 256, 256);//
-		device->GetTexture("../../../texturePPM/jeans01_normals.png", ima[11], 256, 256);
-		device->GetTexture("../../../texturePPM/male01_diffuse_black.png", ima[12], 256, 256);
-		device->GetTexture("../../../texturePPM/young_lightskinned_male_diffuse.png", ima[13], 256, 256);
-		device->GetTexture("../../../Black Dragon NEW/textures/Dragon_Bump_Col2.jpg", ima[14], 256, 256);
-		//device->GetTexture("../../../color_grid.png", ima[14], 256, 256);
-		device->GetTexture("../../../Black Dragon NEW/textures/Dragon_Nor_mirror2.jpg", ima[15], 256, 256);
+		device->GetTexture(0, "../../../wall1.ppm", ima[0], 256, 256);
+		device->GetTexture(0, "../../../wallNor1.ppm", ima[1], 256, 256);
+		device->GetTexture(0, "../../../texturePPM/boss1.jpg", ima[2], 256, 256);
+		device->GetTexture(0, "../../../texturePPM/boss1_normal.png", ima[3], 256, 256);
+		device->GetTexture(0, "../../../texturePPM/brown_eye.png", ima[4], 256, 256);
+		device->GetTexture(0, "../../../texturePPM/classicshoes_texture_diffuse.png", ima[5], 256, 256);//
+		device->GetTexture(0, "../../../texturePPM/classicshoes_texture_normals.png", ima[6], 256, 256);
+		device->GetTexture(0, "../../../texturePPM/eyebrow001.png", ima[7], 256, 256);
+		device->GetTexture(0, "../../../texturePPM/jacket01_diffuse.png", ima[8], 256, 256);
+		device->GetTexture(0, "../../../texturePPM/jacket01_normals.png", ima[9], 256, 256);
+		device->GetTexture(0, "../../../texturePPM/jeans01_black_diffuse.png", ima[10], 256, 256);//
+		device->GetTexture(0, "../../../texturePPM/jeans01_normals.png", ima[11], 256, 256);
+		device->GetTexture(0, "../../../texturePPM/male01_diffuse_black.png", ima[12], 256, 256);
+		device->GetTexture(0, "../../../texturePPM/young_lightskinned_male_diffuse.png", ima[13], 256, 256);
+		device->GetTexture(0, "../../../Black Dragon NEW/textures/Dragon_Bump_Col2.jpg", ima[14], 256, 256);
+		//device->GetTexture(0,"../../../color_grid.png", ima[14], 256, 256);
+		device->GetTexture(0, "../../../Black Dragon NEW/textures/Dragon_Nor_mirror2.jpg", ima[15], 256, 256);
 
 		tex1 = device->getTextureNo("wall1.ppm");
 		tex2 = device->getTextureNo("wallNor1.ppm");
@@ -291,5 +291,5 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	for (int i = 0; i < Num; i++)S_DELETE(v22[i]);
 	S_DELETE(device);
 	S_DELETE(vins);
-	return msg.wParam;
+	return (int)msg.wParam;
 }

@@ -120,11 +120,18 @@ VkSurfaceKHR VulkanInstance::getSurface() {
 	return surface;
 }
 
-Device::Device(VkPhysicalDevice pd, VkSurfaceKHR surfa, uint32_t wid, uint32_t hei) {
+Device::Device(VkPhysicalDevice pd, VkSurfaceKHR surfa, uint32_t numCommandBuffer, bool V_SYNC, uint32_t wid, uint32_t hei) {
 	pDev = pd;
 	surface = surfa;
+	commandBufferCount = numCommandBuffer;
 	width = wid;
 	height = hei;
+	if (V_SYNC) {
+		presentMode = VK_PRESENT_MODE_FIFO_KHR;
+	}
+	else {
+		presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
+	}
 }
 
 Device::~Device() {
@@ -270,7 +277,7 @@ void Device::createSwapchain() {
 	scinfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	scinfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
 	scinfo.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
-	scinfo.presentMode = VK_PRESENT_MODE_FIFO_KHR;
+	scinfo.presentMode = presentMode;
 	scinfo.clipped = VK_TRUE;
 	//スワップチェーン生成
 	auto res = vkCreateSwapchainKHR(device, &scinfo, nullptr, &swBuf.swapchain);
@@ -608,7 +615,7 @@ void Device::createImage(uint32_t width, uint32_t height, VkFormat format,
 	checkError(res);
 }
 
-auto Device::createTextureImage(unsigned char* byteArr, uint32_t width, uint32_t height) {
+auto Device::createTextureImage(uint32_t comBufindex, unsigned char* byteArr, uint32_t width, uint32_t height) {
 
 	VkDeviceSize imageSize = width * height * 4;
 
@@ -633,12 +640,12 @@ auto Device::createTextureImage(unsigned char* byteArr, uint32_t width, uint32_t
 		VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 		texture.vkIma, texture.mem);
 
-	beginCommandWithFramebuffer(0, swBuf.frameBuffer[currentFrameIndex]);
-	barrierResource(0, texture.vkIma, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-	copyBufferToImage(commandBuffer[0], stagingBuffer, texture.vkIma, static_cast<uint32_t>(width), static_cast<uint32_t>(height));
-	barrierResource(0, texture.vkIma, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-	vkEndCommandBuffer(commandBuffer[0]);
-	submitCommands(0, sFence, false);
+	beginCommandWithFramebuffer(comBufindex, swBuf.frameBuffer[currentFrameIndex]);
+	barrierResource(comBufindex, texture.vkIma, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+	copyBufferToImage(commandBuffer[comBufindex], stagingBuffer, texture.vkIma, static_cast<uint32_t>(width), static_cast<uint32_t>(height));
+	barrierResource(comBufindex, texture.vkIma, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	vkEndCommandBuffer(commandBuffer[comBufindex]);
+	submitCommands(comBufindex, sFence, false);
 	waitForFence(sFence);
 	resetFence(sFence);
 
@@ -1134,17 +1141,17 @@ void Device::createDevice() {
 	//ダミーテクスチャ生成(テクスチャーが無い場合に代わりに入れる)
 	unsigned char dummy[64 * 4 * 64];
 	memset(dummy, 255, 64 * 4 * 64);
-	getTextureSub(numTextureMax, dummy, 64, 64);
+	getTextureSub(0, numTextureMax, dummy, 64, 64);
 }
 
-void Device::getTextureSub(uint32_t texNo, unsigned char* byteArr, uint32_t width, uint32_t height) {
-	texture[texNo] = createTextureImage(byteArr, width, height);
+void Device::getTextureSub(uint32_t comBufindex, uint32_t texNo, unsigned char* byteArr, uint32_t width, uint32_t height) {
+	texture[texNo] = createTextureImage(comBufindex, byteArr, width, height);
 	texture[texNo].info.imageView = createImageView(texture[texNo].vkIma,
 		VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT);
 	createTextureSampler(texture[texNo].info.sampler);
 }
 
-void Device::GetTexture(char* fileName, unsigned char* byteArr, uint32_t width, uint32_t height) {
+void Device::GetTexture(uint32_t comBufindex, char* fileName, unsigned char* byteArr, uint32_t width, uint32_t height) {
 	//ファイル名登録
 	char* filename = getNameFromPass(fileName);
 	if (strlen(filename) >= (size_t)numTexFileNamelenMax)
@@ -1152,7 +1159,7 @@ void Device::GetTexture(char* fileName, unsigned char* byteArr, uint32_t width, 
 	strcpy(textureNameList[numTexture], filename);
 
 	//テクスチャ生成
-	getTextureSub(numTexture, byteArr, width, height);
+	getTextureSub(comBufindex, numTexture, byteArr, width, height);
 
 	numTexture++;
 	if (numTexture >= numTextureMax)

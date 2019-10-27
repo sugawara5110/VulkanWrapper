@@ -79,6 +79,7 @@ private:
 		std::unique_ptr <VkFramebuffer[]> frameBuffer = nullptr;
 	};
 	swapchainBuffer swBuf;
+	VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR;
 
 	struct Depth {
 		VkFormat format;
@@ -174,7 +175,7 @@ private:
 	void createImage(uint32_t width, uint32_t height, VkFormat format,
 		VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties,
 		VkImage& image, VkDeviceMemory& imageMemory);
-	auto createTextureImage(unsigned char* byteArr, uint32_t width, uint32_t height);
+	auto createTextureImage(uint32_t comBufindex, unsigned char* byteArr, uint32_t width, uint32_t height);
 	VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags mask,
 		VkComponentMapping components = { VK_COMPONENT_SWIZZLE_IDENTITY });
 	void createTextureSampler(VkSampler& textureSampler);
@@ -233,13 +234,13 @@ private:
 		const VkVertexInputBindingDescription& bindDesc, const VkVertexInputAttributeDescription* attrDescs, uint32_t numAttr,
 		const VkPipelineLayout& pLayout, const VkRenderPass renderPass, const VkPipelineCache& pCache);
 	//モデル毎
-	void getTextureSub(uint32_t texNo, unsigned char* byteArr, uint32_t width, uint32_t height);
+	void getTextureSub(uint32_t comBufindex, uint32_t texNo, unsigned char* byteArr, uint32_t width, uint32_t height);
 
 public:
-	Device(VkPhysicalDevice pd, VkSurfaceKHR surface, uint32_t width = 640, uint32_t height = 480);
+	Device(VkPhysicalDevice pd, VkSurfaceKHR surface, uint32_t numCommandBuffer = 1, bool V_SYNC = true, uint32_t width = 640, uint32_t height = 480);
 	~Device();
 	void createDevice();
-	void GetTexture(char* fileName, unsigned char* byteArr, uint32_t width, uint32_t height);
+	void GetTexture(uint32_t comBufindex, char* fileName, unsigned char* byteArr, uint32_t width, uint32_t height);
 	int32_t getTextureNo(char* pass);
 	void updateProjection(float AngleView = 45.0f, float Near = 1.0f, float Far = 100.0f);
 	void updateView(VECTOR3 view, VECTOR3 gaze, VECTOR3 up);
