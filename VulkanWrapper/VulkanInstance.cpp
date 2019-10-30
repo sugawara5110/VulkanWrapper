@@ -221,11 +221,10 @@ void Device::createFence() {
 	auto res = vkCreateFence(device, &finfo, nullptr, &sFence);
 	checkError(res);
 	swFence = std::make_unique<VkFence[]>(swBuf.imageCount);
-	firstswFence = std::make_unique<bool[]>(swBuf.imageCount);
+	firstswFence = false;
 	for (uint32_t i = 0; i < swBuf.imageCount; i++) {
 		auto res = vkCreateFence(device, &finfo, nullptr, &swFence[i]);
 		checkError(res);
-		firstswFence[i] = false;
 	}
 }
 
@@ -458,8 +457,8 @@ void Device::acquireNextImageAndWait(uint32_t& currentFrameIndex) {
 	auto res = vkAcquireNextImageKHR(device, swBuf.swapchain,
 		UINT64_MAX, presentCompletedSem, VK_NULL_HANDLE, &currentFrameIndex);
 	checkError(res);
-	if (!firstswFence[currentFrameIndex]) { firstswFence[currentFrameIndex] = true; return; }
-	waitForFence(swFence[currentFrameIndex]);
+	if (!firstswFence) { firstswFence = true; return; }
+	waitForFence(swFence[0]);
 }
 
 VkResult Device::waitForFence(VkFence fence) {
@@ -737,23 +736,6 @@ char* Device::getNameFromPass(char* pass) {
 	return pass;//ポインタ操作してるので返り値を使用させる
 }
 
-void Device::createUniform(UniformSet& uni, UniformSetMaterial& material) {
-
-	createBuffer(sizeof(Uniform), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, uni.vkBuf, uni.mem, uni.memSize);
-
-	uni.info.buffer = uni.vkBuf;
-	uni.info.offset = 0;
-	uni.info.range = sizeof(Uniform);
-
-	createBuffer(sizeof(UniformMaterial), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, material.vkBuf, material.mem, material.memSize);
-
-	material.info.buffer = material.vkBuf;
-	material.info.offset = 0;
-	material.info.range = sizeof(UniformMaterial);
-}
-
 void Device::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
 	VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory, VkDeviceSize& memSize) {
 
@@ -809,21 +791,18 @@ uint32_t Device::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags prope
 	throw std::runtime_error("failed to findMemoryType");
 }
 
-void Device::updateUniform(UniformSet& uni, MATRIX& move, UniformSetMaterial& material) {
+void Device::createUniform(Uniform<MatrixSet>& uni, Uniform<Material>& material) {
+	createUniformSub(uni);
+	createUniformSub(material);
+}
+
+void Device::updateUniform(Uniform<MatrixSet>& uni, MATRIX& move, Uniform<Material>& material) {
 
 	MATRIX vm;
 	MatrixMultiply(&vm, &move, &view);
 	MatrixMultiply(&uni.uni.mvp, &vm, &proj);
 	uni.uni.world = move;
-
-	uint8_t* pData;
-	auto res = vkMapMemory(device, uni.mem, 0, uni.memSize, 0, (void**)& pData);
-	checkError(res);
-	memcpy(pData, &uni.uni, sizeof(Uniform));
-	vkUnmapMemory(device, uni.mem);
-	uni.info.buffer = uni.vkBuf;
-	uni.info.offset = 0;
-	uni.info.range = sizeof(Uniform);
+	updateUniformSub(uni);
 
 	material.uni.viewPos.as(viewPos.x, viewPos.y, viewPos.z, 0.0f);
 	memcpy(material.uni.lightPos, lightPos, sizeof(VECTOR4) * numLight);
@@ -832,15 +811,7 @@ void Device::updateUniform(UniformSet& uni, MATRIX& move, UniformSetMaterial& ma
 	material.uni.numLight.y = attenuation1;
 	material.uni.numLight.z = attenuation2;
 	material.uni.numLight.w = attenuation3;
-
-	uint8_t* pData2;
-	res = vkMapMemory(device, material.mem, 0, material.memSize, 0, (void**)& pData2);
-	checkError(res);
-	memcpy(pData2, &material.uni, sizeof(UniformMaterial));
-	vkUnmapMemory(device, material.mem);
-	material.info.buffer = material.vkBuf;
-	material.info.offset = 0;
-	material.info.range = sizeof(UniformMaterial);
+	updateUniformSub(material);
 }
 
 void Device::descriptorAndPipelineLayouts(bool useTexture, VkPipelineLayout& pipelineLayout, VkDescriptorSetLayout& descSetLayout) {
@@ -945,8 +916,8 @@ void Device::createDescriptorPool(bool useTexture, VkDescriptorPool& descPool) {
 	checkError(res);
 }
 
-void Device::upDescriptorSet(bool useTexture, Texture& difTexture, Texture& norTexture, UniformSet& uni, UniformSetMaterial& material,
-	VkDescriptorSet& descriptorSet, VkDescriptorPool& descPool, VkDescriptorSetLayout& descSetLayout) {
+void Device::upDescriptorSet(bool useTexture, Texture& difTexture, Texture& norTexture, Uniform<MatrixSet>& uni,
+	Uniform<Material>& material, VkDescriptorSet& descriptorSet, VkDescriptorPool& descPool, VkDescriptorSetLayout& descSetLayout) {
 
 	VkResult res;
 
@@ -1215,6 +1186,6 @@ void Device::endCommand(uint32_t comBufindex) {
 }
 
 void Device::Present(uint32_t comBufindex) {
-	submitCommands(comBufindex, swFence[currentFrameIndex], true);
+	submitCommands(comBufindex, swFence[0], true);
 	present(currentFrameIndex);
 }

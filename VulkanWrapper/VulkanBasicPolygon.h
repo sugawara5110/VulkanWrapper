@@ -32,8 +32,8 @@ private:
 	VkPipelineCache pipelineCache;
 	VkPipeline pipeline;
 	uint32_t comIndex = 0;
-	Device::UniformSet uniform;
-	Device::UniformSetMaterial material;
+	Device::Uniform<Device::MatrixSet> uniform;
+	Device::Uniform<Device::Material> material;
 	char* vs = nullptr;
 	char* fs = nullptr;
 

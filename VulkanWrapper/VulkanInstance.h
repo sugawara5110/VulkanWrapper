@@ -67,8 +67,8 @@ private:
 	VkPhysicalDeviceMemoryProperties memProps;
 	VkCommandPool commandPool;
 	VkFence sFence;
-	std::unique_ptr <VkFence[]>swFence;
-	std::unique_ptr <bool[]> firstswFence;
+	std::unique_ptr <VkFence[]>swFence;//現状0番のみ使用
+	bool firstswFence = false;
 	VkSemaphore renderCompletedSem, presentCompletedSem;
 
 	struct swapchainBuffer {
@@ -108,20 +108,13 @@ private:
 	float attenuation2 = 0.001f;
 	float attenuation3 = 0.001f;
 
-	struct Uniform {
+	struct MatrixSet {
 		MATRIX world;
 		MATRIX mvp;
 		MATRIX bone[numBoneMax];
 	};
-	struct UniformSet {
-		VkBuffer vkBuf;
-		VkDeviceMemory mem;
-		VkDeviceSize memSize;
-		Uniform uni;
-		VkDescriptorBufferInfo info;
-	};
 
-	struct UniformMaterial {
+	struct Material {
 		VECTOR4 diffuse = { 1.0f,1.0f,1.0f,1.0f };
 		VECTOR4 specular = { 0.0f,0.0f,0.0f,0.0f };
 		VECTOR4 ambient = { 0.0f,0.0f,0.0f,0.0f };
@@ -130,11 +123,13 @@ private:
 		VECTOR4 lightColor[numLightMax];
 		VECTOR4 numLight;//ライト数,減衰1,減衰2,減衰3
 	};
-	struct UniformSetMaterial {
+
+	template<typename UNI>
+	struct Uniform {
 		VkBuffer vkBuf;
 		VkDeviceMemory mem;
 		VkDeviceSize memSize;
-		UniformMaterial uni;
+		UNI uni;
 		VkDescriptorBufferInfo info;
 	};
 
@@ -220,14 +215,37 @@ private:
 		VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory, VkDeviceSize& memSize);
 	void copyBuffer(uint32_t comBufindex, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 	uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
-	void createUniform(UniformSet& uni, UniformSetMaterial& material);
-	void updateUniform(UniformSet& uni, MATRIX& move, UniformSetMaterial& material);
+
+	template<typename UNI>
+	void createUniformSub(UNI& uni) {
+		createBuffer(sizeof(UNI), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, uni.vkBuf, uni.mem, uni.memSize);
+
+		uni.info.buffer = uni.vkBuf;
+		uni.info.offset = 0;
+		uni.info.range = sizeof(UNI);
+	}
+	void createUniform(Uniform<MatrixSet>& uni, Uniform<Material>& material);
+
+	template<typename UNI>
+	void updateUniformSub(UNI& uni) {
+		uint8_t* pData;
+		auto res = vkMapMemory(device, uni.mem, 0, uni.memSize, 0, (void**)&pData);
+		checkError(res);
+		memcpy(pData, &uni.uni, sizeof(UNI));
+		vkUnmapMemory(device, uni.mem);
+		uni.info.buffer = uni.vkBuf;
+		uni.info.offset = 0;
+		uni.info.range = sizeof(UNI);
+	}
+	void updateUniform(Uniform<MatrixSet>& uni, MATRIX& move, Uniform<Material>& material);
+
 	void descriptorAndPipelineLayouts(bool useTexture, VkPipelineLayout& pipelineLayout, VkDescriptorSetLayout& descSetLayout);
 	VkPipelineLayout createPipelineLayout2D();
 	VkShaderModule createShaderModule(char* shader);
 	void createDescriptorPool(bool useTexture, VkDescriptorPool& descPool);
-	void upDescriptorSet(bool useTexture, Texture& difTexture, Texture& norTexture, UniformSet& uni, UniformSetMaterial& material, VkDescriptorSet& descriptorSet,
-		VkDescriptorPool& descPool, VkDescriptorSetLayout& descSetLayout);
+	void upDescriptorSet(bool useTexture, Texture& difTexture, Texture& norTexture, Uniform<MatrixSet>& uni, Uniform<Material>& material,
+		VkDescriptorSet& descriptorSet, VkDescriptorPool& descPool, VkDescriptorSetLayout& descSetLayout);
 	VkPipelineCache createPipelineCache();
 	VkPipeline createGraphicsPipelineVF(
 		const VkShaderModule& vshader, const VkShaderModule& fshader,
