@@ -116,7 +116,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 
 
 	//4ch‚É•ÏŠ·‚·‚éˆ—’Ç‰Á«
-	wchar_t pass[16][60] = {
+	wchar_t pass[18][60] = {
 		L"../../../wall1.ppm",
 		L"../../../wallNor1.ppm",
 		L"../../../texturePPM/boss1.ppm",
@@ -133,11 +133,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 		L"../../../texturePPM/young_lightskinned_male_diffuse.ppm",
 		L"../../../Black Dragon NEW/textures/Dragon_Bump_Col2.ppm",
 		//L"../../../color_grid.ppm",
-		L"../../../Black Dragon NEW/textures/Dragon_Nor_mirror2.ppm"
+		L"../../../Black Dragon NEW/textures/Dragon_Nor_mirror2.ppm",
+		L"../../../Black Dragon NEW/textures/Dragon_ground_color.ppm",
+		L"../../../Black Dragon NEW/textures/Dragon_Nor.ppm"
 	};
 
 	int tex1, tex2, tex3, tex4, tex5, tex6;
-	int fnum = 16;
+	int fnum = 18;
 	int numstr = 256 * 4 * 256;
 	unsigned char** ima = nullptr;
 	ima = new unsigned char* [fnum];
@@ -174,6 +176,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 		device->GetTexture(0, "../../../Black Dragon NEW/textures/Dragon_Bump_Col2.jpg", ima[14], 256, 256);
 		//device->GetTexture(0,"../../../color_grid.png", ima[14], 256, 256);
 		device->GetTexture(0, "../../../Black Dragon NEW/textures/Dragon_Nor_mirror2.jpg", ima[15], 256, 256);
+		device->GetTexture(0, "../../../Black Dragon NEW/textures/Dragon_ground_color.jpg", ima[16], 256, 256);
+		device->GetTexture(0, "../../../Black Dragon NEW/textures/Dragon_Nor.jpg", ima[17], 256, 256);
 
 		tex1 = device->getTextureNo("wall1.ppm");
 		tex2 = device->getTextureNo("wallNor1.ppm");
@@ -199,20 +203,19 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 		v22[i] = new VulkanBasicPolygon(device);
 		v22[i]->create(0, 1, ver11, 24, index1, 36);
 	}
-	VulkanSkinMesh* sk = new VulkanSkinMesh(device);
-	VulkanSkinMesh* sk1 = new VulkanSkinMesh(device);
-	VulkanSkinMesh* sk2 = new VulkanSkinMesh(device);
-	//VulkanSkinMesh* sk3 = new VulkanSkinMesh(device);
+	VulkanSkinMesh* sk = new VulkanSkinMesh(device, "../../../texturePPM/boss1bone.fbx", 200.0f);
+	VulkanSkinMesh* sk1 = new VulkanSkinMesh(device, "../../../texturePPM/player1_fbx_att.fbx", 500.0f);
+	VulkanSkinMesh* sk2 = new VulkanSkinMesh(device, "../../../Black Dragon NEW/Dragon_Baked_Actions2.fbx", 100);
+	//VulkanSkinMesh* sk3 = new VulkanSkinMesh(device,"../../../39-alienanimal_fbx/untitled.fbx", 100);
 
-	sk2->createChangeTextureArray(1);
-	sk2->setChangeTexture(0, tex5, tex6);
-	sk2->create("../../../Black Dragon NEW/Dragon_Baked_Actions2.fbx", 100);
-	//sk3->create("../../../39-alienanimal_fbx/untitled.fbx", 100);
-	sk->createChangeTextureArray(1);
+	//sk2->setChangeTexture(0, tex5, tex6);
+	sk2->setUvNo(0, 0);
+	sk2->create();
+	//sk3->create();
 	sk->setChangeTexture(0, -1, 3);
-	sk->create("../../../texturePPM/boss1bone.fbx", 200.0f);
+	sk->create();
 	sk->setMaterialParameter(0, { 1,1,1 }, { 0.1f,0.1f,0.1f }, { 0.3f,0.3f,0.3f });
-	sk1->create("../../../texturePPM/player1_fbx_att.fbx", 500.0f);
+	sk1->create();
 	float the = 180.0f;
 	float frame = 0;
 	/*g_RenderFunc = [&]()

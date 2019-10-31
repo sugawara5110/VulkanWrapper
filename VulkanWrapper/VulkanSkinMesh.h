@@ -35,8 +35,9 @@ private:
 	Device* device = nullptr;
 	uint32_t comIndex = 0;
 	FbxLoader fbx;
-	std::unique_ptr <VulkanBasicPolygon* []> bp = nullptr;
+	std::unique_ptr <VulkanBasicPolygon * []> bp = nullptr;
 	std::unique_ptr <changeTextureId[]> cTexId = nullptr;
+	std::unique_ptr<uint32_t[]>uvNo = nullptr;
 	uint32_t numMesh = 0;
 	uint32_t numBone = 0;
 	std::unique_ptr<Bone[]> bone = nullptr;
@@ -48,12 +49,12 @@ private:
 	MATRIX getCurrentPoseMatrix(uint32_t index);
 
 public:
-	VulkanSkinMesh(Device* device, uint32_t comIndex = 0);
+	VulkanSkinMesh(Device* device, char* pass, float endframe, uint32_t comIndex = 0);
 	~VulkanSkinMesh();
-	void create(char* pass, float endframe);
+	void create();
 	void setMaterialParameter(uint32_t meshIndex, VECTOR3 diffuse, VECTOR3 specular, VECTOR3 ambient);
-	void createChangeTextureArray(uint32_t num);
 	void setChangeTexture(uint32_t meshIndex, int diffuseTexId, int normalTexId);
+	void setUvNo(uint32_t meshIndex, uint32_t UvNo);
 	void draw(float time, VECTOR3 pos = { 0.0f,0.0f,0.0f },
 		VECTOR3 theta = { 0.0f,0.0f,0.0f }, VECTOR3 scale = { 1.0f,1.0f,1.0f });
 };

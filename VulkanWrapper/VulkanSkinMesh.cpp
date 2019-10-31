@@ -7,16 +7,10 @@
 #include "VulkanSkinMesh.h"
 #include "Shader/ShaderSkinMesh.h"
 
-VulkanSkinMesh::VulkanSkinMesh(Device* dev, uint32_t comindex) {
+VulkanSkinMesh::VulkanSkinMesh(Device* dev, char* pass, float endfra, uint32_t comindex) {
 	device = dev;
 	comIndex = comindex;
-}
 
-VulkanSkinMesh::~VulkanSkinMesh() {
-	for (uint32_t i = 0; i < numMesh; i++)S_DELETE(bp[i]);
-}
-
-void VulkanSkinMesh::create(char* pass, float endfra) {
 	//フレーム数
 	endframe = endfra;
 	//fbxファイルのpass入力する事で内部でデータの取得, 圧縮データの解凍を行ってます
@@ -30,6 +24,15 @@ void VulkanSkinMesh::create(char* pass, float endfra) {
 	bone = std::make_unique<Bone[]>(numBone);
 	outPose = std::make_unique<MATRIX[]>(numBone);
 
+	cTexId = std::make_unique<changeTextureId[]>(numMesh);
+	uvNo = std::make_unique<uint32_t[]>(numMesh);
+}
+
+VulkanSkinMesh::~VulkanSkinMesh() {
+	for (uint32_t i = 0; i < numMesh; i++)S_DELETE(bp[i]);
+}
+
+void VulkanSkinMesh::create() {
 	//各mesh読み込み
 	for (uint32_t mI = 0; mI < numMesh; mI++) {
 		bp[mI] = new VulkanBasicPolygon(device, comIndex);
@@ -37,25 +40,32 @@ void VulkanSkinMesh::create(char* pass, float endfra) {
 		auto index = mesh->getPolygonVertices();//頂点Index取得(頂点xyzに対してのIndex)
 		auto ver = mesh->getVertices();//頂点取得
 		auto nor = mesh->getNormal(0);//法線取得
-		auto uv = mesh->getAlignedUV(0);//UV取得
+
+		if ((uint32_t)mesh->getNumUVObj() <= uvNo[mI])uvNo[mI] = 0;
+		auto uv = mesh->getAlignedUV(uvNo[mI]);//UV取得
+		auto uvName = mesh->getUVName(uvNo[mI]);//UVSet取得
 
 		//ディフェーズテクスチャId取得, 無い場合ダミー
 		int32_t diffTexId = -1;
-		if (mesh->getDiffuseTextureName(0) != nullptr) {
-			auto diffName = device->getNameFromPass(mesh->getDiffuseTextureName(0));
-			diffTexId = device->getTextureNo(diffName);
+		for (int tNo = 0; tNo < mesh->getNumDiffuseTexture(0); tNo++) {
+			if (!strcmp(uvName, mesh->getDiffuseTextureUVName(0, tNo)) || mesh->getNumDiffuseTexture(0) == 1) {
+				auto diffName = device->getNameFromPass(mesh->getDiffuseTextureName(0, tNo));
+				diffTexId = device->getTextureNo(diffName);
+				break;
+			}
 		}
 		//ノーマルテクスチャId取得, 無い場合ダミー
 		int32_t norTexId = -1;
-		if (mesh->getNormalTextureName(0) != nullptr) {
-			auto norName = device->getNameFromPass(mesh->getNormalTextureName(0));
-			norTexId = device->getTextureNo(norName);
+		for (int tNo = 0; tNo < mesh->getNumNormalTexture(0); tNo++) {
+			if (!strcmp(uvName, mesh->getNormalTextureUVName(0, tNo)) || mesh->getNumNormalTexture(0) == 1) {
+				auto norName = device->getNameFromPass(mesh->getNormalTextureName(0, tNo));
+				norTexId = device->getTextureNo(norName);
+				break;
+			}
 		}
 
-		if (cTexId) {
-			if (cTexId[mI].diffuseId != -1)diffTexId = cTexId[mI].diffuseId;
-			if (cTexId[mI].normalId != -1)norTexId = cTexId[mI].normalId;
-		}
+		if (cTexId[mI].diffuseId != -1)diffTexId = cTexId[mI].diffuseId;
+		if (cTexId[mI].normalId != -1)norTexId = cTexId[mI].normalId;
 
 		//マテリアルカラー取得
 		VECTOR3 diffuse = { (float)mesh->getDiffuseColor(0,0),(float)mesh->getDiffuseColor(0,1),(float)mesh->getDiffuseColor(0,2) };
@@ -216,15 +226,15 @@ void VulkanSkinMesh::setMaterialParameter(uint32_t meshIndex, VECTOR3 diffuse, V
 	bp[meshIndex]->setMaterialParameter(diffuse, specular, ambient);
 }
 
-void VulkanSkinMesh::createChangeTextureArray(uint32_t num) {
-	cTexId = std::make_unique<changeTextureId[]>(num);
-}
-
 void VulkanSkinMesh::setChangeTexture(uint32_t meshIndex, int diffuseTexId, int normalTexId) {
 	if (cTexId) {
 		cTexId[meshIndex].diffuseId = diffuseTexId;
 		cTexId[meshIndex].normalId = normalTexId;
 	}
+}
+
+void VulkanSkinMesh::setUvNo(uint32_t meshIndex, uint32_t UvNo) {
+	uvNo[meshIndex] = UvNo;
 }
 
 void VulkanSkinMesh::draw(float time, VECTOR3 pos, VECTOR3 theta, VECTOR3 scale) {
