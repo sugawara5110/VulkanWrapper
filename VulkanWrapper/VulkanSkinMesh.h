@@ -24,11 +24,6 @@ struct Bone {
 	MATRIX newPose;
 };
 
-struct changeTextureId {
-	int diffuseId = -1;
-	int normalId = -1;
-};
-
 class VulkanSkinMesh {
 
 private:
@@ -36,7 +31,7 @@ private:
 	uint32_t comIndex = 0;
 	FbxLoader fbx;
 	std::unique_ptr <VulkanBasicPolygon * []> bp = nullptr;
-	std::unique_ptr <changeTextureId[]> cTexId = nullptr;
+	std::unique_ptr <textureIdSet * []> cTexId = nullptr;
 	std::unique_ptr<uint32_t[]>uvNo = nullptr;
 	uint32_t numMesh = 0;
 	uint32_t numBone = 0;
@@ -53,7 +48,7 @@ public:
 	~VulkanSkinMesh();
 	void create();
 	void setMaterialParameter(uint32_t meshIndex, VECTOR3 diffuse, VECTOR3 specular, VECTOR3 ambient);
-	void setChangeTexture(uint32_t meshIndex, int diffuseTexId, int normalTexId);
+	void setChangeTexture(uint32_t meshIndex, uint32_t materialIndex, int diffuseTexId, int normalTexId);
 	void setUvNo(uint32_t meshIndex, uint32_t UvNo);
 	void draw(float time, VECTOR3 pos = { 0.0f,0.0f,0.0f },
 		VECTOR3 theta = { 0.0f,0.0f,0.0f }, VECTOR3 scale = { 1.0f,1.0f,1.0f });

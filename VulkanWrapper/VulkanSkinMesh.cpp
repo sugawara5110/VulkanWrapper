@@ -24,12 +24,16 @@ VulkanSkinMesh::VulkanSkinMesh(Device* dev, char* pass, float endfra, uint32_t c
 	bone = std::make_unique<Bone[]>(numBone);
 	outPose = std::make_unique<MATRIX[]>(numBone);
 
-	cTexId = std::make_unique<changeTextureId[]>(numMesh);
+	cTexId = std::make_unique<textureIdSet * []>(numMesh);
+	for (uint32_t i = 0; i < numMesh; i++)cTexId[i] = new textureIdSet[fbx.getFbxMeshNode(i)->getNumMaterial()];
 	uvNo = std::make_unique<uint32_t[]>(numMesh);
 }
 
 VulkanSkinMesh::~VulkanSkinMesh() {
-	for (uint32_t i = 0; i < numMesh; i++)S_DELETE(bp[i]);
+	for (uint32_t i = 0; i < numMesh; i++) {
+		ARR_DELETE(cTexId[i]);
+		S_DELETE(bp[i]);
+	}
 }
 
 void VulkanSkinMesh::create() {
@@ -44,33 +48,6 @@ void VulkanSkinMesh::create() {
 		if ((uint32_t)mesh->getNumUVObj() <= uvNo[mI])uvNo[mI] = 0;
 		auto uv = mesh->getAlignedUV(uvNo[mI]);//UV取得
 		auto uvName = mesh->getUVName(uvNo[mI]);//UVSet取得
-
-		//ディフェーズテクスチャId取得, 無い場合ダミー
-		int32_t diffTexId = -1;
-		for (int tNo = 0; tNo < mesh->getNumDiffuseTexture(0); tNo++) {
-			if (!strcmp(uvName, mesh->getDiffuseTextureUVName(0, tNo)) || mesh->getNumDiffuseTexture(0) == 1) {
-				auto diffName = device->getNameFromPass(mesh->getDiffuseTextureName(0, tNo));
-				diffTexId = device->getTextureNo(diffName);
-				break;
-			}
-		}
-		//ノーマルテクスチャId取得, 無い場合ダミー
-		int32_t norTexId = -1;
-		for (int tNo = 0; tNo < mesh->getNumNormalTexture(0); tNo++) {
-			if (!strcmp(uvName, mesh->getNormalTextureUVName(0, tNo)) || mesh->getNumNormalTexture(0) == 1) {
-				auto norName = device->getNameFromPass(mesh->getNormalTextureName(0, tNo));
-				norTexId = device->getTextureNo(norName);
-				break;
-			}
-		}
-
-		if (cTexId[mI].diffuseId != -1)diffTexId = cTexId[mI].diffuseId;
-		if (cTexId[mI].normalId != -1)norTexId = cTexId[mI].normalId;
-
-		//マテリアルカラー取得
-		VECTOR3 diffuse = { (float)mesh->getDiffuseColor(0,0),(float)mesh->getDiffuseColor(0,1),(float)mesh->getDiffuseColor(0,2) };
-		VECTOR3 specular = { (float)mesh->getSpecularColor(0,0),(float)mesh->getSpecularColor(0,1),(float)mesh->getSpecularColor(0,2) };
-		VECTOR3 ambient = { (float)mesh->getAmbientColor(0,0),(float)mesh->getAmbientColor(0,1),(float)mesh->getAmbientColor(0,2) };
 
 		//ボーン取得
 		const uint32_t numBoneWei = 4;
@@ -135,36 +112,85 @@ void VulkanSkinMesh::create() {
 		ARR_DELETE(boneWeiIndArr);
 
 		//4頂点ポリゴン分割後のIndex数カウント
-		uint32_t numNewIndex = 0;
+		auto numMaterial = mesh->getNumMaterial();
+		uint32_t* numNewIndex = new uint32_t[numMaterial];
+		ZeroMemory(numNewIndex, sizeof(uint32_t) * numMaterial);
+		int32_t currentMatNo = -1;
 		for (uint32_t i1 = 0; i1 < mesh->getNumPolygon(); i1++) {
+			if (mesh->getMaterialNoOfPolygon(i1) != currentMatNo) {
+				currentMatNo = mesh->getMaterialNoOfPolygon(i1);
+			}
 			if (mesh->getPolygonSize(i1) == 3) {
-				numNewIndex += 3;
+				numNewIndex[currentMatNo] += 3;
 			}
 			if (mesh->getPolygonSize(i1) == 4) {
-				numNewIndex += 6;
+				numNewIndex[currentMatNo] += 6;
 			}
 		}
 
 		//分割後のIndex生成, 順番を逆にする
-		auto* newIndex = new uint32_t[numNewIndex];
-		int nIcnt = 0;
+		uint32_t** newIndex = new uint32_t * [numMaterial];
+		for (uint32_t ind1 = 0; ind1 < numMaterial; ind1++) {
+			if (numNewIndex[ind1] <= 0) { newIndex[ind1] = nullptr; continue; }
+			newIndex[ind1] = new uint32_t[numNewIndex[ind1]];
+		}
+		std::unique_ptr<uint32_t[]>indexCnt;
+		indexCnt = std::make_unique<uint32_t[]>(numMaterial);
+		currentMatNo = -1;
 		int Icnt = 0;
 		for (uint32_t i1 = 0; i1 < mesh->getNumPolygon(); i1++) {
+			if (mesh->getMaterialNoOfPolygon(i1) != currentMatNo) {
+				currentMatNo = mesh->getMaterialNoOfPolygon(i1);
+			}
+
 			if (mesh->getPolygonSize(i1) == 3) {
-				newIndex[nIcnt++] = Icnt;
-				newIndex[nIcnt++] = Icnt + 2;
-				newIndex[nIcnt++] = Icnt + 1;
+
+				newIndex[currentMatNo][indexCnt[currentMatNo]++] = Icnt;
+				newIndex[currentMatNo][indexCnt[currentMatNo]++] = Icnt + 2;
+				newIndex[currentMatNo][indexCnt[currentMatNo]++] = Icnt + 1;
+
 				Icnt += 3;
 			}
 			if (mesh->getPolygonSize(i1) == 4) {
-				newIndex[nIcnt++] = Icnt;
-				newIndex[nIcnt++] = Icnt + 2;
-				newIndex[nIcnt++] = Icnt + 1;
-				newIndex[nIcnt++] = Icnt;
-				newIndex[nIcnt++] = Icnt + 3;
-				newIndex[nIcnt++] = Icnt + 2;
+
+				newIndex[currentMatNo][indexCnt[currentMatNo]++] = Icnt;
+				newIndex[currentMatNo][indexCnt[currentMatNo]++] = Icnt + 2;
+				newIndex[currentMatNo][indexCnt[currentMatNo]++] = Icnt + 1;
+				newIndex[currentMatNo][indexCnt[currentMatNo]++] = Icnt;
+				newIndex[currentMatNo][indexCnt[currentMatNo]++] = Icnt + 3;
+				newIndex[currentMatNo][indexCnt[currentMatNo]++] = Icnt + 2;
+
 				Icnt += 4;
 			}
+		}
+
+		textureIdSet* texId = new textureIdSet[numMaterial];
+		for (uint32_t matInd = 0; matInd < numMaterial; matInd++) {
+			//ディフェーズテクスチャId取得, 無い場合ダミー
+			for (int tNo = 0; tNo < mesh->getNumDiffuseTexture(matInd); tNo++) {
+				if (!strcmp(uvName, mesh->getDiffuseTextureUVName(matInd, tNo)) || mesh->getNumDiffuseTexture(matInd) == 1) {
+					auto diffName = device->getNameFromPass(mesh->getDiffuseTextureName(matInd, tNo));
+					texId[matInd].diffuseId = device->getTextureNo(diffName);
+					break;
+				}
+			}
+			//ノーマルテクスチャId取得, 無い場合ダミー
+			for (int tNo = 0; tNo < mesh->getNumNormalTexture(matInd); tNo++) {
+				if (!strcmp(uvName, mesh->getNormalTextureUVName(matInd, tNo)) || mesh->getNumNormalTexture(matInd) == 1) {
+					auto norName = device->getNameFromPass(mesh->getNormalTextureName(matInd, tNo));
+					texId[matInd].normalId = device->getTextureNo(norName);
+					break;
+				}
+			}
+
+			if (cTexId[mI][matInd].diffuseId != -1)texId[matInd].diffuseId = cTexId[mI][matInd].diffuseId;
+			if (cTexId[mI][matInd].normalId != -1)texId[matInd].normalId = cTexId[mI][matInd].normalId;
+
+			//マテリアルカラー取得
+			VECTOR3 diffuse = { (float)mesh->getDiffuseColor(matInd,0),(float)mesh->getDiffuseColor(matInd,1),(float)mesh->getDiffuseColor(matInd,2) };
+			VECTOR3 specular = { (float)mesh->getSpecularColor(matInd,0),(float)mesh->getSpecularColor(matInd,1),(float)mesh->getSpecularColor(matInd,2) };
+			VECTOR3 ambient = { (float)mesh->getAmbientColor(matInd,0),(float)mesh->getAmbientColor(matInd,1),(float)mesh->getAmbientColor(matInd,2) };
+			bp[mI]->setMaterialParameter(diffuse, specular, ambient, matInd);
 		}
 
 		static VkVertexInputAttributeDescription attrDescs[] =
@@ -176,13 +202,14 @@ void VulkanSkinMesh::create() {
 			{ 4, 0, VK_FORMAT_R32G32B32A32_SFLOAT, sizeof(float) * 12 }
 		};
 
-		bp[mI]->create0<VertexSkin>(diffTexId, norTexId, verSkin, (uint32_t)mesh->getNumPolygonVertices(),
+		bp[mI]->create0<VertexSkin>(numMaterial, texId, verSkin, (uint32_t)mesh->getNumPolygonVertices(),
 			newIndex, numNewIndex, attrDescs, 5, vsShaderSkinMesh, bp[mI]->fs);
 
-		bp[mI]->setMaterialParameter(diffuse, specular, ambient);
-
-		ARR_DELETE(verSkin);
+		for (uint32_t ind1 = 0; ind1 < numMaterial; ind1++)ARR_DELETE(newIndex[ind1]);
 		ARR_DELETE(newIndex);
+		ARR_DELETE(numNewIndex);
+		ARR_DELETE(verSkin);
+		ARR_DELETE(texId);
 	}
 
 	//初期姿勢行列読み込み
@@ -226,11 +253,9 @@ void VulkanSkinMesh::setMaterialParameter(uint32_t meshIndex, VECTOR3 diffuse, V
 	bp[meshIndex]->setMaterialParameter(diffuse, specular, ambient);
 }
 
-void VulkanSkinMesh::setChangeTexture(uint32_t meshIndex, int diffuseTexId, int normalTexId) {
-	if (cTexId) {
-		cTexId[meshIndex].diffuseId = diffuseTexId;
-		cTexId[meshIndex].normalId = normalTexId;
-	}
+void VulkanSkinMesh::setChangeTexture(uint32_t meshIndex, uint32_t materialIndex, int diffuseTexId, int normalTexId) {
+	cTexId[meshIndex][materialIndex].diffuseId = diffuseTexId;
+	cTexId[meshIndex][materialIndex].normalId = normalTexId;
 }
 
 void VulkanSkinMesh::setUvNo(uint32_t meshIndex, uint32_t UvNo) {
