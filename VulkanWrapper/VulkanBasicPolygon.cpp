@@ -32,17 +32,21 @@ VulkanBasicPolygon::~VulkanBasicPolygon() {
 	ARR_DELETE(material);
 }
 
-void VulkanBasicPolygon::create(int32_t difTexInd, int32_t norTexInd, Vertex3D* ver, uint32_t num, uint32_t* ind, uint32_t indNum) {
+void VulkanBasicPolygon::create(int32_t difTexInd, int32_t norTexInd, int32_t speTexInd, Vertex3D* ver, uint32_t num, uint32_t* ind, uint32_t indNum) {
 
 	static VkVertexInputAttributeDescription attrDescs[] =
 	{
 		{ 0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0 },
 		{ 1, 0, VK_FORMAT_R32G32B32_SFLOAT, sizeof(float) * 3 },
 		{ 2, 0, VK_FORMAT_R32G32_SFLOAT, sizeof(float) * 6 },
+		{ 3, 0, VK_FORMAT_R32G32_SFLOAT, sizeof(float) * 8 }
 	};
 
-	textureIdSet tex[1] = { difTexInd,norTexInd };
-	create0<Vertex3D>(1, tex, ver, num, &ind, &indNum, attrDescs, 3, vsShaderBasicPolygon, fsShaderBasicPolygon);
+	textureIdSet tex[1];
+	tex[0].diffuseId = difTexInd;
+	tex[0].normalId = norTexInd;
+	tex[0].specularId = speTexInd;
+	create0<Vertex3D>(1, tex, ver, num, &ind, &indNum, attrDescs, 4, vsShaderBasicPolygon, fsShaderBasicPolygon);
 }
 
 void VulkanBasicPolygon::setMaterialParameter(VECTOR3 diffuse, VECTOR3 specular, VECTOR3 ambient, uint32_t materialIndex) {

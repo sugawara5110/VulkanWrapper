@@ -4,6 +4,7 @@
 //**                                                                                     **//
 //*****************************************************************************************//
 
+#define _CRT_SECURE_NO_WARNINGS
 #include "VulkanSkinMesh.h"
 #include "Shader/ShaderSkinMesh.h"
 
@@ -101,8 +102,8 @@ void VulkanSkinMesh::create() {
 			v->normal[0] = (float)nor[vI * 3];
 			v->normal[1] = (float)nor[vI * 3 + 1];
 			v->normal[2] = (float)nor[vI * 3 + 2];
-			v->uv[0] = (float)uv[vI * 2];
-			v->uv[1] = 1.0f - (float)uv[vI * 2 + 1];
+			v->difUv[0] = (float)uv[vI * 2];
+			v->difUv[1] = 1.0f - (float)uv[vI * 2 + 1];
 			for (int vbI = 0; vbI < 4; vbI++) {
 				v->bBoneWeight[vbI] = (float)boneWeiArr[index[vI] * 4 + vbI];
 				v->bBoneIndex[vbI] = (float)boneWeiIndArr[index[vI] * 4 + vbI];
@@ -165,6 +166,7 @@ void VulkanSkinMesh::create() {
 		}
 
 		textureIdSet* texId = new textureIdSet[numMaterial];
+		textureIdSet texId1[5];
 		VECTOR3* diffuse = new VECTOR3[numMaterial];
 		VECTOR3* specular = new VECTOR3[numMaterial];
 		VECTOR3* ambient = new VECTOR3[numMaterial];
@@ -186,8 +188,44 @@ void VulkanSkinMesh::create() {
 				}
 			}
 
+			//test
+			//ディフェーズテクスチャId取得, 無い場合ダミー
+			for (int tNo = 0; tNo < mesh->getNumDiffuseTexture(matInd); tNo++) {
+				textureType type = mesh->getDiffuseTextureType(matInd, tNo);
+				if (type.DiffuseColor && !type.SpecularColor || mesh->getNumDiffuseTexture(matInd) == 1) {
+					auto diffName = device->getNameFromPass(mesh->getDiffuseTextureName(matInd, tNo));
+					texId1[matInd].diffuseId = device->getTextureNo(diffName);
+					auto str = mesh->getDiffuseTextureUVName(matInd, tNo);
+					strcpy(texId1[matInd].difUvName, str);
+					break;
+				}
+			}
+			//スペキュラテクスチャId取得, 無い場合ダミー
+			for (int tNo = 0; tNo < mesh->getNumDiffuseTexture(matInd); tNo++) {
+				textureType type = mesh->getDiffuseTextureType(matInd, tNo);
+				if (type.SpecularColor) {
+					auto speName = device->getNameFromPass(mesh->getDiffuseTextureName(matInd, tNo));
+					texId1[matInd].specularId = device->getTextureNo(speName);
+					auto str = mesh->getDiffuseTextureUVName(matInd, tNo);
+					strcpy(texId1[matInd].speUvName, str);
+					break;
+				}
+			}
+			//ノーマルテクスチャId取得, 無い場合ダミー
+			for (int tNo = 0; tNo < mesh->getNumNormalTexture(matInd); tNo++) {
+				if (!strcmp(texId1[matInd].difUvName, mesh->getNormalTextureUVName(matInd, tNo)) || mesh->getNumNormalTexture(matInd) == 1) {
+					auto norName = device->getNameFromPass(mesh->getNormalTextureName(matInd, tNo));
+					texId1[matInd].normalId = device->getTextureNo(norName);
+					auto str = mesh->getNormalTextureUVName(matInd, tNo);
+					strcpy(texId1[matInd].norUvName, str);
+					break;
+				}
+			}
+			//test
+
 			if (cTexId[mI][matInd].diffuseId != -1)texId[matInd].diffuseId = cTexId[mI][matInd].diffuseId;
 			if (cTexId[mI][matInd].normalId != -1)texId[matInd].normalId = cTexId[mI][matInd].normalId;
+			if (cTexId[mI][matInd].specularId != -1)texId[matInd].specularId = cTexId[mI][matInd].specularId;
 
 			//マテリアルカラー取得
 			diffuse[matInd] = { (float)mesh->getDiffuseColor(matInd,0),(float)mesh->getDiffuseColor(matInd,1),(float)mesh->getDiffuseColor(matInd,2) };
@@ -200,12 +238,13 @@ void VulkanSkinMesh::create() {
 			{ 0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0 },
 			{ 1, 0, VK_FORMAT_R32G32B32_SFLOAT, sizeof(float) * 3 },
 			{ 2, 0, VK_FORMAT_R32G32_SFLOAT, sizeof(float) * 6 },
-			{ 3, 0, VK_FORMAT_R32G32B32A32_SFLOAT, sizeof(float) * 8 },
-			{ 4, 0, VK_FORMAT_R32G32B32A32_SFLOAT, sizeof(float) * 12 }
+			{ 3, 0, VK_FORMAT_R32G32_SFLOAT, sizeof(float) * 8 },
+			{ 4, 0, VK_FORMAT_R32G32B32A32_SFLOAT, sizeof(float) * 10 },
+			{ 5, 0, VK_FORMAT_R32G32B32A32_SFLOAT, sizeof(float) * 14 }
 		};
 
 		bp[mI]->create0<VertexSkin>(numMaterial, texId, verSkin, (uint32_t)mesh->getNumPolygonVertices(),
-			newIndex, numNewIndex, attrDescs, 5, vsShaderSkinMesh, bp[mI]->fs);
+			newIndex, numNewIndex, attrDescs, 6, vsShaderSkinMesh, bp[mI]->fs);
 
 		for (uint32_t matInd = 0; matInd < numMaterial; matInd++)
 			bp[mI]->setMaterialParameter(diffuse[matInd], specular[matInd], ambient[matInd], matInd);
@@ -258,9 +297,10 @@ void VulkanSkinMesh::setMaterialParameter(uint32_t meshIndex, uint32_t materialI
 	bp[meshIndex]->setMaterialParameter(diffuse, specular, ambient, materialIndex);
 }
 
-void VulkanSkinMesh::setChangeTexture(uint32_t meshIndex, uint32_t materialIndex, int diffuseTexId, int normalTexId) {
+void VulkanSkinMesh::setChangeTexture(uint32_t meshIndex, uint32_t materialIndex, int diffuseTexId, int normalTexId, int specularTexId) {
 	cTexId[meshIndex][materialIndex].diffuseId = diffuseTexId;
 	cTexId[meshIndex][materialIndex].normalId = normalTexId;
+	cTexId[meshIndex][materialIndex].specularId = specularTexId;
 }
 
 void VulkanSkinMesh::setUvNo(uint32_t meshIndex, uint32_t UvNo) {

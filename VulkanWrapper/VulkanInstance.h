@@ -96,7 +96,7 @@ private:
 	uint32_t currentFrameIndex = 0;
 	const static uint32_t numLightMax = 256;
 	const static uint32_t numBoneMax = 256;
-	const static uint32_t numTextureMax = 255;
+	const static uint32_t numTextureMax = 254;
 	const static uint32_t numTexFileNamelenMax = 256;
 
 	MATRIX proj, view;
@@ -112,6 +112,7 @@ private:
 		MATRIX world;
 		MATRIX mvp;
 		MATRIX bone[numBoneMax];
+		VECTOR4 UvSwitch = {};//.x==0:そのまま, 1:切り替え
 	};
 
 	struct Material {
@@ -141,7 +142,7 @@ private:
 		uint32_t height;
 		VkDescriptorImageInfo info;
 	};
-	Texture texture[numTextureMax + 1];
+	Texture texture[numTextureMax + 2];
 	uint32_t numTexture = 0;
 	char textureNameList[numTextureMax][numTexFileNamelenMax];
 
@@ -244,7 +245,7 @@ private:
 	VkPipelineLayout createPipelineLayout2D();
 	VkShaderModule createShaderModule(char* shader);
 	void createDescriptorPool(bool useTexture, VkDescriptorPool& descPool);
-	void upDescriptorSet(bool useTexture, Texture& difTexture, Texture& norTexture, Uniform<MatrixSet>& uni, Uniform<Material>& material,
+	void upDescriptorSet(bool useTexture, Texture& difTexture, Texture& norTexture, Texture& speTexture, Uniform<MatrixSet>& uni, Uniform<Material>& material,
 		VkDescriptorSet& descriptorSet, VkDescriptorPool& descPool, VkDescriptorSetLayout& descSetLayout);
 	VkPipelineCache createPipelineCache();
 	VkPipeline createGraphicsPipelineVF(

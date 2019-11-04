@@ -12,17 +12,20 @@ char* vsShaderSkinMesh =
 "    mat4 world;\n"
 "    mat4 mvp;\n"
 "    mat4 bone[256];\n"
+"    vec4 uvSwitch;\n"
 "} gBufferMat;\n"
 
 "layout (location = 0) in vec4 inPos;\n"
 "layout (location = 1) in vec3 inNormal;\n"
 "layout (location = 2) in vec2 inTexCoord;\n"
-"layout (location = 3) in vec4 boneIndex;\n"
-"layout (location = 4) in vec4 boneWeight;\n"
+"layout (location = 3) in vec2 inSpeTexCoord;\n"
+"layout (location = 4) in vec4 boneIndex;\n"
+"layout (location = 5) in vec4 boneWeight;\n"
 
 "layout (location = 0) out vec3 outWpos;\n"
 "layout (location = 1) out vec3 outNormal;\n"
 "layout (location = 2) out vec2 outTexCoord;\n"
+"layout (location = 3) out vec2 outSpeTexCoord;\n"
 
 "void main() {\n"
 
@@ -61,6 +64,15 @@ char* vsShaderSkinMesh =
 "   outWpos = (gBufferMat.world * sOutPos).xyz;\n"
 //法線は光源計算に使用されるのでワールド変換行列だけ掛ける
 "   outNormal = normalize(mat3(gBufferMat.world) * sOutNor);\n"
-"   outTexCoord = inTexCoord;\n"
+"   if (gBufferMat.uvSwitch.x == 0.0f)\n"
+"   {\n"
+"      outTexCoord = inTexCoord;\n"
+"      outSpeTexCoord = inSpeTexCoord;\n"
+"   }\n"
+"   else \n"
+"   {\n"
+"      outTexCoord = inSpeTexCoord;\n"
+"      outSpeTexCoord = inTexCoord;\n"
+"   }\n"
 "   gl_Position = gBufferMat.mvp * sOutPos;\n"
 "}\n";

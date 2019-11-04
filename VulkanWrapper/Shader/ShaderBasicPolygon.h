@@ -12,22 +12,34 @@ char* vsShaderBasicPolygon =
 "    mat4 world;\n"
 "    mat4 mvp;\n"
 "    mat4 bone[256];\n"
+"    vec4 uvSwitch;\n"
 "} gBufferMat;\n"
 
 "layout (location = 0) in vec4 inPos;\n"
 "layout (location = 1) in vec3 inNormal;\n"
 "layout (location = 2) in vec2 inTexCoord;\n"
+"layout (location = 3) in vec2 inSpeTexCoord;\n"
 
 "layout (location = 0) out vec3 outWpos;\n"
 "layout (location = 1) out vec3 outNormal;\n"
 "layout (location = 2) out vec2 outTexCoord;\n"
+"layout (location = 3) out vec2 outSpeTexCoord;\n"
 
 "void main() {\n"
     //ワールド変換行列だけ掛けた頂点,光源計算に使用
 "   outWpos = (gBufferMat.world * inPos).xyz;\n"
     //法線は光源計算に使用されるのでワールド変換行列だけ掛ける
 "   outNormal = normalize(mat3(gBufferMat.world) * inNormal);\n"
-"   outTexCoord = inTexCoord;\n"
+"   if(gBufferMat.uvSwitch.x == 0.0f)\n"
+"   {\n"
+"      outTexCoord = inTexCoord;\n"
+"      outSpeTexCoord = inSpeTexCoord;\n"
+"   }\n"
+"   else \n"
+"   {\n"
+"      outTexCoord = inSpeTexCoord;\n"
+"      outSpeTexCoord = inTexCoord;\n"
+"   }\n"
 "   gl_Position = gBufferMat.mvp * inPos;\n"
 "}\n";
 
@@ -37,7 +49,8 @@ char* fsShaderBasicPolygon =
 
 "layout (binding = 1) uniform sampler2D texSampler;\n"
 "layout (binding = 2) uniform sampler2D norSampler;\n"
-"layout (binding = 3) uniform bufferMaterial {\n"
+"layout (binding = 3) uniform sampler2D speSampler;\n"
+"layout (binding = 4) uniform bufferMaterial {\n"
 "    vec4 diffuse;\n"
 "    vec4 specular;\n"
 "    vec4 ambient;\n"
@@ -50,6 +63,7 @@ char* fsShaderBasicPolygon =
 "layout (location = 0) in vec3 inWpos;\n"
 "layout (location = 1) in vec3 inNormal;\n"
 "layout (location = 2) in vec2 inTexCoord;"
+"layout (location = 3) in vec2 inSpeTexCoord;"
 
 "layout (location = 0) out vec4 outColor;\n"
 
@@ -57,7 +71,8 @@ char* fsShaderBasicPolygon =
 
 "   vec4 NT = texture(norSampler, inTexCoord);\n"
 "   vec3 norTex = normalize(inNormal * NT.xyz);\n"
-"   vec4 col = vec4(0.0f, 0.0f, 0.0f, 1.0f);\n"
+"   vec4 difCol = vec4(0.0f, 0.0f, 0.0f, 1.0f);\n"
+"   vec4 speCol = vec4(0.0f, 0.0f, 0.0f, 1.0f);\n"
     //ライト数だけループ
 "   for(int i = 0; i < gMaterial.numLight.x; i++)\n"
 "   {\n"
@@ -91,9 +106,11 @@ char* fsShaderBasicPolygon =
 "      vec3 diffuse = gMaterial.diffuse.xyz * ScaCla;\n"
 "      vec3 specular = gMaterial.specular.xyz * spe3;\n"
 
-"      col.xyz += (diffuse + specular) * gMaterial.lightColor[i].xyz * attenuation;\n"
+"      difCol.xyz += diffuse * gMaterial.lightColor[i].xyz * attenuation;\n"
+"      speCol.xyz += specular * gMaterial.lightColor[i].xyz * attenuation;\n"
 "   }\n"
-"   col.xyz += gMaterial.ambient.xyz;\n"
-"   vec4 tex = texture(texSampler, inTexCoord);\n"
-"   outColor = tex * col;\n"
+"   difCol.xyz += gMaterial.ambient.xyz;\n"
+"   vec4 dTex = texture(texSampler, inTexCoord);\n"
+"   vec4 sTex = texture(speSampler, inSpeTexCoord);\n"
+"   outColor = dTex * difCol + sTex * speCol;\n"
 "}\n";

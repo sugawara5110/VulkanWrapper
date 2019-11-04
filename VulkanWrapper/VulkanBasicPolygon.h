@@ -11,13 +11,18 @@
 
 struct textureIdSet {
 	int diffuseId = -1;
+	char difUvName[256] = {};
 	int normalId = -1;
+	char norUvName[256] = {};
+	int specularId = -1;
+	char speUvName[256] = {};
 };
 
 struct Vertex3D {
 	float pos[3];
 	float normal[3];
-	float uv[2];
+	float difUv[2];
+	float speUv[2];
 };
 
 class VulkanSkinMesh;
@@ -89,7 +94,14 @@ private:
 			else {
 				nor = &device->texture[texId[m].normalId];
 			}
-			device->upDescriptorSet(true, *diff, *nor, uniform, material[m], descSet[m], descPool[m], descSetLayout);
+			Device::Texture* spe = nullptr;
+			if (texId[m].specularId < 0) {
+				spe = &device->texture[device->numTextureMax + 1];
+			}
+			else {
+				spe = &device->texture[texId[m].specularId];
+			}
+			device->upDescriptorSet(true, *diff, *nor, *spe, uniform, material[m], descSet[m], descPool[m], descSetLayout);
 		}
 
 		pipelineCache = device->createPipelineCache();
@@ -103,7 +115,7 @@ private:
 public:
 	VulkanBasicPolygon(Device* device, uint32_t comIndex = 0);
 	~VulkanBasicPolygon();
-	void create(int32_t difTexInd, int32_t norTexInd, Vertex3D* ver, uint32_t num, uint32_t* ind, uint32_t indNum);
+	void create(int32_t difTexInd, int32_t norTexInd, int32_t speTexInd, Vertex3D* ver, uint32_t num, uint32_t* ind, uint32_t indNum);
 	void setMaterialParameter(VECTOR3 diffuse, VECTOR3 specular, VECTOR3 ambient, uint32_t materialIndex = 0);
 	void draw(VECTOR3 pos = { 0.0f,0.0f,0.0f }, VECTOR3 theta = { 0.0f,0.0f,0.0f }, VECTOR3 scale = { 1.0f,1.0f,1.0f });
 };

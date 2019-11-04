@@ -14,7 +14,8 @@
 struct VertexSkin {
 	float pos[3];//頂点
 	float normal[3];//法線
-	float uv[2];//UV座標
+	float difUv[2];//UV座標
+	float speUv[2];//UV座標
 	float bBoneIndex[4] = { 0.0f,0.0f,0.0f,0.0f };//ボーン番号
 	float bBoneWeight[4] = { 0.0f,0.0f,0.0f,0.0f };//ボーン重み
 };
@@ -48,7 +49,7 @@ public:
 	~VulkanSkinMesh();
 	void create();
 	void setMaterialParameter(uint32_t meshIndex, uint32_t materialIndex, VECTOR3 diffuse, VECTOR3 specular, VECTOR3 ambient);
-	void setChangeTexture(uint32_t meshIndex, uint32_t materialIndex, int diffuseTexId, int normalTexId);
+	void setChangeTexture(uint32_t meshIndex, uint32_t materialIndex, int diffuseTexId, int normalTexId, int specularTexId);
 	void setUvNo(uint32_t meshIndex, uint32_t UvNo);
 	void draw(float time, VECTOR3 pos = { 0.0f,0.0f,0.0f },
 		VECTOR3 theta = { 0.0f,0.0f,0.0f }, VECTOR3 scale = { 1.0f,1.0f,1.0f });
