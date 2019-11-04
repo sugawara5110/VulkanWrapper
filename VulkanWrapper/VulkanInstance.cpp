@@ -791,12 +791,13 @@ uint32_t Device::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags prope
 	throw std::runtime_error("failed to findMemoryType");
 }
 
-void Device::createUniform(Uniform<MatrixSet>& uni, Uniform<Material>& material) {
+void Device::createUniform(Uniform<MatrixSet>& uni, Uniform<Material>* material, uint32_t numMaterial) {
 	createUniformSub(uni);
-	createUniformSub(material);
+	for (uint32_t i = 0; i < numMaterial; i++)
+		createUniformSub(material[i]);
 }
 
-void Device::updateUniform(Uniform<MatrixSet>& uni, MATRIX& move, Uniform<Material>& material) {
+void Device::updateUniform(Uniform<MatrixSet>& uni, MATRIX& move, Uniform<Material>* material, uint32_t numMaterial) {
 
 	MATRIX vm;
 	MatrixMultiply(&vm, &move, &view);
@@ -804,14 +805,16 @@ void Device::updateUniform(Uniform<MatrixSet>& uni, MATRIX& move, Uniform<Materi
 	uni.uni.world = move;
 	updateUniformSub(uni);
 
-	material.uni.viewPos.as(viewPos.x, viewPos.y, viewPos.z, 0.0f);
-	memcpy(material.uni.lightPos, lightPos, sizeof(VECTOR4) * numLight);
-	memcpy(material.uni.lightColor, lightColor, sizeof(VECTOR4) * numLight);
-	material.uni.numLight.x = (float)numLight;
-	material.uni.numLight.y = attenuation1;
-	material.uni.numLight.z = attenuation2;
-	material.uni.numLight.w = attenuation3;
-	updateUniformSub(material);
+	for (uint32_t i = 0; i < numMaterial; i++) {
+		material[i].uni.viewPos.as(viewPos.x, viewPos.y, viewPos.z, 0.0f);
+		memcpy(material[i].uni.lightPos, lightPos, sizeof(VECTOR4) * numLight);
+		memcpy(material[i].uni.lightColor, lightColor, sizeof(VECTOR4) * numLight);
+		material[i].uni.numLight.x = (float)numLight;
+		material[i].uni.numLight.y = attenuation1;
+		material[i].uni.numLight.z = attenuation2;
+		material[i].uni.numLight.w = attenuation3;
+		updateUniformSub(material[i]);
+	}
 }
 
 void Device::descriptorAndPipelineLayouts(bool useTexture, VkPipelineLayout& pipelineLayout, VkDescriptorSetLayout& descSetLayout) {

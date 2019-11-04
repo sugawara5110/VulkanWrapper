@@ -19,7 +19,6 @@ VulkanBasicPolygon::~VulkanBasicPolygon() {
 	vkDestroyBuffer(device->device, uniform.vkBuf, nullptr);
 	vkFreeMemory(device->device, uniform.mem, nullptr);
 	vkDestroyDescriptorSetLayout(device->device, descSetLayout, nullptr);
-	vkDestroyDescriptorPool(device->device, descPool, nullptr);
 	vkDestroyPipeline(device->device, pipeline, nullptr);
 	vkDestroyPipelineCache(device->device, pipelineCache, nullptr);
 	vkDestroyPipelineLayout(device->device, pipelineLayout, nullptr);
@@ -28,7 +27,9 @@ VulkanBasicPolygon::~VulkanBasicPolygon() {
 	for (uint32_t i = 0; i < numMaterial; i++) {
 		vkDestroyBuffer(device->device, index[i].first, nullptr);
 		vkFreeMemory(device->device, index[i].second, nullptr);
+		vkDestroyDescriptorPool(device->device, descPool[i], nullptr);
 	}
+	ARR_DELETE(material);
 }
 
 void VulkanBasicPolygon::create(int32_t difTexInd, int32_t norTexInd, Vertex3D* ver, uint32_t num, uint32_t* ind, uint32_t indNum) {
@@ -45,9 +46,9 @@ void VulkanBasicPolygon::create(int32_t difTexInd, int32_t norTexInd, Vertex3D* 
 }
 
 void VulkanBasicPolygon::setMaterialParameter(VECTOR3 diffuse, VECTOR3 specular, VECTOR3 ambient, uint32_t materialIndex) {
-	material.uni.diffuse.as(diffuse.x, diffuse.y, diffuse.z, 1.0f);
-	material.uni.specular.as(specular.x, specular.y, specular.z, 1.0f);
-	material.uni.ambient.as(ambient.x, ambient.y, ambient.z, 1.0f);
+	material[materialIndex].uni.diffuse.as(diffuse.x, diffuse.y, diffuse.z, 1.0f);
+	material[materialIndex].uni.specular.as(specular.x, specular.y, specular.z, 1.0f);
+	material[materialIndex].uni.ambient.as(ambient.x, ambient.y, ambient.z, 1.0f);
 }
 
 void VulkanBasicPolygon::draw0(VECTOR3 pos, VECTOR3 theta, VECTOR3 scale, MATRIX* bone, uint32_t numBone) {
@@ -69,7 +70,7 @@ void VulkanBasicPolygon::draw0(VECTOR3 pos, VECTOR3 theta, VECTOR3 scale, MATRIX
 
 	if (numBone > 0)memcpy(uniform.uni.bone, bone, sizeof(MATRIX) * numBone);
 
-	device->updateUniform(uniform, world, material);
+	device->updateUniform(uniform, world, material, numMaterial);
 
 	static VkViewport vp = { 0.0f, 0.0f, (float)device->width, (float)device->height, 0.0f, 1.0f };
 	static VkRect2D sc = { { 0, 0 }, { device->width, device->height } };
@@ -80,11 +81,10 @@ void VulkanBasicPolygon::draw0(VECTOR3 pos, VECTOR3 theta, VECTOR3 scale, MATRIX
 	vkCmdSetScissor(device->commandBuffer[comIndex], 0, 1, &sc);
 	vkCmdBindVertexBuffers(device->commandBuffer[comIndex], 0, 1, &vertices.first, offsets);
 
-	vkCmdBindDescriptorSets(device->commandBuffer[comIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
-		&descSet, 0, nullptr);
-
 	for (uint32_t m = 0; m < numMaterial; m++) {
 		if (numIndex[m] <= 0)continue;
+		vkCmdBindDescriptorSets(device->commandBuffer[comIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
+			&descSet[m], 0, nullptr);
 		vkCmdBindIndexBuffer(device->commandBuffer[comIndex], index[m].first, 0, VK_INDEX_TYPE_UINT32);
 		vkCmdDrawIndexed(device->commandBuffer[comIndex], numIndex[m], 1, 0, 0, 0);
 	}

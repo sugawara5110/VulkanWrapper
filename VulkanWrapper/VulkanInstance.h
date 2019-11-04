@@ -225,7 +225,7 @@ private:
 		uni.info.offset = 0;
 		uni.info.range = sizeof(UNI);
 	}
-	void createUniform(Uniform<MatrixSet>& uni, Uniform<Material>& material);
+	void createUniform(Uniform<MatrixSet>& uni, Uniform<Material>* material, uint32_t numMaterial);
 
 	template<typename UNI>
 	void updateUniformSub(UNI& uni) {
@@ -238,7 +238,7 @@ private:
 		uni.info.offset = 0;
 		uni.info.range = sizeof(UNI);
 	}
-	void updateUniform(Uniform<MatrixSet>& uni, MATRIX& move, Uniform<Material>& material);
+	void updateUniform(Uniform<MatrixSet>& uni, MATRIX& move, Uniform<Material>* material, uint32_t numMaterial);
 
 	void descriptorAndPipelineLayouts(bool useTexture, VkPipelineLayout& pipelineLayout, VkDescriptorSetLayout& descSetLayout);
 	VkPipelineLayout createPipelineLayout2D();

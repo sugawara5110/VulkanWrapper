@@ -165,6 +165,9 @@ void VulkanSkinMesh::create() {
 		}
 
 		textureIdSet* texId = new textureIdSet[numMaterial];
+		VECTOR3* diffuse = new VECTOR3[numMaterial];
+		VECTOR3* specular = new VECTOR3[numMaterial];
+		VECTOR3* ambient = new VECTOR3[numMaterial];
 		for (uint32_t matInd = 0; matInd < numMaterial; matInd++) {
 			//ディフェーズテクスチャId取得, 無い場合ダミー
 			for (int tNo = 0; tNo < mesh->getNumDiffuseTexture(matInd); tNo++) {
@@ -187,10 +190,9 @@ void VulkanSkinMesh::create() {
 			if (cTexId[mI][matInd].normalId != -1)texId[matInd].normalId = cTexId[mI][matInd].normalId;
 
 			//マテリアルカラー取得
-			VECTOR3 diffuse = { (float)mesh->getDiffuseColor(matInd,0),(float)mesh->getDiffuseColor(matInd,1),(float)mesh->getDiffuseColor(matInd,2) };
-			VECTOR3 specular = { (float)mesh->getSpecularColor(matInd,0),(float)mesh->getSpecularColor(matInd,1),(float)mesh->getSpecularColor(matInd,2) };
-			VECTOR3 ambient = { (float)mesh->getAmbientColor(matInd,0),(float)mesh->getAmbientColor(matInd,1),(float)mesh->getAmbientColor(matInd,2) };
-			bp[mI]->setMaterialParameter(diffuse, specular, ambient, matInd);
+			diffuse[matInd] = { (float)mesh->getDiffuseColor(matInd,0),(float)mesh->getDiffuseColor(matInd,1),(float)mesh->getDiffuseColor(matInd,2) };
+			specular[matInd] = { (float)mesh->getSpecularColor(matInd,0),(float)mesh->getSpecularColor(matInd,1),(float)mesh->getSpecularColor(matInd,2) };
+			ambient[matInd] = { (float)mesh->getAmbientColor(matInd,0),(float)mesh->getAmbientColor(matInd,1),(float)mesh->getAmbientColor(matInd,2) };
 		}
 
 		static VkVertexInputAttributeDescription attrDescs[] =
@@ -204,6 +206,9 @@ void VulkanSkinMesh::create() {
 
 		bp[mI]->create0<VertexSkin>(numMaterial, texId, verSkin, (uint32_t)mesh->getNumPolygonVertices(),
 			newIndex, numNewIndex, attrDescs, 5, vsShaderSkinMesh, bp[mI]->fs);
+
+		for (uint32_t matInd = 0; matInd < numMaterial; matInd++)
+			bp[mI]->setMaterialParameter(diffuse[matInd], specular[matInd], ambient[matInd], matInd);
 
 		for (uint32_t ind1 = 0; ind1 < numMaterial; ind1++)ARR_DELETE(newIndex[ind1]);
 		ARR_DELETE(newIndex);
@@ -249,8 +254,8 @@ MATRIX VulkanSkinMesh::getCurrentPoseMatrix(uint32_t index) {
 	return ret;
 }
 
-void VulkanSkinMesh::setMaterialParameter(uint32_t meshIndex, VECTOR3 diffuse, VECTOR3 specular, VECTOR3 ambient) {
-	bp[meshIndex]->setMaterialParameter(diffuse, specular, ambient);
+void VulkanSkinMesh::setMaterialParameter(uint32_t meshIndex, uint32_t materialIndex, VECTOR3 diffuse, VECTOR3 specular, VECTOR3 ambient) {
+	bp[meshIndex]->setMaterialParameter(diffuse, specular, ambient, materialIndex);
 }
 
 void VulkanSkinMesh::setChangeTexture(uint32_t meshIndex, uint32_t materialIndex, int diffuseTexId, int normalTexId) {

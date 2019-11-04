@@ -47,7 +47,7 @@ public:
 	VulkanSkinMesh(Device* device, char* pass, float endframe, uint32_t comIndex = 0);
 	~VulkanSkinMesh();
 	void create();
-	void setMaterialParameter(uint32_t meshIndex, VECTOR3 diffuse, VECTOR3 specular, VECTOR3 ambient);
+	void setMaterialParameter(uint32_t meshIndex, uint32_t materialIndex, VECTOR3 diffuse, VECTOR3 specular, VECTOR3 ambient);
 	void setChangeTexture(uint32_t meshIndex, uint32_t materialIndex, int diffuseTexId, int normalTexId);
 	void setUvNo(uint32_t meshIndex, uint32_t UvNo);
 	void draw(float time, VECTOR3 pos = { 0.0f,0.0f,0.0f },

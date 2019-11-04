@@ -31,14 +31,14 @@ private:
 	std::unique_ptr<std::pair<VkBuffer, VkDeviceMemory>[]> index;
 	std::unique_ptr<uint32_t[]> numIndex;
 	VkDescriptorSetLayout descSetLayout;
-	VkDescriptorPool descPool;
-	VkDescriptorSet descSet;
+	std::unique_ptr<VkDescriptorPool[]> descPool;
+	std::unique_ptr<VkDescriptorSet[]> descSet;
 	VkPipelineLayout pipelineLayout;
 	VkPipelineCache pipelineCache;
 	VkPipeline pipeline;
 	uint32_t comIndex = 0;
 	Device::Uniform<Device::MatrixSet> uniform;
-	Device::Uniform<Device::Material> material;
+	Device::Uniform<Device::Material>* material = nullptr;
 	uint32_t numMaterial = 1;
 	char* vs = nullptr;
 	char* fs = nullptr;
@@ -57,38 +57,41 @@ private:
 		numMaterial = numMat;
 		index = std::make_unique<std::pair<VkBuffer, VkDeviceMemory>[]>(numMaterial);
 		numIndex = std::make_unique<uint32_t[]>(numMaterial);
+		descPool = std::make_unique<VkDescriptorPool[]>(numMaterial);
+		descSet = std::make_unique<VkDescriptorSet[]>(numMaterial);
+		material = new Device::Uniform<Device::Material>[numMaterial];
 
 		VkShaderModule vsModule = device->createShaderModule(vs);
 		VkShaderModule fsModule = device->createShaderModule(fs);
 
 		vertices = device->createVertexBuffer<T>(comIndex, ver, num, false);
 		device->descriptorAndPipelineLayouts(true, pipelineLayout, descSetLayout);
-		device->createUniform(uniform, material);
+		device->createUniform(uniform, material, numMaterial);
 
 		for (uint32_t m = 0; m < numMaterial; m++) {
 			numIndex[m] = indNum[m];
 			if (numIndex[m] <= 0)continue;
 			index[m] = device->createVertexBuffer<uint32_t>(comIndex, ind[m], indNum[m], true);
+
+			device->createDescriptorPool(true, descPool[m]);
+
+			Device::Texture* diff = nullptr;
+			if (texId[m].diffuseId < 0) {
+				diff = &device->texture[device->numTextureMax];//-1の場合テクスチャー無いので, ダミーを入れる
+			}
+			else {
+				diff = &device->texture[texId[m].diffuseId];
+			}
+			Device::Texture* nor = nullptr;
+			if (texId[m].normalId < 0) {
+				nor = &device->texture[device->numTextureMax];
+			}
+			else {
+				nor = &device->texture[texId[m].normalId];
+			}
+			device->upDescriptorSet(true, *diff, *nor, uniform, material[m], descSet[m], descPool[m], descSetLayout);
 		}
 
-		device->createDescriptorPool(true, descPool);
-
-		Device::Texture* diff = nullptr;
-		if (texId[0].diffuseId < 0) {
-			diff = &device->texture[device->numTextureMax];//-1の場合テクスチャー無いので, ダミーを入れる
-		}
-		else {
-			diff = &device->texture[texId[0].diffuseId];
-		}
-		Device::Texture* nor = nullptr;
-		if (texId[0].normalId < 0) {
-			nor = &device->texture[device->numTextureMax];
-		}
-		else {
-			nor = &device->texture[texId[0].normalId];
-		}
-
-		device->upDescriptorSet(true, *diff, *nor, uniform, material, descSet, descPool, descSetLayout);
 		pipelineCache = device->createPipelineCache();
 		pipeline = device->createGraphicsPipelineVF(vsModule, fsModule, bindDesc, attrDescs, numAttr, pipelineLayout, device->renderPass, pipelineCache);
 		vkDestroyShaderModule(device->device, vsModule, nullptr);
