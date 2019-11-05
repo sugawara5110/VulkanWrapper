@@ -239,13 +239,14 @@ private:
 		uni.info.offset = 0;
 		uni.info.range = sizeof(UNI);
 	}
-	void updateUniform(Uniform<MatrixSet>& uni, MATRIX& move, Uniform<Material>* material, uint32_t numMaterial);
+	void updateUniform(Uniform<MatrixSet>& uni, MATRIX& move, Uniform<Material>& material);
 
 	void descriptorAndPipelineLayouts(bool useTexture, VkPipelineLayout& pipelineLayout, VkDescriptorSetLayout& descSetLayout);
 	VkPipelineLayout createPipelineLayout2D();
 	VkShaderModule createShaderModule(char* shader);
 	void createDescriptorPool(bool useTexture, VkDescriptorPool& descPool);
-	void upDescriptorSet(bool useTexture, Texture& difTexture, Texture& norTexture, Texture& speTexture, Uniform<MatrixSet>& uni, Uniform<Material>& material,
+	void upDescriptorSet(bool useTexture, Texture& difTexture, Texture& norTexture, Texture& speTexture,
+		Uniform<MatrixSet>& uni, Uniform<Material>& material,
 		VkDescriptorSet& descriptorSet, VkDescriptorPool& descPool, VkDescriptorSetLayout& descSetLayout);
 	VkPipelineCache createPipelineCache();
 	VkPipeline createGraphicsPipelineVF(

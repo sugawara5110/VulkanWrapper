@@ -43,13 +43,14 @@ private:
 	VkPipeline pipeline;
 	uint32_t comIndex = 0;
 	Device::Uniform<Device::MatrixSet> uniform;
+	std::unique_ptr<float[]> uvSwitch;
 	Device::Uniform<Device::Material>* material = nullptr;
 	uint32_t numMaterial = 1;
 	char* vs = nullptr;
 	char* fs = nullptr;
 
 	template<typename T>
-	void create0(int32_t numMat, textureIdSet* texId,
+	void create0(int32_t numMat, textureIdSet* texId, float* uvSw,
 		T* ver, uint32_t num,
 		uint32_t** ind, uint32_t* indNum,
 		VkVertexInputAttributeDescription* attrDescs, uint32_t numAttr, char* vs, char* fs) {
@@ -65,6 +66,7 @@ private:
 		descPool = std::make_unique<VkDescriptorPool[]>(numMaterial);
 		descSet = std::make_unique<VkDescriptorSet[]>(numMaterial);
 		material = new Device::Uniform<Device::Material>[numMaterial];
+		uvSwitch = std::make_unique<float[]>(numMaterial);
 
 		VkShaderModule vsModule = device->createShaderModule(vs);
 		VkShaderModule fsModule = device->createShaderModule(fs);
@@ -76,6 +78,7 @@ private:
 		for (uint32_t m = 0; m < numMaterial; m++) {
 			numIndex[m] = indNum[m];
 			if (numIndex[m] <= 0)continue;
+			uvSwitch[m] = uvSw[m];
 			index[m] = device->createVertexBuffer<uint32_t>(comIndex, ind[m], indNum[m], true);
 
 			device->createDescriptorPool(true, descPool[m]);

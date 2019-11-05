@@ -802,7 +802,7 @@ void Device::createUniform(Uniform<MatrixSet>& uni, Uniform<Material>* material,
 		createUniformSub(material[i]);
 }
 
-void Device::updateUniform(Uniform<MatrixSet>& uni, MATRIX& move, Uniform<Material>* material, uint32_t numMaterial) {
+void Device::updateUniform(Uniform<MatrixSet>& uni, MATRIX& move, Uniform<Material>& material) {
 
 	MATRIX vm;
 	MatrixMultiply(&vm, &move, &view);
@@ -810,16 +810,14 @@ void Device::updateUniform(Uniform<MatrixSet>& uni, MATRIX& move, Uniform<Materi
 	uni.uni.world = move;
 	updateUniformSub(uni);
 
-	for (uint32_t i = 0; i < numMaterial; i++) {
-		material[i].uni.viewPos.as(viewPos.x, viewPos.y, viewPos.z, 0.0f);
-		memcpy(material[i].uni.lightPos, lightPos, sizeof(VECTOR4) * numLight);
-		memcpy(material[i].uni.lightColor, lightColor, sizeof(VECTOR4) * numLight);
-		material[i].uni.numLight.x = (float)numLight;
-		material[i].uni.numLight.y = attenuation1;
-		material[i].uni.numLight.z = attenuation2;
-		material[i].uni.numLight.w = attenuation3;
-		updateUniformSub(material[i]);
-	}
+	material.uni.viewPos.as(viewPos.x, viewPos.y, viewPos.z, 0.0f);
+	memcpy(material.uni.lightPos, lightPos, sizeof(VECTOR4) * numLight);
+	memcpy(material.uni.lightColor, lightColor, sizeof(VECTOR4) * numLight);
+	material.uni.numLight.x = (float)numLight;
+	material.uni.numLight.y = attenuation1;
+	material.uni.numLight.z = attenuation2;
+	material.uni.numLight.w = attenuation3;
+	updateUniformSub(material);
 }
 
 void Device::descriptorAndPipelineLayouts(bool useTexture, VkPipelineLayout& pipelineLayout, VkDescriptorSetLayout& descSetLayout) {

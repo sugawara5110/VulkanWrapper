@@ -33,7 +33,6 @@ private:
 	FbxLoader fbx;
 	std::unique_ptr <VulkanBasicPolygon * []> bp = nullptr;
 	std::unique_ptr <textureIdSet * []> cTexId = nullptr;
-	std::unique_ptr<uint32_t[]>uvNo = nullptr;
 	uint32_t numMesh = 0;
 	uint32_t numBone = 0;
 	std::unique_ptr<Bone[]> bone = nullptr;
@@ -50,7 +49,6 @@ public:
 	void create();
 	void setMaterialParameter(uint32_t meshIndex, uint32_t materialIndex, VECTOR3 diffuse, VECTOR3 specular, VECTOR3 ambient);
 	void setChangeTexture(uint32_t meshIndex, uint32_t materialIndex, int diffuseTexId, int normalTexId, int specularTexId);
-	void setUvNo(uint32_t meshIndex, uint32_t UvNo);
 	void draw(float time, VECTOR3 pos = { 0.0f,0.0f,0.0f },
 		VECTOR3 theta = { 0.0f,0.0f,0.0f }, VECTOR3 scale = { 1.0f,1.0f,1.0f });
 };

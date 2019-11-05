@@ -46,7 +46,8 @@ void VulkanBasicPolygon::create(int32_t difTexInd, int32_t norTexInd, int32_t sp
 	tex[0].diffuseId = difTexInd;
 	tex[0].normalId = norTexInd;
 	tex[0].specularId = speTexInd;
-	create0<Vertex3D>(1, tex, ver, num, &ind, &indNum, attrDescs, 4, vsShaderBasicPolygon, fsShaderBasicPolygon);
+	float sw[1] = {};
+	create0<Vertex3D>(1, tex, sw, ver, num, &ind, &indNum, attrDescs, 4, vsShaderBasicPolygon, fsShaderBasicPolygon);
 }
 
 void VulkanBasicPolygon::setMaterialParameter(VECTOR3 diffuse, VECTOR3 specular, VECTOR3 ambient, uint32_t materialIndex) {
@@ -74,8 +75,6 @@ void VulkanBasicPolygon::draw0(VECTOR3 pos, VECTOR3 theta, VECTOR3 scale, MATRIX
 
 	if (numBone > 0)memcpy(uniform.uni.bone, bone, sizeof(MATRIX) * numBone);
 
-	device->updateUniform(uniform, world, material, numMaterial);
-
 	static VkViewport vp = { 0.0f, 0.0f, (float)device->width, (float)device->height, 0.0f, 1.0f };
 	static VkRect2D sc = { { 0, 0 }, { device->width, device->height } };
 	static VkDeviceSize offsets[] = { 0 };
@@ -87,6 +86,8 @@ void VulkanBasicPolygon::draw0(VECTOR3 pos, VECTOR3 theta, VECTOR3 scale, MATRIX
 
 	for (uint32_t m = 0; m < numMaterial; m++) {
 		if (numIndex[m] <= 0)continue;
+		uniform.uni.UvSwitch.x = uvSwitch[m];
+		device->updateUniform(uniform, world, material[m]);
 		vkCmdBindDescriptorSets(device->commandBuffer[comIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
 			&descSet[m], 0, nullptr);
 		vkCmdBindIndexBuffer(device->commandBuffer[comIndex], index[m].first, 0, VK_INDEX_TYPE_UINT32);
