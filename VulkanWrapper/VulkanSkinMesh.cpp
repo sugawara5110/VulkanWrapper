@@ -12,21 +12,61 @@ VulkanSkinMesh::VulkanSkinMesh(Device* dev, char* pass, float endfra, uint32_t c
 	device = dev;
 	comIndex = comindex;
 
+	fbxObj[0] = new FbxObj();
 	//フレーム数
-	endframe = endfra;
+	fbxObj[0]->endframe = endfra;
 	//fbxファイルのpass入力する事で内部でデータの取得, 圧縮データの解凍を行ってます
-	fbx.setFbxFile(pass);
+	fbxObj[0]->fbx.setFbxFile(pass);
 	//mesh数取得
-	numMesh = fbx.getNumFbxMeshNode();
+	numMesh = fbxObj[0]->fbx.getNumFbxMeshNode();
 	//bone数取得
-	numBone = fbx.getFbxMeshNode(0)->getNumDeformer();
+	numBone = fbxObj[0]->fbx.getFbxMeshNode(0)->getNumDeformer();
+	fbxObj[0]->defo = new Deformer * [numBone];
+	for (uint32_t i = 0; i < numBone; i++) {
+		fbxObj[0]->defo[i] = fbxObj[0]->fbx.getFbxMeshNode(0)->getDeformer(i);
+	}
 	//mesh数分BasicPolygon生成
 	bp = std::make_unique<VulkanBasicPolygon * []>(numMesh);
 	bone = std::make_unique<Bone[]>(numBone);
 	outPose = std::make_unique<MATRIX[]>(numBone);
 
 	cTexId = std::make_unique<textureIdSet * []>(numMesh);
-	for (uint32_t i = 0; i < numMesh; i++)cTexId[i] = new textureIdSet[fbx.getFbxMeshNode(i)->getNumMaterial()];
+	for (uint32_t i = 0; i < numMesh; i++)cTexId[i] = new textureIdSet[fbxObj[0]->fbx.getFbxMeshNode(i)->getNumMaterial()];
+}
+
+static char* getName(char* in) {
+	char* out = in;
+	int len = (int)strlen(out);
+	out += len;
+	int cnt = 0;
+	for (cnt = 0; cnt < len; cnt++) {
+		out--;
+		if (*out == ' ') {
+			out++;
+			break;
+		}
+	}
+	return out;
+}
+
+void VulkanSkinMesh::additionalAnimation(char* pass, float endframe) {
+	fbxObj[numFbxObj] = new FbxObj();
+	fbxObj[numFbxObj]->endframe = endframe;
+	fbxObj[numFbxObj]->fbx.setFbxFile(pass);
+	fbxObj[numFbxObj]->defo = new Deformer * [numBone];
+	uint32_t numNoneMeshBone = fbxObj[numFbxObj]->fbx.getNumNoneMeshDeformer();
+	for (uint32_t j = 0; j < numBone; j++) {
+		char* bName1 = getName(fbxObj[0]->defo[j]->getName());
+		int b1ln = (int)strlen(bName1);
+		for (uint32_t i = 0; i < numNoneMeshBone; i++) {
+			char* bName2 = getName(fbxObj[numFbxObj]->fbx.getNoneMeshDeformer(i)->getName());
+			if (b1ln == strlen(bName2) && !strcmp(bName1, bName2)) {
+				fbxObj[numFbxObj]->defo[j] = fbxObj[numFbxObj]->fbx.getNoneMeshDeformer(i);
+				break;
+			}
+		}
+	}
+	numFbxObj++;
 }
 
 VulkanSkinMesh::~VulkanSkinMesh() {
@@ -34,13 +74,16 @@ VulkanSkinMesh::~VulkanSkinMesh() {
 		ARR_DELETE(cTexId[i]);
 		S_DELETE(bp[i]);
 	}
+	for (uint32_t i = 0; i < numFbxObj; i++) {
+		S_DELETE(fbxObj[i]);
+	}
 }
 
 void VulkanSkinMesh::create() {
 	//各mesh読み込み
 	for (uint32_t mI = 0; mI < numMesh; mI++) {
 		bp[mI] = new VulkanBasicPolygon(device, comIndex);
-		FbxMeshNode* mesh = fbx.getFbxMeshNode(mI);//mI番目のMesh取得
+		FbxMeshNode* mesh = fbxObj[0]->fbx.getFbxMeshNode(mI);//mI番目のMesh取得
 		auto index = mesh->getPolygonVertices();//頂点Index取得(頂点xyzに対してのIndex)
 		auto ver = mesh->getVertices();//頂点取得
 		auto nor = mesh->getNormal(0);//法線取得
@@ -262,7 +305,7 @@ void VulkanSkinMesh::create() {
 	}
 
 	//初期姿勢行列読み込み
-	FbxMeshNode* mesh = fbx.getFbxMeshNode(0);//0番目のメッシュ取得,ここから行列を取得
+	FbxMeshNode* mesh = fbxObj[0]->fbx.getFbxMeshNode(0);//0番目のメッシュ取得,ここから行列を取得
 	for (uint32_t i = 0; i < numBone; i++) {
 		auto defo = mesh->getDeformer(i);
 		for (int y = 0; y < 4; y++) {
@@ -273,12 +316,12 @@ void VulkanSkinMesh::create() {
 	}
 }
 
-void VulkanSkinMesh::setNewPoseMatrix(float time) {
-	FbxMeshNode* mesh = fbx.getFbxMeshNode(0);
+void VulkanSkinMesh::setNewPoseMatrix(uint32_t animationIndex, float time) {
+	Deformer** defoArr = fbxObj[animationIndex]->defo;
 	Deformer de;
 	auto ti = de.getTimeFRAMES60((int)time);
 	for (uint32_t bI = 0; bI < numBone; bI++) {
-		auto defo = mesh->getDeformer(bI);
+		auto defo = defoArr[bI];
 		defo->EvaluateGlobalTransform(ti);
 		for (int x = 0; x < 4; x++) {
 			for (int y = 0; y < 4; y++) {
@@ -308,13 +351,25 @@ void VulkanSkinMesh::setChangeTexture(uint32_t meshIndex, uint32_t materialIndex
 	cTexId[meshIndex][materialIndex].specularId = specularTexId;
 }
 
-void VulkanSkinMesh::draw(float time, VECTOR3 pos, VECTOR3 theta, VECTOR3 scale) {
+void VulkanSkinMesh::draw(uint32_t animationIndex, float time, VECTOR3 pos, VECTOR3 theta, VECTOR3 scale) {
 
-	setNewPoseMatrix(time);
+	setNewPoseMatrix(animationIndex, time);
 
 	for (uint32_t i = 0; i < numBone; i++)
 		outPose[i] = getCurrentPoseMatrix(i);
 
 	for (uint32_t i = 0; i < numMesh; i++)
 		bp[i]->draw0(pos, theta, scale, outPose.get(), numBone);
+}
+
+bool VulkanSkinMesh::autoDraw(uint32_t animationIndex, float pitchTime, VECTOR3 pos, VECTOR3 theta, VECTOR3 scale) {
+	float cuframe = fbxObj[animationIndex]->currentframe;
+	float enframe = fbxObj[animationIndex]->endframe;
+	if (cuframe > enframe) {
+		fbxObj[animationIndex]->currentframe = 0.0f;
+		return false;
+	}
+	draw(animationIndex, cuframe, pos, theta, scale);
+	fbxObj[animationIndex]->currentframe += pitchTime;
+	return true;
 }
