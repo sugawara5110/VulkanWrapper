@@ -323,11 +323,34 @@ void VulkanSkinMesh::setNewPoseMatrix(uint32_t animationIndex, float time) {
 	for (uint32_t bI = 0; bI < numBone; bI++) {
 		auto defo = defoArr[bI];
 		defo->EvaluateGlobalTransform(ti);
+		Bone* bo = &bone[bI];
 		for (int x = 0; x < 4; x++) {
 			for (int y = 0; y < 4; y++) {
-				bone[bI].newPose.m[y][x] = (float)defo->getEvaluateGlobalTransform(y, x);
+				bo->newPose.m[y][x] = (float)defo->getEvaluateGlobalTransform(y, x);
 			}
 		}
+	}
+}
+
+void VulkanSkinMesh::copyConnectionPoseMatrix(uint32_t nextAnimationIndex) {
+	Deformer** defoArr = fbxObj[nextAnimationIndex]->defo;
+	for (uint32_t bI = 0; bI < numBone; bI++) {
+		auto defo = defoArr[bI];
+		defo->EvaluateGlobalTransform(0);
+		Bone* bo = &bone[bI];
+		for (int x = 0; x < 4; x++) {
+			for (int y = 0; y < 4; y++) {
+				bo->connectLastPose.m[y][x] = (float)defo->getEvaluateGlobalTransform(y, x);
+				bo->connectFirstPose.m[y][x] = bo->newPose.m[y][x];
+			}
+		}
+	}
+}
+
+void VulkanSkinMesh::setNewPoseMatrixConnection(float connectionRatio) {
+	for (uint32_t bI = 0; bI < numBone; bI++) {
+		Bone* bo = &bone[bI];
+		StraightLinear(&bo->newPose, &bo->connectFirstPose, &bo->connectLastPose, connectionRatio);
 	}
 }
 
@@ -351,10 +374,7 @@ void VulkanSkinMesh::setChangeTexture(uint32_t meshIndex, uint32_t materialIndex
 	cTexId[meshIndex][materialIndex].specularId = specularTexId;
 }
 
-void VulkanSkinMesh::draw(uint32_t animationIndex, float time, VECTOR3 pos, VECTOR3 theta, VECTOR3 scale) {
-
-	setNewPoseMatrix(animationIndex, time);
-
+void VulkanSkinMesh::subDraw(VECTOR3 pos, VECTOR3 theta, VECTOR3 scale) {
 	for (uint32_t i = 0; i < numBone; i++)
 		outPose[i] = getCurrentPoseMatrix(i);
 
@@ -362,14 +382,45 @@ void VulkanSkinMesh::draw(uint32_t animationIndex, float time, VECTOR3 pos, VECT
 		bp[i]->draw0(pos, theta, scale, outPose.get(), numBone);
 }
 
+void VulkanSkinMesh::draw(uint32_t animationIndex, float time, VECTOR3 pos, VECTOR3 theta, VECTOR3 scale) {
+	setNewPoseMatrix(animationIndex, time);
+	subDraw(pos, theta, scale);
+}
+
+void VulkanSkinMesh::setConnectionPitch(float pitch) {
+	connectionPitch = pitch;
+}
+
 bool VulkanSkinMesh::autoDraw(uint32_t animationIndex, float pitchTime, VECTOR3 pos, VECTOR3 theta, VECTOR3 scale) {
-	float cuframe = fbxObj[animationIndex]->currentframe;
-	float enframe = fbxObj[animationIndex]->endframe;
-	if (cuframe > enframe) {
-		fbxObj[animationIndex]->currentframe = 0.0f;
-		return false;
+	if (prevAnimationIndex == -1)prevAnimationIndex = animationIndex;
+	if (!connectionOn && prevAnimationIndex != animationIndex) {
+		fbxObj[prevAnimationIndex]->currentframe = 0.0f;
+		copyConnectionPoseMatrix(animationIndex);
+		connectionOn = true;
+		prevAnimationIndex = animationIndex;
 	}
-	draw(animationIndex, cuframe, pos, theta, scale);
-	fbxObj[animationIndex]->currentframe += pitchTime;
+	if (connectionOn) {
+		if (ConnectionRatio > 1.0f) {
+			ConnectionRatio = 0.0f;
+			connectionOn = false;
+		}
+		else {
+			setNewPoseMatrixConnection(ConnectionRatio);
+			subDraw(pos, theta, scale);
+			ConnectionRatio += connectionPitch * pitchTime;
+		}
+	}
+	else {
+
+		float cuframe = fbxObj[animationIndex]->currentframe;
+		float enframe = fbxObj[animationIndex]->endframe;
+		if (cuframe > enframe) {
+			fbxObj[animationIndex]->currentframe = 0.0f;
+			return false;
+		}
+		setNewPoseMatrix(animationIndex, cuframe);
+		subDraw(pos, theta, scale);
+		fbxObj[animationIndex]->currentframe += pitchTime;
+	}
 	return true;
 }

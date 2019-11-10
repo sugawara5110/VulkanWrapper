@@ -7,12 +7,26 @@
 #include "../../../CNN/PPMLoader.h"
 #include <iostream>
 
+static int para = 0;
+
 std::function<void()> g_RenderFunc;
 LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 	switch (uMsg)
 	{
 	case WM_DESTROY: PostQuitMessage(0);
 		break;
+	case WM_KEYDOWN:
+		switch ((CHAR)wParam) {
+		case VK_ESCAPE:
+			PostQuitMessage(0);
+			break;
+		case VK_CONTROL:
+			para = 0;
+			break;
+		case VK_DELETE:
+			para = 1;
+			break;
+		}
 	}
 	return DefWindowProc(hWnd, uMsg, wParam, lParam);
 
@@ -55,7 +69,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	vins->createInstance(hWnd, "vulkanTest");
 	auto pd = vins->getPhysicalDevice(0);
 	auto sur = vins->getSurface();
-	Device* device = new Device(pd, sur, 2, false);
+	Device* device = new Device(pd, sur, 2, true);
 	device->createDevice();
 	device->updateProjection();
 
@@ -276,8 +290,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 			v22[i]->setMaterialParameter({ 0.5f,0.5f,0.5f }, { 1.0f,1.0f,1.0f }, { 0.0f,0.0f,0.0f });
 			v22[i]->draw({ 0.4f * (float)i - 0.7f ,0.7f,0.0f }, { 0,the,0 });
 		}
-		sk->autoDraw(1, frame, { 0,0,0 }, { 180,0,0 }, { 2.0f,2.0f,2.0f });
-		sk1->autoDraw(1, frame, { 2,0,0 }, { 90,0.0f,0 }, { 0.2f,0.2f,0.2f });
+		sk->autoDraw(para, frame, { 0,0,0 }, { 180,0,0 }, { 2.0f,2.0f,2.0f });
+		sk1->autoDraw(para, frame, { 2,0,0 }, { 90,0.0f,0 }, { 0.2f,0.2f,0.2f });
 		sk2->autoDraw(0, frame, { -2,0,0 }, { 90,0,0 }, { 0.1f,0.1f,0.1f });
 		//sk3->draw(frame, { -3,0,0 }, { 90,0,0 }, { 0.1f,0.1f,0.1f });
 		device->endCommand(0);

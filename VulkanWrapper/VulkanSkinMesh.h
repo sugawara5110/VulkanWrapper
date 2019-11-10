@@ -21,8 +21,10 @@ struct VertexSkin {
 };
 
 struct Bone {
-	MATRIX bindPose;
-	MATRIX newPose;
+	MATRIX bindPose = {};
+	MATRIX newPose = {};
+	MATRIX connectFirstPose = {};
+	MATRIX connectLastPose = {};
 };
 
 class VulkanSkinMesh {
@@ -50,9 +52,16 @@ private:
 	uint32_t numBone = 0;
 	std::unique_ptr<Bone[]> bone = nullptr;
 	std::unique_ptr<MATRIX[]>outPose = nullptr;
+	uint32_t prevAnimationIndex = -1;
+	bool connectionOn = false;
+	float ConnectionRatio = 0.0f;
+	float connectionPitch = 0.1f;
 
 	void setNewPoseMatrix(uint32_t animationIndex, float time);
+	void copyConnectionPoseMatrix(uint32_t nextAnimationIndex);
+	void setNewPoseMatrixConnection(float connectionRatio);
 	MATRIX getCurrentPoseMatrix(uint32_t index);
+	void subDraw(VECTOR3 pos, VECTOR3 theta, VECTOR3 scale);
 
 public:
 	VulkanSkinMesh(Device* device, char* pass, float endframe, uint32_t comIndex = 0);
@@ -63,6 +72,7 @@ public:
 	void setChangeTexture(uint32_t meshIndex, uint32_t materialIndex, int diffuseTexId, int normalTexId, int specularTexId);
 	void draw(uint32_t animationIndex, float time, VECTOR3 pos = { 0.0f,0.0f,0.0f },
 		VECTOR3 theta = { 0.0f,0.0f,0.0f }, VECTOR3 scale = { 1.0f,1.0f,1.0f });
+	void setConnectionPitch(float pitch);
 	bool autoDraw(uint32_t animationIndex, float pitchTime, VECTOR3 pos = { 0.0f,0.0f,0.0f },
 		VECTOR3 theta = { 0.0f,0.0f,0.0f }, VECTOR3 scale = { 1.0f,1.0f,1.0f });
 };
