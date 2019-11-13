@@ -112,7 +112,6 @@ private:
 		MATRIX world;
 		MATRIX mvp;
 		MATRIX bone[numBoneMax];
-		VECTOR4 UvSwitch = {};//.x==0:そのまま, 1:切り替え
 	};
 
 	struct Material {
@@ -123,6 +122,7 @@ private:
 		VECTOR4 lightPos[numLightMax];
 		VECTOR4 lightColor[numLightMax];
 		VECTOR4 numLight;//ライト数,減衰1,減衰2,減衰3
+		VECTOR4 UvSwitch = {};//.x==0:そのまま, 1:切り替え
 	};
 
 	template<typename UNI>

@@ -12,7 +12,6 @@ char* vsShaderBasicPolygon =
 "    mat4 world;\n"
 "    mat4 mvp;\n"
 "    mat4 bone[256];\n"
-"    vec4 uvSwitch;\n"
 "} gBufferMat;\n"
 
 "layout (location = 0) in vec4 inPos;\n"
@@ -30,27 +29,8 @@ char* vsShaderBasicPolygon =
 "   outWpos = (gBufferMat.world * inPos).xyz;\n"
     //法線は光源計算に使用されるのでワールド変換行列だけ掛ける
 "   outNormal = normalize(mat3(gBufferMat.world) * inNormal);\n"
-    //uv切り替え
-"   if(gBufferMat.uvSwitch.x == 0.0f)\n"//切り替え無
-"   {\n"
-"      outTexCoord = inTexCoord;\n"
-"      outSpeTexCoord = inSpeTexCoord;\n"
-"   }\n"
-"   if(gBufferMat.uvSwitch.x == 1.0f)\n"//逆転
-"   {\n"
-"      outTexCoord = inSpeTexCoord;\n"
-"      outSpeTexCoord = inTexCoord;\n"
-"   }\n"
-"   if(gBufferMat.uvSwitch.x == 2.0f)\n"//どちらもuv0
-"   {\n"
-"      outTexCoord = inTexCoord;\n"
-"      outSpeTexCoord = inTexCoord;\n"
-"   }\n"
-"   if(gBufferMat.uvSwitch.x == 3.0f)\n"//どちらもuv1
-"   {\n"
-"      outTexCoord = inSpeTexCoord;\n"
-"      outSpeTexCoord = inSpeTexCoord;\n"
-"   }\n"
+"   outTexCoord = inTexCoord;\n"
+"   outSpeTexCoord = inSpeTexCoord;\n"
 "   gl_Position = gBufferMat.mvp * inPos;\n"
 "}\n";
 
@@ -69,6 +49,7 @@ char* fsShaderBasicPolygon =
 "    vec4 lightPos[256];\n"
 "    vec4 lightColor[256];\n"
 "    vec4 numLight;\n"//ライト数, 減衰1, 減衰2, 減衰3
+"    vec4 uvSwitch;\n"
 "} gMaterial;\n"
 
 "layout (location = 0) in vec3 inWpos;\n"
@@ -79,8 +60,31 @@ char* fsShaderBasicPolygon =
 "layout (location = 0) out vec4 outColor;\n"
 
 "void main() {\n"
+    //uv切り替え
+"   vec2 texCoord;\n"
+"   vec2 speTexCoord;\n"
+"   if(gMaterial.uvSwitch.x == 0.0f)\n"//切り替え無
+"   {\n"
+"      texCoord = inTexCoord;\n"
+"      speTexCoord = inSpeTexCoord;\n"
+"   }\n"
+"   if(gMaterial.uvSwitch.x == 1.0f)\n"//逆転
+"   {\n"
+"      texCoord = inSpeTexCoord;\n"
+"      speTexCoord = inTexCoord;\n"
+"   }\n"
+"   if(gMaterial.uvSwitch.x == 2.0f)\n"//どちらもuv0
+"   {\n"
+"      texCoord = inTexCoord;\n"
+"      speTexCoord = inTexCoord;\n"
+"   }\n"
+"   if(gMaterial.uvSwitch.x == 3.0f)\n"//どちらもuv1
+"   {\n"
+"      texCoord = inSpeTexCoord;\n"
+"      speTexCoord = inSpeTexCoord;\n"
+"   }\n"
 
-"   vec4 NT = texture(norSampler, inTexCoord);\n"
+"   vec4 NT = texture(norSampler, texCoord);\n"
 "   vec3 norTex = normalize(inNormal * NT.xyz);\n"
 "   vec4 difCol = vec4(0.0f, 0.0f, 0.0f, 1.0f);\n"
 "   vec4 speCol = vec4(0.0f, 0.0f, 0.0f, 1.0f);\n"
@@ -121,7 +125,7 @@ char* fsShaderBasicPolygon =
 "      speCol.xyz += specular * gMaterial.lightColor[i].xyz * attenuation;\n"
 "   }\n"
 "   difCol.xyz += gMaterial.ambient.xyz;\n"
-"   vec4 dTex = texture(texSampler, inTexCoord);\n"
-"   vec4 sTex = texture(speSampler, inSpeTexCoord);\n"
+"   vec4 dTex = texture(texSampler, texCoord);\n"
+"   vec4 sTex = texture(speSampler, speTexCoord);\n"
 "   outColor = dTex * difCol + sTex * speCol;\n"
 "}\n";

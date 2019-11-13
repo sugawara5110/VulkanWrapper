@@ -86,7 +86,6 @@ void VulkanBasicPolygon::draw0(VECTOR3 pos, VECTOR3 theta, VECTOR3 scale, MATRIX
 
 	for (uint32_t m = 0; m < numMaterial; m++) {
 		if (numIndex[m] <= 0)continue;
-		uniform.uni.UvSwitch.x = uvSwitch[m];
 		device->updateUniform(uniform, world, material[m]);
 		vkCmdBindDescriptorSets(device->commandBuffer[comIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
 			&descSet[m], 0, nullptr);
