@@ -221,7 +221,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	VulkanSkinMesh* sk = new VulkanSkinMesh(device, "../../../texturePPM/boss1bone.fbx", 100.0f);
 	sk->additionalAnimation("../../../texturePPM/boss1bone_wait.fbx", 50.0f);
 	VulkanSkinMesh* sk1 = new VulkanSkinMesh(device, "../../../texturePPM/player1_fbx_att.fbx", 300.0f);
-	sk1->additionalAnimation("../../../texturePPM/player1_fbx_wait_deform.fbx", 500.0f);
+	sk1->additionalAnimation("../../../texturePPM/player1_fbx_walk_deform.fbx", 200.0f);
 	VulkanSkinMesh* sk2 = new VulkanSkinMesh(device, "../../../Black Dragon NEW/Dragon_Baked_Actions2.fbx", 300);
 	//VulkanSkinMesh* sk3 = new VulkanSkinMesh(device,"../../../39-alienanimal_fbx/untitled.fbx", 100);
 
@@ -279,6 +279,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 		VectorMatrixMultiply(&light1, &thetaY);
 		VectorMatrixMultiply(&light2, &thetaY);
 		device->updateView({ 0,-0.2f,-8 }, { 0,0,25 }, { 0,1,0 });
+		//device->updateView({ 1.5f,-0.2f,-3 }, { 1.5f,0,25 }, { 0,1,0 });
 		device->setNumLight(2);
 		device->setLight(0, light1, { 1.0f,1.0f,1.0f });
 		device->setLight(1, light2, { 1,0.3f,0.3f });
@@ -288,11 +289,15 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 		//v21->draw({ 0.03f,0.0f,10.0f }, { 0,the,0 });
 		for (int i = 0; i < Num; i++) {
 			v22[i]->setMaterialParameter({ 0.5f,0.5f,0.5f }, { 1.0f,1.0f,1.0f }, { 0.0f,0.0f,0.0f });
-			v22[i]->draw({ 0.4f * (float)i - 0.7f ,0.7f,0.0f }, { 0,the,0 });
+			v22[i]->update({ 0.4f * (float)i - 0.7f ,0.7f,0.0f }, { 0,the,0 });
+			v22[i]->draw();
 		}
-		sk->autoDraw(para, frame, { 0,0,0 }, { 180,0,0 }, { 2.0f,2.0f,2.0f });
-		sk1->autoDraw(para, frame, { 2,0,0 }, { 90,0.0f,0 }, { 0.2f,0.2f,0.2f });
-		sk2->autoDraw(0, frame, { -2,0,0 }, { 90,0,0 }, { 0.1f,0.1f,0.1f });
+		sk->autoUpdate(0, frame, { 0,0,0 }, { 180,0,0 }, { 2.0f,2.0f,2.0f });
+		sk->draw();
+		sk1->autoUpdate(para, frame, { 2,0,0 }, { 90,0.0f,0 }, { 0.2f,0.2f,0.2f });
+		sk1->draw();
+		sk2->autoUpdate(0, frame, { -2,0,0 }, { 90,0,0 }, { 0.1f,0.1f,0.1f });
+		sk2->draw();
 		//sk3->draw(frame, { -3,0,0 }, { 90,0,0 }, { 0.1f,0.1f,0.1f });
 		device->endCommand(0);
 		device->Present(0);

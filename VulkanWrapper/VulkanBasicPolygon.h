@@ -43,7 +43,7 @@ private:
 	VkPipeline pipeline;
 	uint32_t comIndex = 0;
 	Device::Uniform<Device::MatrixSet> uniform;
-	Device::Uniform<Device::Material>* material = nullptr;
+	Device::Uniform<Device::Material>* material = {};
 	uint32_t numMaterial = 1;
 	char* vs = nullptr;
 	char* fs = nullptr;
@@ -71,9 +71,10 @@ private:
 
 		vertices = device->createVertexBuffer<T>(comIndex, ver, num, false);
 		device->descriptorAndPipelineLayouts(true, pipelineLayout, descSetLayout);
-		device->createUniform(uniform, material, numMaterial);
+		device->createUniform(uniform);
 
 		for (uint32_t m = 0; m < numMaterial; m++) {
+			device->createUniform(material[m]);
 			numIndex[m] = indNum[m];
 			if (numIndex[m] <= 0)continue;
 			material[m].uni.UvSwitch.x = uvSw[m];
@@ -111,14 +112,15 @@ private:
 		vkDestroyShaderModule(device->device, fsModule, nullptr);
 	}
 
-	void draw0(VECTOR3 pos, VECTOR3 theta, VECTOR3 scale, MATRIX* bone = nullptr, uint32_t numBone = 0);
+	void update0(VECTOR3 pos, VECTOR3 theta, VECTOR3 scale, MATRIX* bone = nullptr, uint32_t numBone = 0);
 
 public:
 	VulkanBasicPolygon(Device* device, uint32_t comIndex = 0);
 	~VulkanBasicPolygon();
 	void create(int32_t difTexInd, int32_t norTexInd, int32_t speTexInd, Vertex3D* ver, uint32_t num, uint32_t* ind, uint32_t indNum);
 	void setMaterialParameter(VECTOR3 diffuse, VECTOR3 specular, VECTOR3 ambient, uint32_t materialIndex = 0);
-	void draw(VECTOR3 pos = { 0.0f,0.0f,0.0f }, VECTOR3 theta = { 0.0f,0.0f,0.0f }, VECTOR3 scale = { 1.0f,1.0f,1.0f });
+	void update(VECTOR3 pos = { 0.0f,0.0f,0.0f }, VECTOR3 theta = { 0.0f,0.0f,0.0f }, VECTOR3 scale = { 1.0f,1.0f,1.0f });
+	void draw();
 };
 
 #endif

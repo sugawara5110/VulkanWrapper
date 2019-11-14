@@ -796,30 +796,6 @@ uint32_t Device::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags prope
 	throw std::runtime_error("failed to findMemoryType");
 }
 
-void Device::createUniform(Uniform<MatrixSet>& uni, Uniform<Material>* material, uint32_t numMaterial) {
-	createUniformSub(uni);
-	for (uint32_t i = 0; i < numMaterial; i++)
-		createUniformSub(material[i]);
-}
-
-void Device::updateUniform(Uniform<MatrixSet>& uni, MATRIX& move, Uniform<Material>& material) {
-
-	MATRIX vm;
-	MatrixMultiply(&vm, &move, &view);
-	MatrixMultiply(&uni.uni.mvp, &vm, &proj);
-	uni.uni.world = move;
-	updateUniformSub(uni);
-
-	material.uni.viewPos.as(viewPos.x, viewPos.y, viewPos.z, 0.0f);
-	memcpy(material.uni.lightPos, lightPos, sizeof(VECTOR4) * numLight);
-	memcpy(material.uni.lightColor, lightColor, sizeof(VECTOR4) * numLight);
-	material.uni.numLight.x = (float)numLight;
-	material.uni.numLight.y = attenuation1;
-	material.uni.numLight.z = attenuation2;
-	material.uni.numLight.w = attenuation3;
-	updateUniformSub(material);
-}
-
 void Device::descriptorAndPipelineLayouts(bool useTexture, VkPipelineLayout& pipelineLayout, VkDescriptorSetLayout& descSetLayout) {
 	VkDescriptorSetLayoutBinding layout_bindings[5];
 	layout_bindings[0].binding = 0;

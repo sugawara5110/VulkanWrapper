@@ -374,24 +374,24 @@ void VulkanSkinMesh::setChangeTexture(uint32_t meshIndex, uint32_t materialIndex
 	cTexId[meshIndex][materialIndex].specularId = specularTexId;
 }
 
-void VulkanSkinMesh::subDraw(VECTOR3 pos, VECTOR3 theta, VECTOR3 scale) {
+void VulkanSkinMesh::subUpdate(VECTOR3 pos, VECTOR3 theta, VECTOR3 scale) {
 	for (uint32_t i = 0; i < numBone; i++)
 		outPose[i] = getCurrentPoseMatrix(i);
 
 	for (uint32_t i = 0; i < numMesh; i++)
-		bp[i]->draw0(pos, theta, scale, outPose.get(), numBone);
+		bp[i]->update0(pos, theta, scale, outPose.get(), numBone);
 }
 
-void VulkanSkinMesh::draw(uint32_t animationIndex, float time, VECTOR3 pos, VECTOR3 theta, VECTOR3 scale) {
+void VulkanSkinMesh::update(uint32_t animationIndex, float time, VECTOR3 pos, VECTOR3 theta, VECTOR3 scale) {
 	setNewPoseMatrix(animationIndex, time);
-	subDraw(pos, theta, scale);
+	subUpdate(pos, theta, scale);
 }
 
 void VulkanSkinMesh::setConnectionPitch(float pitch) {
 	connectionPitch = pitch;
 }
 
-bool VulkanSkinMesh::autoDraw(uint32_t animationIndex, float pitchTime, VECTOR3 pos, VECTOR3 theta, VECTOR3 scale) {
+bool VulkanSkinMesh::autoUpdate(uint32_t animationIndex, float pitchTime, VECTOR3 pos, VECTOR3 theta, VECTOR3 scale) {
 	if (prevAnimationIndex == -1)prevAnimationIndex = animationIndex;
 	if (!connectionOn && prevAnimationIndex != animationIndex) {
 		fbxObj[prevAnimationIndex]->currentframe = 0.0f;
@@ -406,7 +406,7 @@ bool VulkanSkinMesh::autoDraw(uint32_t animationIndex, float pitchTime, VECTOR3 
 		}
 		else {
 			setNewPoseMatrixConnection(ConnectionRatio);
-			subDraw(pos, theta, scale);
+			subUpdate(pos, theta, scale);
 			ConnectionRatio += connectionPitch * pitchTime;
 		}
 	}
@@ -419,8 +419,14 @@ bool VulkanSkinMesh::autoDraw(uint32_t animationIndex, float pitchTime, VECTOR3 
 			return false;
 		}
 		setNewPoseMatrix(animationIndex, cuframe);
-		subDraw(pos, theta, scale);
+		subUpdate(pos, theta, scale);
 		fbxObj[animationIndex]->currentframe += pitchTime;
 	}
 	return true;
+}
+
+void VulkanSkinMesh::draw() {
+	for (uint32_t i = 0; i < numMesh; i++) {
+		bp[i]->draw();
+	}
 }

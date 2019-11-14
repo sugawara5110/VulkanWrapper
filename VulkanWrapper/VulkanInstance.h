@@ -218,7 +218,7 @@ private:
 	uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 
 	template<typename UNI>
-	void createUniformSub(UNI& uni) {
+	void createUniform(UNI& uni) {
 		createBuffer(sizeof(UNI), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, uni.vkBuf, uni.mem, uni.memSize);
 
@@ -226,10 +226,9 @@ private:
 		uni.info.offset = 0;
 		uni.info.range = sizeof(UNI);
 	}
-	void createUniform(Uniform<MatrixSet>& uni, Uniform<Material>* material, uint32_t numMaterial);
 
 	template<typename UNI>
-	void updateUniformSub(UNI& uni) {
+	void updateUniform(UNI& uni) {
 		uint8_t* pData;
 		auto res = vkMapMemory(device, uni.mem, 0, uni.memSize, 0, (void**)&pData);
 		checkError(res);
@@ -239,7 +238,6 @@ private:
 		uni.info.offset = 0;
 		uni.info.range = sizeof(UNI);
 	}
-	void updateUniform(Uniform<MatrixSet>& uni, MATRIX& move, Uniform<Material>& material);
 
 	void descriptorAndPipelineLayouts(bool useTexture, VkPipelineLayout& pipelineLayout, VkDescriptorSetLayout& descSetLayout);
 	VkPipelineLayout createPipelineLayout2D();

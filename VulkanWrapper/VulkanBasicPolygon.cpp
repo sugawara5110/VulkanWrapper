@@ -56,7 +56,7 @@ void VulkanBasicPolygon::setMaterialParameter(VECTOR3 diffuse, VECTOR3 specular,
 	material[materialIndex].uni.ambient.as(ambient.x, ambient.y, ambient.z, 1.0f);
 }
 
-void VulkanBasicPolygon::draw0(VECTOR3 pos, VECTOR3 theta, VECTOR3 scale, MATRIX* bone, uint32_t numBone) {
+void VulkanBasicPolygon::update0(VECTOR3 pos, VECTOR3 theta, VECTOR3 scale, MATRIX* bone, uint32_t numBone) {
 
 	MATRIX mov;
 	MATRIX rotZ, rotY, rotX, rotZY, rotZYX;
@@ -72,9 +72,30 @@ void VulkanBasicPolygon::draw0(VECTOR3 pos, VECTOR3 theta, VECTOR3 scale, MATRIX
 	MatrixTranslation(&mov, pos.x, pos.y, pos.z);
 	MatrixMultiply(&scro, &rotZYX, &sca);
 	MatrixMultiply(&world, &scro, &mov);
-
+	MATRIX vm;
+	MatrixMultiply(&vm, &world, &device->view);
+	MatrixMultiply(&uniform.uni.mvp, &vm, &device->proj);
+	uniform.uni.world = world;
 	if (numBone > 0)memcpy(uniform.uni.bone, bone, sizeof(MATRIX) * numBone);
+	device->updateUniform(uniform);
 
+	for (uint32_t m = 0; m < numMaterial; m++) {
+		material[m].uni.viewPos.as(device->viewPos.x, device->viewPos.y, device->viewPos.z, 0.0f);
+		memcpy(material[m].uni.lightPos, device->lightPos, sizeof(VECTOR4) * device->numLight);
+		memcpy(material[m].uni.lightColor, device->lightColor, sizeof(VECTOR4) * device->numLight);
+		material[m].uni.numLight.x = (float)device->numLight;
+		material[m].uni.numLight.y = device->attenuation1;
+		material[m].uni.numLight.z = device->attenuation2;
+		material[m].uni.numLight.w = device->attenuation3;
+		device->updateUniform(material[m]);
+	}
+}
+
+void VulkanBasicPolygon::update(VECTOR3 pos, VECTOR3 theta, VECTOR3 scale) {
+	update0(pos, theta, scale, nullptr, 0);
+}
+
+void VulkanBasicPolygon::draw() {
 	static VkViewport vp = { 0.0f, 0.0f, (float)device->width, (float)device->height, 0.0f, 1.0f };
 	static VkRect2D sc = { { 0, 0 }, { device->width, device->height } };
 	static VkDeviceSize offsets[] = { 0 };
@@ -86,14 +107,9 @@ void VulkanBasicPolygon::draw0(VECTOR3 pos, VECTOR3 theta, VECTOR3 scale, MATRIX
 
 	for (uint32_t m = 0; m < numMaterial; m++) {
 		if (numIndex[m] <= 0)continue;
-		device->updateUniform(uniform, world, material[m]);
 		vkCmdBindDescriptorSets(device->commandBuffer[comIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
 			&descSet[m], 0, nullptr);
 		vkCmdBindIndexBuffer(device->commandBuffer[comIndex], index[m].first, 0, VK_INDEX_TYPE_UINT32);
 		vkCmdDrawIndexed(device->commandBuffer[comIndex], numIndex[m], 1, 0, 0, 0);
 	}
-}
-
-void VulkanBasicPolygon::draw(VECTOR3 pos, VECTOR3 theta, VECTOR3 scale) {
-	draw0(pos, theta, scale, nullptr, 0);
 }
