@@ -38,6 +38,7 @@ private:
 	VkDescriptorSetLayout descSetLayout;
 	std::unique_ptr<VkDescriptorPool[]> descPool;
 	std::unique_ptr<VkDescriptorSet[]> descSet;
+	uint32_t descSetCnt = 0;
 	VkPipelineLayout pipelineLayout;
 	VkPipelineCache pipelineCache;
 	VkPipeline pipeline;
@@ -103,7 +104,7 @@ private:
 			else {
 				spe = &device->texture[texId[m].specularId];
 			}
-			device->upDescriptorSet(true, *diff, *nor, *spe, uniform, material[m], descSet[m], descPool[m], descSetLayout);
+			descSetCnt = device->upDescriptorSet(true, *diff, *nor, *spe, uniform, material[m], descSet[m], descPool[m], descSetLayout);
 		}
 
 		pipelineCache = device->createPipelineCache();

@@ -243,7 +243,7 @@ private:
 	VkPipelineLayout createPipelineLayout2D();
 	VkShaderModule createShaderModule(char* shader);
 	void createDescriptorPool(bool useTexture, VkDescriptorPool& descPool);
-	void upDescriptorSet(bool useTexture, Texture& difTexture, Texture& norTexture, Texture& speTexture,
+	uint32_t upDescriptorSet(bool useTexture, Texture& difTexture, Texture& norTexture, Texture& speTexture,
 		Uniform<MatrixSet>& uni, Uniform<Material>& material,
 		VkDescriptorSet& descriptorSet, VkDescriptorPool& descPool, VkDescriptorSetLayout& descSetLayout);
 	VkPipelineCache createPipelineCache();

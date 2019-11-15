@@ -321,10 +321,6 @@ void Device::createDepth() {
 		depth.image, depth.mem);
 
 	VkImageAspectFlags depthMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-	if (depth_format == VK_FORMAT_D16_UNORM_S8_UINT || depth_format == VK_FORMAT_D24_UNORM_S8_UINT ||
-		depth_format == VK_FORMAT_D32_SFLOAT_S8_UINT) {
-		depthMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
-	}
 	//view生成
 	depth.view = createImageView(depth.image, depth_format, depthMask,
 		{ VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A });
@@ -798,44 +794,49 @@ uint32_t Device::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags prope
 
 void Device::descriptorAndPipelineLayouts(bool useTexture, VkPipelineLayout& pipelineLayout, VkDescriptorSetLayout& descSetLayout) {
 	VkDescriptorSetLayoutBinding layout_bindings[5];
-	layout_bindings[0].binding = 0;
-	layout_bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	layout_bindings[0].descriptorCount = 1;
-	layout_bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-	layout_bindings[0].pImmutableSamplers = nullptr;
+	uint32_t bCnt = 0;
+	VkDescriptorSetLayoutBinding& bufferMat = layout_bindings[bCnt];
+	bufferMat.binding = bCnt++;
+	bufferMat.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	bufferMat.descriptorCount = 1;
+	bufferMat.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	bufferMat.pImmutableSamplers = nullptr;
 
 	if (useTexture) {
+		VkDescriptorSetLayoutBinding& texSampler = layout_bindings[bCnt];
+		texSampler.binding = bCnt++;
+		texSampler.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		texSampler.descriptorCount = 1;
+		texSampler.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+		texSampler.pImmutableSamplers = nullptr;
 
-		layout_bindings[1].binding = 1;
-		layout_bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		layout_bindings[1].descriptorCount = 1;
-		layout_bindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-		layout_bindings[1].pImmutableSamplers = nullptr;
+		VkDescriptorSetLayoutBinding& norSampler = layout_bindings[bCnt];
+		norSampler.binding = bCnt++;
+		norSampler.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		norSampler.descriptorCount = 1;
+		norSampler.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+		norSampler.pImmutableSamplers = nullptr;
 
-		layout_bindings[2].binding = 2;
-		layout_bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		layout_bindings[2].descriptorCount = 1;
-		layout_bindings[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-		layout_bindings[2].pImmutableSamplers = nullptr;
+		VkDescriptorSetLayoutBinding& speSampler = layout_bindings[bCnt];
+		speSampler.binding = bCnt++;
+		speSampler.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		speSampler.descriptorCount = 1;
+		speSampler.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+		speSampler.pImmutableSamplers = nullptr;
 
-		layout_bindings[3].binding = 3;
-		layout_bindings[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		layout_bindings[3].descriptorCount = 1;
-		layout_bindings[3].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-		layout_bindings[3].pImmutableSamplers = nullptr;
-
-		layout_bindings[4].binding = 4;
-		layout_bindings[4].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		layout_bindings[4].descriptorCount = 1;
-		layout_bindings[4].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-		layout_bindings[4].pImmutableSamplers = nullptr;
+		VkDescriptorSetLayoutBinding& bufferMaterial = layout_bindings[bCnt];
+		bufferMaterial.binding = bCnt++;
+		bufferMaterial.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		bufferMaterial.descriptorCount = 1;
+		bufferMaterial.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+		bufferMaterial.pImmutableSamplers = nullptr;
 	}
 
 	VkDescriptorSetLayoutCreateInfo descriptor_layout = {};
 	descriptor_layout.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 	descriptor_layout.pNext = NULL;
 	descriptor_layout.flags = 0;
-	descriptor_layout.bindingCount = useTexture ? 5 : 1;
+	descriptor_layout.bindingCount = bCnt;
 	descriptor_layout.pBindings = layout_bindings;
 
 	VkResult res;
@@ -880,34 +881,40 @@ VkShaderModule Device::createShaderModule(char* shader) {
 void Device::createDescriptorPool(bool useTexture, VkDescriptorPool& descPool) {
 	VkResult res;
 	VkDescriptorPoolSize type_count[5];
-	type_count[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	type_count[0].descriptorCount = 1;
+	uint32_t bCnt = 0;
+	VkDescriptorPoolSize& bufferMat = type_count[bCnt++];
+	bufferMat.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	bufferMat.descriptorCount = 1;
 	if (useTexture) {
-		type_count[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		type_count[1].descriptorCount = 1;
+		VkDescriptorPoolSize& texSampler = type_count[bCnt++];
+		texSampler.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		texSampler.descriptorCount = 1;
 
-		type_count[2].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		type_count[2].descriptorCount = 1;
+		VkDescriptorPoolSize& norSampler = type_count[bCnt++];
+		norSampler.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		norSampler.descriptorCount = 1;
 
-		type_count[3].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		type_count[3].descriptorCount = 1;
+		VkDescriptorPoolSize& speSampler = type_count[bCnt++];
+		speSampler.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		speSampler.descriptorCount = 1;
 
-		type_count[4].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		type_count[4].descriptorCount = 1;
+		VkDescriptorPoolSize& bufferMaterial = type_count[bCnt++];
+		bufferMaterial.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		bufferMaterial.descriptorCount = 1;
 	}
 
 	VkDescriptorPoolCreateInfo descriptor_pool = {};
 	descriptor_pool.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 	descriptor_pool.pNext = nullptr;
 	descriptor_pool.maxSets = 1;
-	descriptor_pool.poolSizeCount = useTexture ? 5 : 1;
+	descriptor_pool.poolSizeCount = bCnt;
 	descriptor_pool.pPoolSizes = type_count;
 
 	res = vkCreateDescriptorPool(device, &descriptor_pool, nullptr, &descPool);
 	checkError(res);
 }
 
-void Device::upDescriptorSet(bool useTexture, Texture& difTexture, Texture& norTexture, Texture& speTexture, Uniform<MatrixSet>& uni,
+uint32_t Device::upDescriptorSet(bool useTexture, Texture& difTexture, Texture& norTexture, Texture& speTexture, Uniform<MatrixSet>& uni,
 	Uniform<Material>& material, VkDescriptorSet& descriptorSet, VkDescriptorPool& descPool, VkDescriptorSetLayout& descSetLayout) {
 
 	VkResult res;
@@ -923,57 +930,63 @@ void Device::upDescriptorSet(bool useTexture, Texture& difTexture, Texture& norT
 	checkError(res);
 
 	VkWriteDescriptorSet writes[5];
-
-	writes[0] = {};
-	writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	writes[0].pNext = nullptr;
-	writes[0].dstSet = descriptorSet;
-	writes[0].descriptorCount = 1;
-	writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	writes[0].pBufferInfo = &uni.info;
-	writes[0].dstArrayElement = 0;
-	writes[0].dstBinding = 0;
+	uint32_t bCnt = 0;
+	VkWriteDescriptorSet& bufferMat = writes[bCnt];
+	bufferMat = {};
+	bufferMat.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	bufferMat.pNext = nullptr;
+	bufferMat.dstSet = descriptorSet;
+	bufferMat.descriptorCount = 1;
+	bufferMat.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	bufferMat.pBufferInfo = &uni.info;
+	bufferMat.dstArrayElement = 0;
+	bufferMat.dstBinding = bCnt++;
 
 	if (useTexture) {
-		writes[1] = {};
-		writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		writes[1].dstSet = descriptorSet;
-		writes[1].dstBinding = 1;
-		writes[1].descriptorCount = 1;
-		writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		writes[1].pImageInfo = &difTexture.info;
-		writes[1].dstArrayElement = 0;
+		VkWriteDescriptorSet& texSampler = writes[bCnt];
+		texSampler = {};
+		texSampler.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		texSampler.dstSet = descriptorSet;
+		texSampler.dstBinding = bCnt++;
+		texSampler.descriptorCount = 1;
+		texSampler.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		texSampler.pImageInfo = &difTexture.info;
+		texSampler.dstArrayElement = 0;
 
-		writes[2] = {};
-		writes[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		writes[2].dstSet = descriptorSet;
-		writes[2].dstBinding = 2;
-		writes[2].descriptorCount = 1;
-		writes[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		writes[2].pImageInfo = &norTexture.info;
-		writes[2].dstArrayElement = 0;
+		VkWriteDescriptorSet& norSampler = writes[bCnt];
+		norSampler = {};
+		norSampler.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		norSampler.dstSet = descriptorSet;
+		norSampler.dstBinding = bCnt++;
+		norSampler.descriptorCount = 1;
+		norSampler.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		norSampler.pImageInfo = &norTexture.info;
+		norSampler.dstArrayElement = 0;
 
-		writes[3] = {};
-		writes[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		writes[3].dstSet = descriptorSet;
-		writes[3].dstBinding = 3;
-		writes[3].descriptorCount = 1;
-		writes[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		writes[3].pImageInfo = &speTexture.info;
-		writes[3].dstArrayElement = 0;
+		VkWriteDescriptorSet& speSampler = writes[bCnt];
+		speSampler = {};
+		speSampler.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		speSampler.dstSet = descriptorSet;
+		speSampler.dstBinding = bCnt++;
+		speSampler.descriptorCount = 1;
+		speSampler.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		speSampler.pImageInfo = &speTexture.info;
+		speSampler.dstArrayElement = 0;
 
-		writes[4] = {};
-		writes[4].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		writes[4].pNext = nullptr;
-		writes[4].dstSet = descriptorSet;
-		writes[4].descriptorCount = 1;
-		writes[4].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		writes[4].pBufferInfo = &material.info;
-		writes[4].dstArrayElement = 0;
-		writes[4].dstBinding = 4;
+		VkWriteDescriptorSet& bufferMaterial = writes[bCnt];
+		bufferMaterial = {};
+		bufferMaterial.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		bufferMaterial.pNext = nullptr;
+		bufferMaterial.dstSet = descriptorSet;
+		bufferMaterial.descriptorCount = 1;
+		bufferMaterial.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		bufferMaterial.pBufferInfo = &material.info;
+		bufferMaterial.dstArrayElement = 0;
+		bufferMaterial.dstBinding = bCnt++;
 	}
 
-	vkUpdateDescriptorSets(device, 5, writes, 0, nullptr);
+	vkUpdateDescriptorSets(device, bCnt, writes, 0, nullptr);
+	return bCnt;
 }
 
 VkPipelineCache Device::createPipelineCache() {

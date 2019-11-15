@@ -27,6 +27,7 @@ VulkanBasicPolygon::~VulkanBasicPolygon() {
 	for (uint32_t i = 0; i < numMaterial; i++) {
 		vkDestroyBuffer(device->device, index[i].first, nullptr);
 		vkFreeMemory(device->device, index[i].second, nullptr);
+		vkFreeDescriptorSets(device->device, descPool[i], descSetCnt, &descSet[i]);
 		vkDestroyDescriptorPool(device->device, descPool[i], nullptr);
 	}
 	ARR_DELETE(material);
