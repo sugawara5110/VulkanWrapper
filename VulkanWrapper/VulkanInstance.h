@@ -59,20 +59,20 @@ private:
 	friend Vulkan2D;
 	friend VulkanBasicPolygon;
 	friend VulkanSkinMesh;
-	VkPhysicalDevice pDev;//VulkanInstanceからポインタを受け取る
-	VkSurfaceKHR surface;//VulkanInstanceからポインタを受け取る
-	VkDevice device;
-	VkQueue devQueue;
+	VkPhysicalDevice pDev = nullptr;//VulkanInstanceからポインタを受け取る
+	VkSurfaceKHR surface = nullptr;//VulkanInstanceからポインタを受け取る
+	VkDevice device = nullptr;
+	VkQueue devQueue = nullptr;
 	uint32_t queueFamilyIndex = 0xffffffff;
-	VkPhysicalDeviceMemoryProperties memProps;
-	VkCommandPool commandPool;
-	VkFence sFence;
-	std::unique_ptr <VkFence[]>swFence;//現状0番のみ使用
+	VkPhysicalDeviceMemoryProperties memProps = {};
+	VkCommandPool commandPool = nullptr;
+	VkFence sFence = nullptr;
+	std::unique_ptr <VkFence[]>swFence = nullptr;//現状0番のみ使用
 	bool firstswFence = false;
 	VkSemaphore renderCompletedSem, presentCompletedSem;
 
 	struct swapchainBuffer {
-		VkSwapchainKHR swapchain;
+		VkSwapchainKHR swapchain = nullptr;
 		uint32_t imageCount = 0;
 		std::unique_ptr <VkImage[]> images = nullptr;//スワップチェーンの画像表示に使う
 		std::unique_ptr <VkImageView[]> views = nullptr;

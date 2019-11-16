@@ -7,9 +7,8 @@
 #include "Vulkan2D.h"
 #include "Shader/Shader2D.h"
 
-Vulkan2D::Vulkan2D(Device* dev, uint32_t comindex) {
+Vulkan2D::Vulkan2D(Device* dev) {
 	device = dev;
-	comIndex = comindex;
 }
 
 Vulkan2D::~Vulkan2D() {
@@ -22,7 +21,7 @@ Vulkan2D::~Vulkan2D() {
 	vkFreeMemory(device->device, vertices.second, nullptr);
 }
 
-void Vulkan2D::create(Vertex2D* ver, uint32_t num) {
+void Vulkan2D::create(uint32_t comIndex, Vertex2D* ver, uint32_t num) {
 
 	numVer = num;
 	static VkVertexInputBindingDescription bindDesc =
@@ -43,7 +42,7 @@ void Vulkan2D::create(Vertex2D* ver, uint32_t num) {
 	pipeline = device->createGraphicsPipelineVF(vsModule, fsModule, bindDesc, attrDescs, 2, pipelineLayout, device->renderPass, pipelineCache);
 }
 
-void Vulkan2D::draw() {
+void Vulkan2D::draw(uint32_t comIndex) {
 	static VkViewport vp = { 0.0f, 0.0f, (float)device->width, (float)device->height, 0.0f, 1.0f };
 	static VkRect2D sc = { { 0, 0 }, { device->width, device->height } };
 	static VkDeviceSize offsets[] = { 0 };

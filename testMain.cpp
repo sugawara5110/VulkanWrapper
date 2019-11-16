@@ -6,6 +6,7 @@
 #include "../../../T_float/T_float.h"
 #include "../../../CNN/PPMLoader.h"
 #include <iostream>
+#include <thread>
 
 static int para = 0;
 
@@ -29,16 +30,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 		}
 	}
 	return DefWindowProc(hWnd, uMsg, wParam, lParam);
-
-	/*switch (uMsg)
-	{
-	case WM_DESTROY: PostQuitMessage(0); break;
-	case WM_PAINT:
-		BeginPaint(hWnd, nullptr); EndPaint(hWnd, nullptr);
-		g_RenderFunc();
-		return 0;
-	}
-	return DefWindowProc(hWnd, uMsg, wParam, lParam);*/
 }
 
 auto initApp(HINSTANCE hInstance) {
@@ -59,17 +50,32 @@ auto initApp(HINSTANCE hInstance) {
 		CW_USEDEFAULT, CW_USEDEFAULT, rc.right - rc.left, rc.bottom - rc.top, nullptr, nullptr, hInstance, nullptr);
 }
 
+HWND hWnd;
+VulkanInstance* vins;
+Device* device;
+float the = 180.0f;
+float frame = 1.0f;
+Vulkan2D* v2;
+Vulkan2D* v20;
+const int Num = 1;
+VulkanBasicPolygon* v22[Num];
+VulkanSkinMesh* sk;
+VulkanSkinMesh* sk1;
+VulkanSkinMesh* sk2;
+
+void update(uint32_t sw);
+void draw(uint32_t& sw);
+
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 {
-	auto hWnd = initApp(hInstance);
+	hWnd = initApp(hInstance);
 	if (hWnd == nullptr) return 1;
 
-
-	VulkanInstance* vins = new VulkanInstance();
+	vins = new VulkanInstance();
 	vins->createInstance(hWnd, "vulkanTest");
 	auto pd = vins->getPhysicalDevice(0);
 	auto sur = vins->getSurface();
-	Device* device = new Device(pd, sur, 2, true);
+	device = new Device(pd, sur, 2, false);
 	device->createDevice();
 	device->updateProjection();
 
@@ -84,11 +90,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	{ { -0.2f, 0.0f }, { 1.0f, 0.5f, 0.0f, 1.0f } },
 	{ { 0.8f, 0.0f }, { 0.0f, 0.5f, 1.0f, 1.0f } }
 	};
-	/*static Vertex3D ver1[] = {
-	{ { 0.0f, -0.0f }, { 1.0f, 1.0f, 1.0f, 1.0f } },
-	{ { -0.5f, 0.70f }, { 1.0f, 0.5f, 0.0f, 1.0f } },
-	{ { 0.5f, 0.70f }, { 0.0f, 0.5f, 1.0f, 1.0f } }
-	};*/
 	static Vertex3D ver11[] = {
 		//前
 		{ {-0.5f, -0.5f,0.5f }, { 0.0f, 0.0f, 1.0f} ,{0.0f,0.0f},{0.0f,0.0f}},
@@ -146,7 +147,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 		L"../../../texturePPM/male01_diffuse_black.ppm",
 		L"../../../texturePPM/young_lightskinned_male_diffuse.ppm",
 		L"../../../Black Dragon NEW/textures/Dragon_Bump_Col2.ppm",
-		//L"../../../color_grid.ppm",
 		L"../../../Black Dragon NEW/textures/Dragon_Nor_mirror2.ppm",
 		L"../../../Black Dragon NEW/textures/Dragon_ground_color.ppm",
 		L"../../../Black Dragon NEW/textures/Dragon_Nor.ppm"
@@ -188,7 +188,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 		device->GetTexture(0, "../../../texturePPM/male01_diffuse_black.png", ima[12], 256, 256);
 		device->GetTexture(0, "../../../texturePPM/young_lightskinned_male_diffuse.png", ima[13], 256, 256);
 		device->GetTexture(0, "../../../Black Dragon NEW/textures/Dragon_Bump_Col2.jpg", ima[14], 256, 256);
-		//device->GetTexture(0,"../../../color_grid.png", ima[14], 256, 256);
 		device->GetTexture(0, "../../../Black Dragon NEW/textures/Dragon_Nor_mirror2.jpg", ima[15], 256, 256);
 		device->GetTexture(0, "../../../Black Dragon NEW/textures/Dragon_ground_color.jpg", ima[16], 256, 256);
 		device->GetTexture(0, "../../../Black Dragon NEW/textures/Dragon_Nor.jpg", ima[17], 256, 256);
@@ -198,63 +197,38 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 		tex3 = device->getTextureNo("boss1.jpg");
 		tex4 = device->getTextureNo("boss1_normal.png");
 		tex5 = device->getTextureNo("Dragon_Bump_Col2.jpg");
-		//tex5 = device->getTextureNo("color_grid.png");
 		tex6 = device->getTextureNo("Dragon_Nor_mirror2.jpg");
 	}
 	catch (std::runtime_error e) {
 		std::cerr << "runtime_error: " << e.what() << std::endl;
 	}
 
-	Vulkan2D* v2 = new Vulkan2D(device);
-	v2->create(ver, 3);
-	Vulkan2D* v20 = new Vulkan2D(device);
-	v20->create(ver0, 3);
-	//VulkanBasicPolygon* v21 = new VulkanBasicPolygon(device);
-	//v21->create(ver1, 3, index, 3);
-	const int Num = 1;
-	VulkanBasicPolygon* v22[Num];
+	v2 = new Vulkan2D(device);
+	v2->create(0, ver, 3);
+	v20 = new Vulkan2D(device);
+	v20->create(0, ver0, 3);
 	for (int i = 0; i < Num; i++) {
 		v22[i] = new VulkanBasicPolygon(device);
-		v22[i]->create(0, 1, -1, ver11, 24, index1, 36);
+		v22[i]->create(0, 0, 1, -1, ver11, 24, index1, 36);
 	}
 
-	VulkanSkinMesh* sk = new VulkanSkinMesh(device, "../../../texturePPM/boss1bone.fbx", 100.0f);
+	sk = new VulkanSkinMesh(device, "../../../texturePPM/boss1bone.fbx", 100.0f);
 	sk->additionalAnimation("../../../texturePPM/boss1bone_wait.fbx", 50.0f);
-	VulkanSkinMesh* sk1 = new VulkanSkinMesh(device, "../../../texturePPM/player1_fbx_att.fbx", 300.0f);
+	sk1 = new VulkanSkinMesh(device, "../../../texturePPM/player1_fbx_att.fbx", 300.0f);
 	sk1->additionalAnimation("../../../texturePPM/player1_fbx_walk_deform.fbx", 200.0f);
-	VulkanSkinMesh* sk2 = new VulkanSkinMesh(device, "../../../Black Dragon NEW/Dragon_Baked_Actions2.fbx", 300);
-	//VulkanSkinMesh* sk3 = new VulkanSkinMesh(device,"../../../39-alienanimal_fbx/untitled.fbx", 100);
+	sk2 = new VulkanSkinMesh(device, "../../../Black Dragon NEW/Dragon_Baked_Actions2.fbx", 300);
 
-
-	//sk2->setChangeTexture(0, tex5, tex6);
-	sk2->create();
-	//sk3->create();
-	sk1->create();
+	sk2->create(0);
+	sk1->create(0);
 	sk->setChangeTexture(0, 0, -1, 3, -1);
-	sk->create();
-	sk->setMaterialParameter(0, 0, { 1,1,1 }, { 0.1f,0.1f,0.1f }, { 0.3f,0.3f,0.3f });
-	float the = 180.0f;
-	float frame = 1.0f;
-	/*g_RenderFunc = [&]()
-	{
-
-		if (the++ > 360.0f)the = 0.0f;
-		device->updateView({ 0,0,0 }, { 0,0,5 }, { 0,1,0 });
-		device->beginCommand(0);
-		v2->draw();
-		v21->draw({ 0,0,1 }, {0,the++,0});
-		device->endCommand(0);
-		device->waitFence(0);
-	};*/
+	sk->create(0);
+	sk->setMaterialParameter(0, 0, 0, { 1,1,1 }, { 0.1f,0.1f,0.1f }, { 0.3f,0.3f,0.3f });
+	sk->setMaterialParameter(1, 0, 0, { 1,1,1 }, { 0.1f,0.1f,0.1f }, { 0.3f,0.3f,0.3f });
 	ShowWindow(hWnd, nCmdShow);
 	ValidateRect(hWnd, 0);// WM_PAINTが呼ばれないようにする
 	MSG msg;
-
-	/*while (GetMessage(&msg, nullptr, 0, 0) > 0)
-	{
-		DispatchMessage(&msg);
-
-	}*/
+	uint32_t swap = 0;
+	uint32_t thPara = 1 - swap;
 
 	while (1)
 	{
@@ -268,39 +242,15 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 				DispatchMessage(&msg);
 			}
 		}
-
-		//ループ内処理
 		T_float::GetTime(hWnd);
-		if (the++ > 360.0f)the = 0.0f;
-		MATRIX thetaY;
-		VECTOR3 light1 = { 0.3f,0.4f,-2.0f };
-		VECTOR3 light2 = { -0.3f,-0.4f,2.0f };
-		MatrixRotationY(&thetaY, the);
-		VectorMatrixMultiply(&light1, &thetaY);
-		VectorMatrixMultiply(&light2, &thetaY);
-		device->updateView({ 0,-0.2f,-8 }, { 0,0,25 }, { 0,1,0 });
-		//device->updateView({ 1.5f,-0.2f,-3 }, { 1.5f,0,25 }, { 0,1,0 });
-		device->setNumLight(2);
-		device->setLight(0, light1, { 1.0f,1.0f,1.0f });
-		device->setLight(1, light2, { 1,0.3f,0.3f });
-		device->beginCommand(0);
-		//v2->draw();
-		//v20->draw();
-		//v21->draw({ 0.03f,0.0f,10.0f }, { 0,the,0 });
-		for (int i = 0; i < Num; i++) {
-			v22[i]->setMaterialParameter({ 0.5f,0.5f,0.5f }, { 1.0f,1.0f,1.0f }, { 0.0f,0.0f,0.0f });
-			v22[i]->update({ 0.4f * (float)i - 0.7f ,0.7f,0.0f }, { 0,the,0 });
-			v22[i]->draw();
-		}
-		sk->autoUpdate(0, frame, { 0,0,0 }, { 180,0,0 }, { 2.0f,2.0f,2.0f });
-		sk->draw();
-		sk1->autoUpdate(para, frame, { 2,0,0 }, { 90,0.0f,0 }, { 0.2f,0.2f,0.2f });
-		sk1->draw();
-		sk2->autoUpdate(0, frame, { -2,0,0 }, { 90,0,0 }, { 0.1f,0.1f,0.1f });
-		sk2->draw();
-		//sk3->draw(frame, { -3,0,0 }, { 90,0,0 }, { 0.1f,0.1f,0.1f });
-		device->endCommand(0);
-		device->Present(0);
+		//ループ内処理
+
+		std::thread th(draw, std::ref(thPara));
+		update(swap);
+		th.join();
+
+		swap = 1 - swap;
+		thPara = 1 - swap;
 		//ループ内処理
 	}
 	for (int i = 0; i < fnum; i++)ARR_DELETE(ima[i]);
@@ -308,12 +258,52 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	S_DELETE(sk);
 	S_DELETE(sk1);
 	S_DELETE(sk2);
-	//S_DELETE(sk3);
 	S_DELETE(v2);
 	S_DELETE(v20);
-	//S_DELETE(v21);
 	for (int i = 0; i < Num; i++)S_DELETE(v22[i]);
 	S_DELETE(device);
 	S_DELETE(vins);
 	return (int)msg.wParam;
+}
+
+void update(uint32_t sw) {
+	if (the++ > 360.0f)the = 0.0f;
+	MATRIX thetaY;
+	VECTOR3 light1 = { 0.3f,0.4f,-2.0f };
+	VECTOR3 light2 = { -0.3f,-0.4f,2.0f };
+	MatrixRotationY(&thetaY, the);
+	VectorMatrixMultiply(&light1, &thetaY);
+	VectorMatrixMultiply(&light2, &thetaY);
+	device->updateView({ 0,-0.2f,-8 }, { 0,0,25 }, { 0,1,0 });
+	//device->updateView({ 1.5f,-0.2f,-3 }, { 1.5f,0,25 }, { 0,1,0 });
+	device->setNumLight(2);
+	device->setLight(0, light1, { 1.0f,1.0f,1.0f });
+	device->setLight(1, light2, { 1,0.3f,0.3f });
+	for (int i = 0; i < Num; i++) {
+		v22[i]->setMaterialParameter(sw, { 0.5f,0.5f,0.5f }, { 1.0f,1.0f,1.0f }, { 0.0f,0.0f,0.0f });
+		v22[i]->update(sw, { 0.4f * (float)i - 0.7f ,0.7f,0.0f }, { 0,the,0 });
+	}
+	sk->autoUpdate(sw, 0, frame, { 0,0,0 }, { 180,0,0 }, { 2.0f,2.0f,2.0f });
+	sk1->autoUpdate(sw, para, frame, { 2,0,0 }, { 90,0.0f,0 }, { 0.2f,0.2f,0.2f });
+	sk2->autoUpdate(sw, 0, frame, { -2,0,0 }, { 90,0,0 }, { 0.1f,0.1f,0.1f });
+}
+
+void draw(uint32_t& sw) {
+	static bool firstDraw = false;
+	if (firstDraw) {
+		device->beginCommand(0);
+		//v2->draw(0);
+		//v20->draw(0);
+		for (int i = 0; i < Num; i++) {
+			v22[i]->draw(sw, 0);
+		}
+		sk->draw(sw, 0);
+		sk1->draw(sw, 0);
+		sk2->draw(sw, 0);
+		device->endCommand(0);
+		device->Present(0);
+	}
+	else {
+		firstDraw = true;
+	}
 }

@@ -31,7 +31,6 @@ class VulkanSkinMesh {
 
 private:
 	Device* device = nullptr;
-	uint32_t comIndex = 0;
 
 	struct FbxObj {
 		FbxLoader fbx;
@@ -61,21 +60,21 @@ private:
 	void copyConnectionPoseMatrix(uint32_t nextAnimationIndex);
 	void setNewPoseMatrixConnection(float connectionRatio);
 	MATRIX getCurrentPoseMatrix(uint32_t index);
-	void subUpdate(VECTOR3 pos, VECTOR3 theta, VECTOR3 scale);
+	void subUpdate(uint32_t swapIndex, VECTOR3 pos, VECTOR3 theta, VECTOR3 scale);
 
 public:
-	VulkanSkinMesh(Device* device, char* pass, float endframe, uint32_t comIndex = 0);
+	VulkanSkinMesh(Device* device, char* pass, float endframe);
 	~VulkanSkinMesh();
 	void additionalAnimation(char* pass, float endframe);
-	void create();
-	void setMaterialParameter(uint32_t meshIndex, uint32_t materialIndex, VECTOR3 diffuse, VECTOR3 specular, VECTOR3 ambient);
+	void create(uint32_t comIndex);
+	void setMaterialParameter(uint32_t swapIndex, uint32_t meshIndex, uint32_t materialIndex, VECTOR3 diffuse, VECTOR3 specular, VECTOR3 ambient);
 	void setChangeTexture(uint32_t meshIndex, uint32_t materialIndex, int diffuseTexId, int normalTexId, int specularTexId);
-	void update(uint32_t animationIndex, float time, VECTOR3 pos = { 0.0f,0.0f,0.0f },
+	void update(uint32_t swapIndex, uint32_t animationIndex, float time, VECTOR3 pos = { 0.0f,0.0f,0.0f },
 		VECTOR3 theta = { 0.0f,0.0f,0.0f }, VECTOR3 scale = { 1.0f,1.0f,1.0f });
 	void setConnectionPitch(float pitch);
-	bool autoUpdate(uint32_t animationIndex, float pitchTime, VECTOR3 pos = { 0.0f,0.0f,0.0f },
+	bool autoUpdate(uint32_t swapIndex, uint32_t animationIndex, float pitchTime, VECTOR3 pos = { 0.0f,0.0f,0.0f },
 		VECTOR3 theta = { 0.0f,0.0f,0.0f }, VECTOR3 scale = { 1.0f,1.0f,1.0f });
-	void draw();
+	void draw(uint32_t swapIndex, uint32_t comIndex);
 };
 
 #endif

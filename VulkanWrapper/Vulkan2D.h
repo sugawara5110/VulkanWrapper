@@ -25,13 +25,12 @@ private:
 	VkPipelineLayout pipelineLayout;
 	VkPipelineCache pipelineCache;
 	VkPipeline pipeline;
-	uint32_t comIndex = 0;
 
 public:
-	Vulkan2D(Device* device, uint32_t comIndex = 0);
+	Vulkan2D(Device* device);
 	~Vulkan2D();
-	void create(Vertex2D* ver, uint32_t num);
-	void draw();
+	void create(uint32_t comIndex, Vertex2D* ver, uint32_t num);
+	void draw(uint32_t comIndex);
 };
 
 #endif

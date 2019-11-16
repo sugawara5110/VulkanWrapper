@@ -8,9 +8,8 @@
 #include "VulkanSkinMesh.h"
 #include "Shader/ShaderSkinMesh.h"
 
-VulkanSkinMesh::VulkanSkinMesh(Device* dev, char* pass, float endfra, uint32_t comindex) {
+VulkanSkinMesh::VulkanSkinMesh(Device* dev, char* pass, float endfra) {
 	device = dev;
-	comIndex = comindex;
 
 	fbxObj[0] = new FbxObj();
 	//フレーム数
@@ -79,10 +78,10 @@ VulkanSkinMesh::~VulkanSkinMesh() {
 	}
 }
 
-void VulkanSkinMesh::create() {
+void VulkanSkinMesh::create(uint32_t comIndex) {
 	//各mesh読み込み
 	for (uint32_t mI = 0; mI < numMesh; mI++) {
-		bp[mI] = new VulkanBasicPolygon(device, comIndex);
+		bp[mI] = new VulkanBasicPolygon(device);
 		FbxMeshNode* mesh = fbxObj[0]->fbx.getFbxMeshNode(mI);//mI番目のMesh取得
 		auto index = mesh->getPolygonVertices();//頂点Index取得(頂点xyzに対してのIndex)
 		auto ver = mesh->getVertices();//頂点取得
@@ -290,11 +289,14 @@ void VulkanSkinMesh::create() {
 			{ 5, 0, VK_FORMAT_R32G32B32A32_SFLOAT, sizeof(float) * 14 }
 		};
 
-		bp[mI]->create0<VertexSkin>(numMaterial, texId, uvSw, verSkin, (uint32_t)mesh->getNumPolygonVertices(),
+		bp[mI]->create0<VertexSkin>(comIndex, numMaterial, texId, uvSw, verSkin, (uint32_t)mesh->getNumPolygonVertices(),
 			newIndex, numNewIndex, attrDescs, 6, vsShaderSkinMesh, bp[mI]->fs);
 
-		for (uint32_t matInd = 0; matInd < numMaterial; matInd++)
-			bp[mI]->setMaterialParameter(diffuse[matInd], specular[matInd], ambient[matInd], matInd);
+		for (uint32_t sw = 0; sw < bp[0]->numSwap; sw++) {
+			for (uint32_t matInd = 0; matInd < numMaterial; matInd++) {
+				bp[mI]->setMaterialParameter(sw, diffuse[matInd], specular[matInd], ambient[matInd], matInd);
+			}
+		}
 
 		for (uint32_t ind1 = 0; ind1 < numMaterial; ind1++)ARR_DELETE(newIndex[ind1]);
 		ARR_DELETE(newIndex);
@@ -364,8 +366,8 @@ MATRIX VulkanSkinMesh::getCurrentPoseMatrix(uint32_t index) {
 	return ret;
 }
 
-void VulkanSkinMesh::setMaterialParameter(uint32_t meshIndex, uint32_t materialIndex, VECTOR3 diffuse, VECTOR3 specular, VECTOR3 ambient) {
-	bp[meshIndex]->setMaterialParameter(diffuse, specular, ambient, materialIndex);
+void VulkanSkinMesh::setMaterialParameter(uint32_t swapIndex, uint32_t meshIndex, uint32_t materialIndex, VECTOR3 diffuse, VECTOR3 specular, VECTOR3 ambient) {
+	bp[meshIndex]->setMaterialParameter(swapIndex, diffuse, specular, ambient, materialIndex);
 }
 
 void VulkanSkinMesh::setChangeTexture(uint32_t meshIndex, uint32_t materialIndex, int diffuseTexId, int normalTexId, int specularTexId) {
@@ -374,24 +376,24 @@ void VulkanSkinMesh::setChangeTexture(uint32_t meshIndex, uint32_t materialIndex
 	cTexId[meshIndex][materialIndex].specularId = specularTexId;
 }
 
-void VulkanSkinMesh::subUpdate(VECTOR3 pos, VECTOR3 theta, VECTOR3 scale) {
+void VulkanSkinMesh::subUpdate(uint32_t swapIndex, VECTOR3 pos, VECTOR3 theta, VECTOR3 scale) {
 	for (uint32_t i = 0; i < numBone; i++)
 		outPose[i] = getCurrentPoseMatrix(i);
 
 	for (uint32_t i = 0; i < numMesh; i++)
-		bp[i]->update0(pos, theta, scale, outPose.get(), numBone);
+		bp[i]->update0(swapIndex, pos, theta, scale, outPose.get(), numBone);
 }
 
-void VulkanSkinMesh::update(uint32_t animationIndex, float time, VECTOR3 pos, VECTOR3 theta, VECTOR3 scale) {
+void VulkanSkinMesh::update(uint32_t swapIndex, uint32_t animationIndex, float time, VECTOR3 pos, VECTOR3 theta, VECTOR3 scale) {
 	setNewPoseMatrix(animationIndex, time);
-	subUpdate(pos, theta, scale);
+	subUpdate(swapIndex, pos, theta, scale);
 }
 
 void VulkanSkinMesh::setConnectionPitch(float pitch) {
 	connectionPitch = pitch;
 }
 
-bool VulkanSkinMesh::autoUpdate(uint32_t animationIndex, float pitchTime, VECTOR3 pos, VECTOR3 theta, VECTOR3 scale) {
+bool VulkanSkinMesh::autoUpdate(uint32_t swapIndex, uint32_t animationIndex, float pitchTime, VECTOR3 pos, VECTOR3 theta, VECTOR3 scale) {
 	if (prevAnimationIndex == -1)prevAnimationIndex = animationIndex;
 	if (!connectionOn && prevAnimationIndex != animationIndex) {
 		fbxObj[prevAnimationIndex]->currentframe = 0.0f;
@@ -406,7 +408,7 @@ bool VulkanSkinMesh::autoUpdate(uint32_t animationIndex, float pitchTime, VECTOR
 		}
 		else {
 			setNewPoseMatrixConnection(ConnectionRatio);
-			subUpdate(pos, theta, scale);
+			subUpdate(swapIndex, pos, theta, scale);
 			ConnectionRatio += connectionPitch * pitchTime;
 		}
 	}
@@ -419,14 +421,14 @@ bool VulkanSkinMesh::autoUpdate(uint32_t animationIndex, float pitchTime, VECTOR
 			return false;
 		}
 		setNewPoseMatrix(animationIndex, cuframe);
-		subUpdate(pos, theta, scale);
+		subUpdate(swapIndex, pos, theta, scale);
 		fbxObj[animationIndex]->currentframe += pitchTime;
 	}
 	return true;
 }
 
-void VulkanSkinMesh::draw() {
+void VulkanSkinMesh::draw(uint32_t swapIndex, uint32_t comIndex) {
 	for (uint32_t i = 0; i < numMesh; i++) {
-		bp[i]->draw();
+		bp[i]->draw(swapIndex, comIndex);
 	}
 }
