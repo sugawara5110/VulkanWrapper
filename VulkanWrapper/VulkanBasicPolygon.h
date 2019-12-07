@@ -50,7 +50,8 @@ private:
 	char* fs = nullptr;
 
 	template<typename T>
-	void create0(uint32_t comIndex, int32_t numMat, textureIdSet* texId, float* uvSw,
+	void create0(uint32_t comIndex, bool useAlpha,
+		int32_t numMat, textureIdSet* texId, float* uvSw,
 		T* ver, uint32_t num,
 		uint32_t** ind, uint32_t* indNum,
 		VkVertexInputAttributeDescription* attrDescs, uint32_t numAttr, char* vs, char* fs) {
@@ -113,7 +114,8 @@ private:
 		}
 
 		pipelineCache = device->createPipelineCache();
-		pipeline = device->createGraphicsPipelineVF(vsModule, fsModule, bindDesc, attrDescs, numAttr, pipelineLayout, device->renderPass, pipelineCache);
+		pipeline = device->createGraphicsPipelineVF(useAlpha, vsModule, fsModule, bindDesc, attrDescs, numAttr,
+			pipelineLayout, device->renderPass, pipelineCache);
 		vkDestroyShaderModule(device->device, vsModule, nullptr);
 		vkDestroyShaderModule(device->device, fsModule, nullptr);
 	}
@@ -123,9 +125,12 @@ private:
 public:
 	VulkanBasicPolygon(Device* device);
 	~VulkanBasicPolygon();
-	void create(uint32_t comIndex, int32_t difTexInd, int32_t norTexInd, int32_t speTexInd, Vertex3D* ver, uint32_t num, uint32_t* ind, uint32_t indNum);
-	void setMaterialParameter(uint32_t swapIndex, VECTOR3 diffuse, VECTOR3 specular, VECTOR3 ambient, uint32_t materialIndex = 0);
-	void update(uint32_t swapIndex, VECTOR3 pos = { 0.0f,0.0f,0.0f }, VECTOR3 theta = { 0.0f,0.0f,0.0f }, VECTOR3 scale = { 1.0f,1.0f,1.0f });
+	void create(uint32_t comIndex, bool useAlpha, int32_t difTexInd, int32_t norTexInd, int32_t speTexInd,
+		Vertex3D* ver, uint32_t num, uint32_t* ind, uint32_t indNum);
+	void setMaterialParameter(uint32_t swapIndex, VECTOR3 diffuse, VECTOR3 specular, VECTOR3 ambient,
+		uint32_t materialIndex = 0);
+	void update(uint32_t swapIndex, VECTOR3 pos = { 0.0f,0.0f,0.0f },
+		VECTOR3 theta = { 0.0f,0.0f,0.0f }, VECTOR3 scale = { 1.0f,1.0f,1.0f });
 	void draw(uint32_t swapIndex, uint32_t comIndex);
 };
 

@@ -998,7 +998,7 @@ VkPipelineCache Device::createPipelineCache() {
 	return pipelineCache;
 }
 
-VkPipeline Device::createGraphicsPipelineVF(
+VkPipeline Device::createGraphicsPipelineVF(bool useAlpha,
 	const VkShaderModule& vshader, const VkShaderModule& fshader,
 	const VkVertexInputBindingDescription& bindDesc, const VkVertexInputAttributeDescription* attrDescs, uint32_t numAttr,
 	const VkPipelineLayout& pLayout, const VkRenderPass renderPass, const VkPipelineCache& pCache) {
@@ -1051,6 +1051,9 @@ VkPipeline Device::createGraphicsPipelineVF(
 	msInfo.sampleShadingEnable = VK_FALSE;
 	msInfo.alphaToCoverageEnable = VK_FALSE;
 	msInfo.alphaToOneEnable = VK_FALSE;
+	if (useAlpha) {
+		msInfo.alphaToCoverageEnable = VK_TRUE;
+	}
 
 	VkPipelineColorBlendAttachmentState blendState{};
 	blendState.blendEnable = VK_FALSE;

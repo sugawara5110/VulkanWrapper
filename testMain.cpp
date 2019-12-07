@@ -4,7 +4,8 @@
 #include "../../../VulkanWrapper/VulkanBasicPolygon.h"
 #include "../../../VulkanWrapper/VulkanSkinMesh.h"
 #include "../../../T_float/T_float.h"
-#include "../../../CNN/PPMLoader.h"
+#include "../../../PPMLoader/PPMLoader.h"
+#include "../../../PNGLoader/PNGLoader.h"
 #include <iostream>
 #include <thread>
 
@@ -62,6 +63,9 @@ VulkanBasicPolygon* v22[Num];
 VulkanSkinMesh* sk;
 VulkanSkinMesh* sk1;
 VulkanSkinMesh* sk2;
+volatile bool loop = true;
+volatile bool firstDraw = false;
+volatile bool sync = false;
 
 void update(uint32_t sw);
 void draw(uint32_t& sw);
@@ -78,7 +82,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	device = new Device(pd, sur, 2, false);
 	device->createDevice();
 	device->updateProjection();
-
 
 	static Vertex2D ver[] = {
 	{ { 0.0f, -0.70f }, { 1.0f, 1.0f, 1.0f, 1.0f } },
@@ -172,8 +175,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 		}
 		S_DELETE(ppm);
 	}
+	PNGLoader png;
+	unsigned char* wall1 = png.loadPNG("../../../alfa01.png", 256, 256);
+	//unsigned char* wall1 = png.loadPNG("../../../iwao1.png", 256, 256);
+	//unsigned char* wall1 = png.loadPNG("../../../wall1.png", 256, 256);
+	//unsigned char* wall1 = png.loadPNG("../../../mahou2.png", 256, 256);//インデックスカラーテスト
 	try {
-		device->GetTexture(0, "../../../wall1.ppm", ima[0], 256, 256);
+		//device->GetTexture(0, "../../../wall1.ppm", ima[0], 256, 256);
+		device->GetTexture(0, "../../../wall1.ppm", wall1, 256, 256); ARR_DELETE(wall1);
 		device->GetTexture(0, "../../../wallNor1.ppm", ima[1], 256, 256);
 		device->GetTexture(0, "../../../texturePPM/boss1.jpg", ima[2], 256, 256);
 		device->GetTexture(0, "../../../texturePPM/boss1_normal.png", ima[3], 256, 256);
@@ -209,7 +218,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	v20->create(0, ver0, 3);
 	for (int i = 0; i < Num; i++) {
 		v22[i] = new VulkanBasicPolygon(device);
-		v22[i]->create(0, 0, 1, -1, ver11, 24, index1, 36);
+		v22[i]->create(0, true, 0, -1, -1, ver11, 24, index1, 36);
 	}
 
 	sk = new VulkanSkinMesh(device, "../../../texturePPM/boss1bone.fbx", 100.0f);
@@ -218,17 +227,17 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	sk1->additionalAnimation("../../../texturePPM/player1_fbx_walk_deform.fbx", 200.0f);
 	sk2 = new VulkanSkinMesh(device, "../../../Black Dragon NEW/Dragon_Baked_Actions2.fbx", 300);
 
-	sk2->create(0);
-	sk1->create(0);
+	sk2->create(0, true);
+	sk1->create(0, true);
 	sk->setChangeTexture(0, 0, -1, 3, -1);
-	sk->create(0);
+	sk->create(0, true);
 	sk->setMaterialParameter(0, 0, 0, { 1,1,1 }, { 0.1f,0.1f,0.1f }, { 0.3f,0.3f,0.3f });
 	sk->setMaterialParameter(1, 0, 0, { 1,1,1 }, { 0.1f,0.1f,0.1f }, { 0.3f,0.3f,0.3f });
 	ShowWindow(hWnd, nCmdShow);
 	ValidateRect(hWnd, 0);// WM_PAINTが呼ばれないようにする
 	MSG msg;
 	uint32_t swap = 0;
-	uint32_t thPara = 1 - swap;
+	std::thread th(draw, std::ref(swap));
 
 	while (1)
 	{
@@ -244,15 +253,17 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 		}
 		T_float::GetTime(hWnd);
 		//ループ内処理
-
-		std::thread th(draw, std::ref(thPara));
 		update(swap);
-		th.join();
 
+		while (true) {
+			if (sync)break;
+		}
+		sync = false;
 		swap = 1 - swap;
-		thPara = 1 - swap;
 		//ループ内処理
 	}
+	loop = false;
+	th.join();
 	for (int i = 0; i < fnum; i++)ARR_DELETE(ima[i]);
 	ARR_DELETE(ima);
 	S_DELETE(sk);
@@ -274,8 +285,9 @@ void update(uint32_t sw) {
 	MatrixRotationY(&thetaY, the);
 	VectorMatrixMultiply(&light1, &thetaY);
 	VectorMatrixMultiply(&light2, &thetaY);
-	device->updateView({ 0,-0.2f,-8 }, { 0,0,25 }, { 0,1,0 });
+	//device->updateView({ 0,-0.2f,-8 }, { 0,0,25 }, { 0,1,0 });
 	//device->updateView({ 1.5f,-0.2f,-3 }, { 1.5f,0,25 }, { 0,1,0 });
+	device->updateView({ -1.3f,0.0f,-3 }, { -1.3f,0,25 }, { 0,1,0 });
 	device->setNumLight(2);
 	device->setLight(0, light1, { 1.0f,1.0f,1.0f });
 	device->setLight(1, light2, { 1,0.3f,0.3f });
@@ -286,24 +298,26 @@ void update(uint32_t sw) {
 	sk->autoUpdate(sw, 0, frame, { 0,0,0 }, { 180,0,0 }, { 2.0f,2.0f,2.0f });
 	sk1->autoUpdate(sw, para, frame, { 2,0,0 }, { 90,0.0f,0 }, { 0.2f,0.2f,0.2f });
 	sk2->autoUpdate(sw, 0, frame, { -2,0,0 }, { 90,0,0 }, { 0.1f,0.1f,0.1f });
+	firstDraw = true;
 }
 
-void draw(uint32_t& sw) {
-	static bool firstDraw = false;
-	if (firstDraw) {
-		device->beginCommand(0);
-		//v2->draw(0);
-		//v20->draw(0);
-		for (int i = 0; i < Num; i++) {
-			v22[i]->draw(sw, 0);
+void draw(uint32_t& sw0) {
+	while (loop) {
+		uint32_t sw = 1 - sw0;
+		if (firstDraw) {
+			device->beginCommand(0);
+			//v2->draw(0);
+			//v20->draw(0);
+			for (int i = 0; i < Num; i++) {
+				v22[i]->draw(sw, 0);
+			}
+			sk->draw(sw, 0);
+			sk1->draw(sw, 0);
+			sk2->draw(sw, 0);
+			device->endCommand(0);
+			device->Present(0);
 		}
-		sk->draw(sw, 0);
-		sk1->draw(sw, 0);
-		sk2->draw(sw, 0);
-		device->endCommand(0);
-		device->Present(0);
-	}
-	else {
-		firstDraw = true;
+		sync = true;
+		while (sync);
 	}
 }

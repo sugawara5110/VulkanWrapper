@@ -78,7 +78,7 @@ VulkanSkinMesh::~VulkanSkinMesh() {
 	}
 }
 
-void VulkanSkinMesh::create(uint32_t comIndex) {
+void VulkanSkinMesh::create(uint32_t comIndex, bool useAlpha) {
 	//各mesh読み込み
 	for (uint32_t mI = 0; mI < numMesh; mI++) {
 		bp[mI] = new VulkanBasicPolygon(device);
@@ -289,7 +289,7 @@ void VulkanSkinMesh::create(uint32_t comIndex) {
 			{ 5, 0, VK_FORMAT_R32G32B32A32_SFLOAT, sizeof(float) * 14 }
 		};
 
-		bp[mI]->create0<VertexSkin>(comIndex, numMaterial, texId, uvSw, verSkin, (uint32_t)mesh->getNumPolygonVertices(),
+		bp[mI]->create0<VertexSkin>(comIndex, useAlpha, numMaterial, texId, uvSw, verSkin, (uint32_t)mesh->getNumPolygonVertices(),
 			newIndex, numNewIndex, attrDescs, 6, vsShaderSkinMesh, bp[mI]->fs);
 
 		for (uint32_t sw = 0; sw < bp[0]->numSwap; sw++) {

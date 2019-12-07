@@ -247,7 +247,7 @@ private:
 		Uniform<MatrixSet>& uni, Uniform<Material>& material,
 		VkDescriptorSet& descriptorSet, VkDescriptorPool& descPool, VkDescriptorSetLayout& descSetLayout);
 	VkPipelineCache createPipelineCache();
-	VkPipeline createGraphicsPipelineVF(
+	VkPipeline createGraphicsPipelineVF(bool useAlpha,
 		const VkShaderModule& vshader, const VkShaderModule& fshader,
 		const VkVertexInputBindingDescription& bindDesc, const VkVertexInputAttributeDescription* attrDescs, uint32_t numAttr,
 		const VkPipelineLayout& pLayout, const VkRenderPass renderPass, const VkPipelineCache& pCache);

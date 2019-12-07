@@ -66,7 +66,7 @@ public:
 	VulkanSkinMesh(Device* device, char* pass, float endframe);
 	~VulkanSkinMesh();
 	void additionalAnimation(char* pass, float endframe);
-	void create(uint32_t comIndex);
+	void create(uint32_t comIndex, bool useAlpha);
 	void setMaterialParameter(uint32_t swapIndex, uint32_t meshIndex, uint32_t materialIndex, VECTOR3 diffuse, VECTOR3 specular, VECTOR3 ambient);
 	void setChangeTexture(uint32_t meshIndex, uint32_t materialIndex, int diffuseTexId, int normalTexId, int specularTexId);
 	void update(uint32_t swapIndex, uint32_t animationIndex, float time, VECTOR3 pos = { 0.0f,0.0f,0.0f },

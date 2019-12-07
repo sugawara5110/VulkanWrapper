@@ -40,7 +40,7 @@ VulkanBasicPolygon::~VulkanBasicPolygon() {
 	}
 }
 
-void VulkanBasicPolygon::create(uint32_t comIndex, int32_t difTexInd, int32_t norTexInd, int32_t speTexInd, Vertex3D* ver, uint32_t num, uint32_t* ind, uint32_t indNum) {
+void VulkanBasicPolygon::create(uint32_t comIndex, bool useAlpha, int32_t difTexInd, int32_t norTexInd, int32_t speTexInd, Vertex3D* ver, uint32_t num, uint32_t* ind, uint32_t indNum) {
 
 	static VkVertexInputAttributeDescription attrDescs[] =
 	{
@@ -55,7 +55,8 @@ void VulkanBasicPolygon::create(uint32_t comIndex, int32_t difTexInd, int32_t no
 	tex[0].normalId = norTexInd;
 	tex[0].specularId = speTexInd;
 	float sw[1] = {};
-	create0<Vertex3D>(comIndex, 1, tex, sw, ver, num, &ind, &indNum, attrDescs, 4, vsShaderBasicPolygon, fsShaderBasicPolygon);
+	create0<Vertex3D>(comIndex, useAlpha, 1, tex, sw, ver, num, &ind, &indNum,
+		attrDescs, 4, vsShaderBasicPolygon, fsShaderBasicPolygon);
 }
 
 void VulkanBasicPolygon::setMaterialParameter(uint32_t swapIndex, VECTOR3 diffuse, VECTOR3 specular, VECTOR3 ambient, uint32_t materialIndex) {

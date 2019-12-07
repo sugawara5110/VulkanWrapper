@@ -39,7 +39,7 @@ void Vulkan2D::create(uint32_t comIndex, Vertex2D* ver, uint32_t num) {
 
 	pipelineLayout = device->createPipelineLayout2D();
 	pipelineCache = device->createPipelineCache();
-	pipeline = device->createGraphicsPipelineVF(vsModule, fsModule, bindDesc, attrDescs, 2, pipelineLayout, device->renderPass, pipelineCache);
+	pipeline = device->createGraphicsPipelineVF(false, vsModule, fsModule, bindDesc, attrDescs, 2, pipelineLayout, device->renderPass, pipelineCache);
 }
 
 void Vulkan2D::draw(uint32_t comIndex) {
