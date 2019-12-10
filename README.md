@@ -1,2 +1,3 @@
 ﻿Vulkanラッパーライブラリ
-開発中・・・
+ 
+ 自作fbxloaderでskinMesh読み込み可能
