@@ -1,6 +1,6 @@
 ﻿//*****************************************************************************************//
 //**                                                                                     **//
-//**                            ShaderBasicPolygon                                       **//
+//**                            ShaderBasicPolygonAndroid                                **//
 //**                                                                                     **//
 //*****************************************************************************************//
 
@@ -11,7 +11,7 @@ char* vsShaderBasicPolygon =
 "layout (binding = 0) uniform bufferMat {\n"
 "    mat4 world;\n"
 "    mat4 mvp;\n"
-"    mat4 bone[256];\n"
+"    mat4 bone[64];\n"
 "} gBufferMat;\n"
 
 "layout (location = 0) in vec4 inPos;\n"
@@ -39,8 +39,6 @@ char* fsShaderBasicPolygon =
 "##extension GL_ARB_separate_shader_objects : enable\n"
 
 "layout (binding = 1) uniform sampler2D texSampler;\n"
-"layout (binding = 2) uniform sampler2D norSampler;\n"
-"layout (binding = 3) uniform sampler2D speSampler;\n"
 "layout (binding = 4) uniform bufferMaterial {\n"
 "    vec4 diffuse;\n"
 "    vec4 specular;\n"
@@ -84,7 +82,7 @@ char* fsShaderBasicPolygon =
 "      speTexCoord = inSpeTexCoord;\n"
 "   }\n"
 
-"   vec4 NT = texture(norSampler, texCoord);\n"
+"   vec4 NT = texture(texSampler, texCoord);\n"
 "   vec3 norTex = normalize(inNormal * NT.xyz);\n"
 "   vec4 difCol = vec4(0.0f, 0.0f, 0.0f, 1.0f);\n"
 "   vec4 speCol = vec4(0.0f, 0.0f, 0.0f, 1.0f);\n"
@@ -109,23 +107,11 @@ char* fsShaderBasicPolygon =
        //値を0.0f~1.0f以内にする
 "      float ScaCla = clamp(lightScalar,0.0f,1.0f);\n"
 
-       ////鏡面反射光計算////
-	   //視線ベクトル計算
-"      vec3 eyeVec = normalize(gMaterial.viewPos.xyz - inWpos);\n"
-       //反射計算//
-"      vec3 reflect = normalize(2.0f * ScaCla * norTex - lightVec);\n"
-"      float spe1 = dot(reflect, eyeVec);\n"
-"      float spe2 = clamp(spe1,0.0f,1.0f);\n"
-"      float spe3 = pow(spe2, 4);\n"
-
 "      vec3 diffuse = gMaterial.diffuse.xyz * ScaCla;\n"
-"      vec3 specular = gMaterial.specular.xyz * spe3;\n"
 
 "      difCol.xyz += diffuse * gMaterial.lightColor[i].xyz * attenuation;\n"
-"      speCol.xyz += specular * gMaterial.lightColor[i].xyz * attenuation;\n"
 "   }\n"
 "   difCol.xyz += gMaterial.ambient.xyz;\n"
 "   vec4 dTex = texture(texSampler, texCoord);\n"
-"   vec4 sTex = texture(speSampler, speTexCoord);\n"
-"   outColor = dTex * difCol + sTex * speCol;\n"
+"   outColor = dTex * difCol;\n"
 "}\n";

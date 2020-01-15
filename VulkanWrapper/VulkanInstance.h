@@ -118,7 +118,11 @@ private:
     std::unique_ptr<VkCommandBuffer[]> commandBuffer = nullptr;
     uint32_t currentFrameIndex = 0;
     const static uint32_t numLightMax = 256;
+#ifdef __ANDROID__
+    const static uint32_t numBoneMax = 64;
+#else
     const static uint32_t numBoneMax = 256;
+#endif
     const static uint32_t numTextureMax = 254;
     const static uint32_t numTexFileNamelenMax = 256;
 
@@ -138,9 +142,9 @@ private:
     };
 
     struct Material {
-        VECTOR4 diffuse = {1.0f, 1.0f, 1.0f, 1.0f};
-        VECTOR4 specular = {0.0f, 0.0f, 0.0f, 0.0f};
-        VECTOR4 ambient = {0.0f, 0.0f, 0.0f, 0.0f};
+        VECTOR4 diffuse = { 1.0f, 1.0f, 1.0f, 1.0f };
+        VECTOR4 specular = { 0.0f, 0.0f, 0.0f, 0.0f };
+        VECTOR4 ambient = { 0.0f, 0.0f, 0.0f, 0.0f };
         VECTOR4 viewPos;
         VECTOR4 lightPos[numLightMax];
         VECTOR4 lightColor[numLightMax];
@@ -193,7 +197,7 @@ private:
 
     void submitCommands(uint32_t comBufindex, VkFence fence, bool useRender);
 
-    void acquireNextImageAndWait(uint32_t &currentFrameIndex);
+    void acquireNextImageAndWait(uint32_t& currentFrameIndex);
 
     VkResult waitForFence(VkFence fence);
 
@@ -202,34 +206,34 @@ private:
     void resetFence(VkFence fence);
 
     void barrierResource(uint32_t comBufindex, VkImage image, VkImageLayout srcImageLayout,
-                         VkImageLayout dstImageLayout);
+        VkImageLayout dstImageLayout);
 
     void beginRenderPass(uint32_t comBufindex, uint32_t currentframeIndex);
 
     void
-    copyBufferToImage(VkCommandBuffer commandBuffer, VkBuffer buffer, VkImage image, uint32_t width,
-                      uint32_t height);
+        copyBufferToImage(VkCommandBuffer commandBuffer, VkBuffer buffer, VkImage image, uint32_t width,
+            uint32_t height);
 
     void createImage(uint32_t width, uint32_t height, VkFormat format,
-                     VkImageTiling tiling, VkImageUsageFlags usage,
-                     VkMemoryPropertyFlags properties,
-                     VkImage &image, VkDeviceMemory &imageMemory);
+        VkImageTiling tiling, VkImageUsageFlags usage,
+        VkMemoryPropertyFlags properties,
+        VkImage& image, VkDeviceMemory& imageMemory);
 
-    auto createTextureImage(uint32_t comBufindex, unsigned char *byteArr, uint32_t width,
-                            uint32_t height);
+    auto createTextureImage(uint32_t comBufindex, unsigned char* byteArr, uint32_t width,
+        uint32_t height);
 
     VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags mask,
-                                VkComponentMapping components = {VK_COMPONENT_SWIZZLE_IDENTITY});
+        VkComponentMapping components = { VK_COMPONENT_SWIZZLE_IDENTITY });
 
-    void createTextureSampler(VkSampler &textureSampler);
+    void createTextureSampler(VkSampler& textureSampler);
 
     void destroyTexture();
 
-    char *getNameFromPass(char *pass);
+    char* getNameFromPass(char* pass);
 
     //モデル毎(モデル側から呼ばれる)
     template<typename T>
-    auto createVertexBuffer(uint32_t comBufindex, T *ver, int num, bool typeIndex) {
+    auto createVertexBuffer(uint32_t comBufindex, T* ver, int num, bool typeIndex) {
 
         VkDeviceSize bufferSize = sizeof(T) * num;
         VkDeviceSize size;
@@ -237,12 +241,12 @@ private:
         VkBuffer stagingBuffer;
         VkDeviceMemory stagingBufferMemory;
         createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                     stagingBuffer, stagingBufferMemory, size);
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            stagingBuffer, stagingBufferMemory, size);
 
-        void *data;
+        void* data;
         vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
-        memcpy(data, ver, (size_t) bufferSize);
+        memcpy(data, ver, (size_t)bufferSize);
         vkUnmapMemory(device, stagingBufferMemory);
 
         VkBuffer vertexBuffer;
@@ -250,7 +254,7 @@ private:
         VkBufferUsageFlagBits usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
         if (typeIndex)usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
         createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage,
-                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer, vertexBufferMemory, size);
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer, vertexBufferMemory, size);
 
         copyBuffer(comBufindex, stagingBuffer, vertexBuffer, bufferSize);
 
@@ -262,18 +266,18 @@ private:
     }
 
     void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
-                      VkMemoryPropertyFlags properties, VkBuffer &buffer,
-                      VkDeviceMemory &bufferMemory, VkDeviceSize &memSize);
+        VkMemoryPropertyFlags properties, VkBuffer& buffer,
+        VkDeviceMemory& bufferMemory, VkDeviceSize& memSize);
 
     void
-    copyBuffer(uint32_t comBufindex, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+        copyBuffer(uint32_t comBufindex, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 
     uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 
     template<typename UNI>
-    void createUniform(UNI &uni) {
+    void createUniform(UNI& uni) {
         createBuffer(sizeof(UNI), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, uni.vkBuf, uni.mem, uni.memSize);
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, uni.vkBuf, uni.mem, uni.memSize);
 
         uni.info.buffer = uni.vkBuf;
         uni.info.offset = 0;
@@ -281,9 +285,9 @@ private:
     }
 
     template<typename UNI>
-    void updateUniform(UNI &uni) {
-        uint8_t *pData;
-        auto res = vkMapMemory(device, uni.mem, 0, uni.memSize, 0, (void **) &pData);
+    void updateUniform(UNI& uni) {
+        uint8_t* pData;
+        auto res = vkMapMemory(device, uni.mem, 0, uni.memSize, 0, (void**)&pData);
         checkError(res);
         memcpy(pData, &uni.uni, sizeof(UNI));
         vkUnmapMemory(device, uni.mem);
@@ -292,49 +296,49 @@ private:
         uni.info.range = sizeof(UNI);
     }
 
-    void descriptorAndPipelineLayouts(bool useTexture, VkPipelineLayout &pipelineLayout,
-                                      VkDescriptorSetLayout &descSetLayout);
+    void descriptorAndPipelineLayouts(bool useTexture, VkPipelineLayout& pipelineLayout,
+        VkDescriptorSetLayout& descSetLayout);
 
     VkPipelineLayout createPipelineLayout2D();
 
-    VkShaderModule createShaderModule(char *shader);
+    VkShaderModule createShaderModule(char* shader);
 
-    void createDescriptorPool(bool useTexture, VkDescriptorPool &descPool);
+    void createDescriptorPool(bool useTexture, VkDescriptorPool& descPool);
 
     uint32_t
-    upDescriptorSet(bool useTexture, Texture &difTexture, Texture &norTexture, Texture &speTexture,
-                    Uniform<MatrixSet> &uni, Uniform<Material> &material,
-                    VkDescriptorSet &descriptorSet, VkDescriptorPool &descPool,
-                    VkDescriptorSetLayout &descSetLayout);
+        upDescriptorSet(bool useTexture, Texture& difTexture, Texture& norTexture, Texture& speTexture,
+            Uniform<MatrixSet>& uni, Uniform<Material>& material,
+            VkDescriptorSet& descriptorSet, VkDescriptorPool& descPool,
+            VkDescriptorSetLayout& descSetLayout);
 
     VkPipelineCache createPipelineCache();
 
     VkPipeline createGraphicsPipelineVF(bool useAlpha,
-                                        const VkShaderModule &vshader,
-                                        const VkShaderModule &fshader,
-                                        const VkVertexInputBindingDescription &bindDesc,
-                                        const VkVertexInputAttributeDescription *attrDescs,
-                                        uint32_t numAttr,
-                                        const VkPipelineLayout &pLayout,
-                                        const VkRenderPass renderPass,
-                                        const VkPipelineCache &pCache);
+        const VkShaderModule& vshader,
+        const VkShaderModule& fshader,
+        const VkVertexInputBindingDescription& bindDesc,
+        const VkVertexInputAttributeDescription* attrDescs,
+        uint32_t numAttr,
+        const VkPipelineLayout& pLayout,
+        const VkRenderPass renderPass,
+        const VkPipelineCache& pCache);
 
     //モデル毎
-    void getTextureSub(uint32_t comBufindex, uint32_t texNo, unsigned char *byteArr, uint32_t width,
-                       uint32_t height);
+    void getTextureSub(uint32_t comBufindex, uint32_t texNo, unsigned char* byteArr, uint32_t width,
+        uint32_t height);
 
 public:
     Device(VkPhysicalDevice pd, VkSurfaceKHR surface, uint32_t numCommandBuffer = 1,
-           bool V_SYNC = true, uint32_t width = 640, uint32_t height = 480);
+        bool V_SYNC = true);
 
     ~Device();
 
     void createDevice();
 
-    void GetTexture(uint32_t comBufindex, char *fileName, unsigned char *byteArr, uint32_t width,
-                    uint32_t height);
+    void GetTexture(uint32_t comBufindex, char* fileName, unsigned char* byteArr, uint32_t width,
+        uint32_t height);
 
-    int32_t getTextureNo(char *pass);
+    int32_t getTextureNo(char* pass);
 
     void updateProjection(float AngleView = 45.0f, float Near = 1.0f, float Far = 100.0f);
 

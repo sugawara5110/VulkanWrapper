@@ -6,7 +6,11 @@
 
 #define _CRT_SECURE_NO_WARNINGS
 #include "VulkanSkinMesh.h"
+#ifdef __ANDROID__
+#include "Shader/ShaderSkinMeshAndroid.h"
+#else
 #include "Shader/ShaderSkinMesh.h"
+#endif
 
 VulkanSkinMesh::VulkanSkinMesh(Device* dev, char* pass, float endfra) {
 	device = dev;

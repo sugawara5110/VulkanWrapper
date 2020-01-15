@@ -169,15 +169,14 @@ VkSurfaceKHR VulkanInstance::getSurface() {
     return surface;
 }
 
-Device::Device(VkPhysicalDevice pd, VkSurfaceKHR surfa, uint32_t numCommandBuffer, bool V_SYNC, uint32_t wid, uint32_t hei) {
+Device::Device(VkPhysicalDevice pd, VkSurfaceKHR surfa, uint32_t numCommandBuffer, bool V_SYNC) {
     pDev = pd;
     surface = surfa;
     commandBufferCount = numCommandBuffer;
-    width = wid;
-    height = hei;
     if (V_SYNC) {
         presentMode = VK_PRESENT_MODE_FIFO_KHR;
-    } else {
+    }
+    else {
         presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
     }
 }
@@ -313,20 +312,28 @@ void Device::createSwapchain() {
 #endif
     }
 
+    width = surfaceCaps.currentExtent.width;
+    height = surfaceCaps.currentExtent.height;
+
     scinfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
     scinfo.pNext = nullptr;
     scinfo.surface = surface;
-    scinfo.minImageCount = 2;
-    scinfo.imageFormat = VK_FORMAT_B8G8R8A8_UNORM;
-    scinfo.imageColorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR;
+    scinfo.minImageCount = surfaceCaps.minImageCount;
+    scinfo.imageFormat = surfaceFormats.get()->format;
+    scinfo.imageColorSpace = surfaceFormats.get()->colorSpace;
     scinfo.imageExtent.width = width;
     scinfo.imageExtent.height = height;
-    scinfo.imageArrayLayers = 1;
+    scinfo.imageArrayLayers = surfaceCaps.maxImageArrayLayers;
     scinfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
     scinfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
     scinfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
     scinfo.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+
+#ifdef __ANDROID__
+    scinfo.presentMode = presentModes[0];
+#else
     scinfo.presentMode = presentMode;
+#endif
     scinfo.clipped = VK_TRUE;
     //スワップチェーン生成
     auto res = vkCreateSwapchainKHR(device, &scinfo, nullptr, &swBuf.swapchain);
@@ -334,11 +341,11 @@ void Device::createSwapchain() {
 
     //ウインドウに直接表示する画像のオブジェクト生成
     res = vkGetSwapchainImagesKHR(device, swBuf.swapchain, &swBuf.imageCount,
-                                  nullptr);//個数imageCount取得
+        nullptr);//個数imageCount取得
     checkError(res);
     swBuf.images = std::make_unique<VkImage[]>(swBuf.imageCount);
     res = vkGetSwapchainImagesKHR(device, swBuf.swapchain, &swBuf.imageCount,
-                                  swBuf.images.get());//個数分生成
+        swBuf.images.get());//個数分生成
     checkError(res);
 
     //ビュー生成
@@ -346,9 +353,9 @@ void Device::createSwapchain() {
 
     for (uint32_t i = 0; i < swBuf.imageCount; i++) {
         swBuf.views[i] = createImageView(swBuf.images[i], VK_FORMAT_B8G8R8A8_UNORM,
-                                         VK_IMAGE_ASPECT_COLOR_BIT,
-                                         {VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G,
-                                          VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A});
+            VK_IMAGE_ASPECT_COLOR_BIT,
+            { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G,
+             VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A });
     }
 }
 

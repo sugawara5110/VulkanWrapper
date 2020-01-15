@@ -6,7 +6,11 @@
 
 
 #include "VulkanBasicPolygon.h"
+#ifdef __ANDROID__
+#include "Shader/ShaderBasicPolygonAndroid.h"
+#else
 #include "Shader/ShaderBasicPolygon.h"
+#endif
 
 VulkanBasicPolygon::VulkanBasicPolygon(Device* dev) {
 	device = dev;
