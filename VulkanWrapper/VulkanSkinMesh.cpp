@@ -12,14 +12,7 @@
 #include "Shader/ShaderSkinMesh.h"
 #endif
 
-VulkanSkinMesh::VulkanSkinMesh(Device* dev, char* pass, float endfra) {
-	device = dev;
-
-	fbxObj[0] = new FbxObj();
-	//フレーム数
-	fbxObj[0]->endframe = endfra;
-	//fbxファイルのpass入力する事で内部でデータの取得, 圧縮データの解凍を行ってます
-	fbxObj[0]->fbx.setFbxFile(pass);
+void VulkanSkinMesh::setfbx() {
 	//mesh数取得
 	numMesh = fbxObj[0]->fbx.getNumFbxMeshNode();
 	//bone数取得
@@ -37,6 +30,24 @@ VulkanSkinMesh::VulkanSkinMesh(Device* dev, char* pass, float endfra) {
 	for (uint32_t i = 0; i < numMesh; i++)cTexId[i] = new textureIdSet[fbxObj[0]->fbx.getFbxMeshNode(i)->getNumMaterial()];
 }
 
+void VulkanSkinMesh::setFbx(Device* dev, char* pass, float endfra) {
+	device = dev;
+	fbxObj[0] = new FbxObj();
+	//フレーム数
+	fbxObj[0]->endframe = endfra;
+	//fbxファイルのpass入力する事で内部でデータの取得, 圧縮データの解凍を行ってます
+	fbxObj[0]->fbx.setFbxFile(pass);
+	setfbx();
+}
+
+void VulkanSkinMesh::setFbxInByteArray(Device* dev, char* byteArray, unsigned int size, float endfra) {
+	device = dev;
+	fbxObj[0] = new FbxObj();
+	fbxObj[0]->endframe = endfra;
+	fbxObj[0]->fbx.setBinaryInFbxFile(byteArray, size);
+	setfbx();
+}
+
 static char* getName(char* in) {
 	char* out = in;
 	int len = (int)strlen(out);
@@ -52,10 +63,7 @@ static char* getName(char* in) {
 	return out;
 }
 
-void VulkanSkinMesh::additionalAnimation(char* pass, float endframe) {
-	fbxObj[numFbxObj] = new FbxObj();
-	fbxObj[numFbxObj]->endframe = endframe;
-	fbxObj[numFbxObj]->fbx.setFbxFile(pass);
+void VulkanSkinMesh::setAnimation() {
 	fbxObj[numFbxObj]->defo = new Deformer * [numBone];
 	uint32_t numNoneMeshBone = fbxObj[numFbxObj]->fbx.getNumNoneMeshDeformer();
 	for (uint32_t j = 0; j < numBone; j++) {
@@ -70,6 +78,20 @@ void VulkanSkinMesh::additionalAnimation(char* pass, float endframe) {
 		}
 	}
 	numFbxObj++;
+}
+
+void VulkanSkinMesh::additionalAnimation(char* pass, float endframe) {
+	fbxObj[numFbxObj] = new FbxObj();
+	fbxObj[numFbxObj]->endframe = endframe;
+	fbxObj[numFbxObj]->fbx.setFbxFile(pass);
+	setAnimation();
+}
+
+void VulkanSkinMesh::additionalAnimationInByteArray(char* byteArray, unsigned int size, float endframe) {
+	fbxObj[numFbxObj] = new FbxObj();
+	fbxObj[numFbxObj]->endframe = endframe;
+	fbxObj[numFbxObj]->fbx.setBinaryInFbxFile(byteArray, size);
+	setAnimation();
 }
 
 VulkanSkinMesh::~VulkanSkinMesh() {

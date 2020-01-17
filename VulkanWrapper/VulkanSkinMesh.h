@@ -61,11 +61,15 @@ private:
 	void setNewPoseMatrixConnection(float connectionRatio);
 	MATRIX getCurrentPoseMatrix(uint32_t index);
 	void subUpdate(uint32_t swapIndex, VECTOR3 pos, VECTOR3 theta, VECTOR3 scale);
+	void setfbx();
+	void setAnimation();
 
 public:
-	VulkanSkinMesh(Device* device, char* pass, float endframe);
 	~VulkanSkinMesh();
+	void setFbx(Device* device, char* pass, float endframe);
+	void setFbxInByteArray(Device* device, char* byteArray, unsigned int size, float endframe);
 	void additionalAnimation(char* pass, float endframe);
+	void additionalAnimationInByteArray(char* byteArray, unsigned int size, float endframe);
 	void create(uint32_t comIndex, bool useAlpha);
 	void setMaterialParameter(uint32_t swapIndex, uint32_t meshIndex, uint32_t materialIndex, VECTOR3 diffuse, VECTOR3 specular, VECTOR3 ambient);
 	void setChangeTexture(uint32_t meshIndex, uint32_t materialIndex, int diffuseTexId, int normalTexId, int specularTexId);
