@@ -12,13 +12,22 @@
 #include "../FbxLoader/FbxLoader.h"
 
 struct VertexSkin {
-	float pos[3];//頂点
-	float normal[3];//法線
-	float difUv[2];//UV座標
-	float speUv[2];//UV座標
+	float pos[3] = {};//頂点
+	float normal[3] = {};//法線
+	float difUv[2] = {};//UV座標
+	float speUv[2] = {};//UV座標
 	float bBoneIndex[4] = { 0.0f,0.0f,0.0f,0.0f };//ボーン番号
 	float bBoneWeight[4] = { 0.0f,0.0f,0.0f,0.0f };//ボーン重み
 };
+
+#if CHANGE
+struct VertexSkinAndroid {
+	float pos[3] = {};//頂点
+	float normal[3] = {};//法線
+	float dif_speUv[4] = {};//UV座標
+	float bBoneIndex_Weight[4] = { 0.0f,0.0f,0.0f,0.0f };
+};
+#endif
 
 struct Bone {
 	MATRIX bindPose = {};

@@ -6,7 +6,7 @@
 
 
 #include "VulkanBasicPolygon.h"
-#ifdef __ANDROID__
+#if CHANGE
 #include "Shader/ShaderBasicPolygonAndroid.h"
 #else
 #include "Shader/ShaderBasicPolygon.h"

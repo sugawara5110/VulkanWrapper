@@ -6,7 +6,7 @@
 
 #define _CRT_SECURE_NO_WARNINGS
 #include "VulkanSkinMesh.h"
-#ifdef __ANDROID__
+#if CHANGE
 #include "Shader/ShaderSkinMeshAndroid.h"
 #else
 #include "Shader/ShaderSkinMesh.h"
@@ -108,34 +108,35 @@ void VulkanSkinMesh::create(uint32_t comIndex, bool useAlpha) {
 	//各mesh読み込み
 	for (uint32_t mI = 0; mI < numMesh; mI++) {
 		bp[mI] = new VulkanBasicPolygon(device);
-		FbxMeshNode *mesh = fbxObj[0]->fbx.getFbxMeshNode(mI);//mI番目のMesh取得
+		FbxMeshNode* mesh = fbxObj[0]->fbx.getFbxMeshNode(mI);//mI番目のMesh取得
 		auto index = mesh->getPolygonVertices();//頂点Index取得(頂点xyzに対してのIndex)
 		auto ver = mesh->getVertices();//頂点取得
 		auto nor = mesh->getNormal(0);//法線取得
 
-		double *uv0 = mesh->getAlignedUV(0);//テクスチャUV0
-		char *uv0Name = nullptr;            //テクスチャUVSet名0
-		double *uv1 = nullptr;              //テクスチャUV1
-		char *uv1Name = nullptr;            //テクスチャUVSet名1
+		double* uv0 = mesh->getAlignedUV(0);//テクスチャUV0
+		char* uv0Name = nullptr;            //テクスチャUVSet名0
+		double* uv1 = nullptr;              //テクスチャUV1
+		char* uv1Name = nullptr;            //テクスチャUVSet名1
 		if (mesh->getNumUVObj() > 1) {
 			uv1 = mesh->getAlignedUV(1);
 			uv0Name = mesh->getUVName(0);
 			uv1Name = mesh->getUVName(1);
-		} else {
+		}
+		else {
 			uv1 = mesh->getAlignedUV(0);
 		}
 
 		//ボーン取得
 		const uint32_t numBoneWei = 4;
 		const uint32_t numArr = numBoneWei * mesh->getNumVertices();
-		auto *boneWeiArr = new float[numArr];
-		auto *boneWeiIndArr = new int32_t[numArr];
+		auto* boneWeiArr = new float[numArr];
+		auto* boneWeiIndArr = new int32_t[numArr];
 		for (uint32_t i = 0; i < numArr; i++) {
 			boneWeiArr[i] = 0.0f;
 			boneWeiIndArr[i] = 0;
 		}
 		for (uint32_t bI = 0; bI < mesh->getNumDeformer(); bI++) {
-			Deformer *defo = mesh->getDeformer(bI);//meshのDeformer(bI)
+			Deformer* defo = mesh->getDeformer(bI);//meshのDeformer(bI)
 			auto bNum = defo->getIndicesCount();//このボーンに影響を受ける頂点インデックス数
 			auto bInd = defo->getIndices();//このボーンに影響を受ける頂点のインデックス配列
 			auto bWei = defo->getWeights();//このボーンに影響を受ける頂点のウエイト配列
@@ -147,7 +148,7 @@ void VulkanSkinMesh::create(uint32_t comIndex, bool useAlpha) {
 					auto ind = bindex * numBoneWei + m;
 					if (weight > boneWeiArr[ind]) {//調べたウエイトの方が大きい
 						boneWeiIndArr[ind] = bI;//Boneインデックス登録
-						boneWeiArr[ind] = (float) weight;//ウエイト登録
+						boneWeiArr[ind] = (float)weight;//ウエイト登録
 						break;
 					}
 				}
@@ -168,22 +169,22 @@ void VulkanSkinMesh::create(uint32_t comIndex, bool useAlpha) {
 			}
 		}
 
-		VertexSkin *verSkin = new VertexSkin[mesh->getNumPolygonVertices()];
+		VertexSkin* verSkin = new VertexSkin[mesh->getNumPolygonVertices()];
 		for (uint32_t vI = 0; vI < mesh->getNumPolygonVertices(); vI++) {
-			VertexSkin *v = &verSkin[vI];
-			v->pos[0] = (float) ver[index[vI] * 3];
-			v->pos[1] = (float) ver[index[vI] * 3 + 1];
-			v->pos[2] = (float) ver[index[vI] * 3 + 2];
-			v->normal[0] = (float) nor[vI * 3];
-			v->normal[1] = (float) nor[vI * 3 + 1];
-			v->normal[2] = (float) nor[vI * 3 + 2];
-			v->difUv[0] = (float) uv0[vI * 2];
-			v->difUv[1] = 1.0f - (float) uv0[vI * 2 + 1];
-			v->speUv[0] = (float) uv1[vI * 2];
-			v->speUv[1] = 1.0f - (float) uv1[vI * 2 + 1];
+			VertexSkin* v = &verSkin[vI];
+			v->pos[0] = (float)ver[index[vI] * 3];
+			v->pos[1] = (float)ver[index[vI] * 3 + 1];
+			v->pos[2] = (float)ver[index[vI] * 3 + 2];
+			v->normal[0] = (float)nor[vI * 3];
+			v->normal[1] = (float)nor[vI * 3 + 1];
+			v->normal[2] = (float)nor[vI * 3 + 2];
+			v->difUv[0] = (float)uv0[vI * 2];
+			v->difUv[1] = 1.0f - (float)uv0[vI * 2 + 1];
+			v->speUv[0] = (float)uv1[vI * 2];
+			v->speUv[1] = 1.0f - (float)uv1[vI * 2 + 1];
 			for (int vbI = 0; vbI < 4; vbI++) {
-				v->bBoneWeight[vbI] = (float) boneWeiArr[index[vI] * 4 + vbI];
-				v->bBoneIndex[vbI] = (float) boneWeiIndArr[index[vI] * 4 + vbI];
+				v->bBoneWeight[vbI] = (float)boneWeiArr[index[vI] * 4 + vbI];
+				v->bBoneIndex[vbI] = (float)boneWeiIndArr[index[vI] * 4 + vbI];
 			}
 		}
 		ARR_DELETE(boneWeiArr);
@@ -191,7 +192,7 @@ void VulkanSkinMesh::create(uint32_t comIndex, bool useAlpha) {
 
 		//4頂点ポリゴン分割後のIndex数カウント
 		auto numMaterial = mesh->getNumMaterial();
-		uint32_t *numNewIndex = new uint32_t[numMaterial];
+		uint32_t* numNewIndex = new uint32_t[numMaterial];
 		memset(numNewIndex, 0, sizeof(uint32_t) * numMaterial);
 		int32_t currentMatNo = -1;
 		for (uint32_t i1 = 0; i1 < mesh->getNumPolygon(); i1++) {
@@ -207,7 +208,7 @@ void VulkanSkinMesh::create(uint32_t comIndex, bool useAlpha) {
 		}
 
 		//分割後のIndex生成, 順番を逆にする
-		uint32_t **newIndex = new uint32_t *[numMaterial];
+		uint32_t** newIndex = new uint32_t * [numMaterial];
 		for (uint32_t ind1 = 0; ind1 < numMaterial; ind1++) {
 			if (numNewIndex[ind1] <= 0) {
 				newIndex[ind1] = nullptr;
@@ -245,11 +246,11 @@ void VulkanSkinMesh::create(uint32_t comIndex, bool useAlpha) {
 			}
 		}
 
-		textureIdSet *texId = new textureIdSet[numMaterial];
+		textureIdSet* texId = new textureIdSet[numMaterial];
 		std::unique_ptr<VECTOR3[]> diffuse = std::make_unique<VECTOR3[]>(numMaterial);
 		std::unique_ptr<VECTOR3[]> specular = std::make_unique<VECTOR3[]>(numMaterial);
 		std::unique_ptr<VECTOR3[]> ambient = std::make_unique<VECTOR3[]>(numMaterial);
-		float *uvSw = new float[numMaterial];
+		float* uvSw = new float[numMaterial];
 		memset(uvSw, 0, sizeof(float) * numMaterial);
 		for (uint32_t matInd = 0; matInd < numMaterial; matInd++) {
 			//ディフェーズテクスチャId取得, 無い場合ダミー
@@ -258,7 +259,7 @@ void VulkanSkinMesh::create(uint32_t comIndex, bool useAlpha) {
 				if (type.DiffuseColor && !type.SpecularColor ||
 					mesh->getNumDiffuseTexture(matInd) == 1) {
 					auto diffName = device->getNameFromPass(
-							mesh->getDiffuseTextureName(matInd, tNo));
+						mesh->getDiffuseTextureName(matInd, tNo));
 					texId[matInd].diffuseId = device->getTextureNo(diffName);
 					auto str = mesh->getDiffuseTextureUVName(matInd, tNo);
 					strcpy(texId[matInd].difUvName, str);
@@ -270,7 +271,7 @@ void VulkanSkinMesh::create(uint32_t comIndex, bool useAlpha) {
 				textureType type = mesh->getDiffuseTextureType(matInd, tNo);
 				if (type.SpecularColor) {
 					auto speName = device->getNameFromPass(
-							mesh->getDiffuseTextureName(matInd, tNo));
+						mesh->getDiffuseTextureName(matInd, tNo));
 					texId[matInd].specularId = device->getTextureNo(speName);
 					auto str = mesh->getDiffuseTextureUVName(matInd, tNo);
 					strcpy(texId[matInd].speUvName, str);
@@ -291,8 +292,8 @@ void VulkanSkinMesh::create(uint32_t comIndex, bool useAlpha) {
 				}
 			}
 			if (uv0Name != nullptr) {
-				char *difName = texId[matInd].difUvName;
-				char *speName = texId[matInd].speUvName;
+				char* difName = texId[matInd].difUvName;
+				char* speName = texId[matInd].speUvName;
 				//uv逆転
 				if (!strcmp(difName, uv1Name) &&
 					(!strcmp(speName, "") || !strcmp(speName, uv0Name)))
@@ -315,36 +316,64 @@ void VulkanSkinMesh::create(uint32_t comIndex, bool useAlpha) {
 				texId[matInd].specularId = cTexId[mI][matInd].specularId;
 
 			//マテリアルカラー取得
-			diffuse[matInd] = {(float) mesh->getDiffuseColor(matInd, 0),
-							   (float) mesh->getDiffuseColor(matInd, 1),
-							   (float) mesh->getDiffuseColor(matInd, 2)};
-			specular[matInd] = {(float) mesh->getSpecularColor(matInd, 0),
-								(float) mesh->getSpecularColor(matInd, 1),
-								(float) mesh->getSpecularColor(matInd, 2)};
-			ambient[matInd] = {(float) mesh->getAmbientColor(matInd, 0),
-							   (float) mesh->getAmbientColor(matInd, 1),
-							   (float) mesh->getAmbientColor(matInd, 2)};
+			diffuse[matInd] = { (float)mesh->getDiffuseColor(matInd, 0),
+							   (float)mesh->getDiffuseColor(matInd, 1),
+							   (float)mesh->getDiffuseColor(matInd, 2) };
+			specular[matInd] = { (float)mesh->getSpecularColor(matInd, 0),
+								(float)mesh->getSpecularColor(matInd, 1),
+								(float)mesh->getSpecularColor(matInd, 2) };
+			ambient[matInd] = { (float)mesh->getAmbientColor(matInd, 0),
+							   (float)mesh->getAmbientColor(matInd, 1),
+							   (float)mesh->getAmbientColor(matInd, 2) };
 		}
 
+#if CHANGE
+		uint32_t numattrDescs = 4;
 		static VkVertexInputAttributeDescription attrDescs[] =
-				{
-						{0, 0, VK_FORMAT_R32G32B32_SFLOAT,    0},
-						{1, 0, VK_FORMAT_R32G32B32_SFLOAT,    sizeof(float) * 3},
-						{2, 0, VK_FORMAT_R32G32_SFLOAT,       sizeof(float) * 6},
-						{3, 0, VK_FORMAT_R32G32_SFLOAT,       sizeof(float) * 8},
-						{4, 0, VK_FORMAT_R32G32B32A32_SFLOAT, sizeof(float) * 10},
-						{5, 0, VK_FORMAT_R32G32B32A32_SFLOAT, sizeof(float) * 14}
-				};
-
+		{
+				{0, 0, VK_FORMAT_R32G32B32_SFLOAT,    0},
+				{1, 0, VK_FORMAT_R32G32B32_SFLOAT,    sizeof(float) * 3},
+				{2, 0, VK_FORMAT_R32G32B32A32_SFLOAT, sizeof(float) * 6},
+				{3, 0, VK_FORMAT_R32G32B32A32_SFLOAT, sizeof(float) * 10},
+		};
+		VertexSkinAndroid* verAnd = new VertexSkinAndroid[mesh->getNumPolygonVertices()];
+		for (unsigned int van = 0; van < mesh->getNumPolygonVertices(); van++) {
+			memcpy(verAnd[van].pos, verSkin[van].pos, sizeof(float) * 3);
+			memcpy(verAnd[van].normal, verSkin[van].normal, sizeof(float) * 3);
+			verAnd[van].dif_speUv[0] = verSkin[van].difUv[0];
+			verAnd[van].dif_speUv[1] = verSkin[van].difUv[1];
+			verAnd[van].dif_speUv[2] = verSkin[van].speUv[0];
+			verAnd[van].dif_speUv[3] = verSkin[van].speUv[1];
+			verAnd[van].bBoneIndex_Weight[0] = verSkin[van].bBoneIndex[0];
+			verAnd[van].bBoneIndex_Weight[1] = verSkin[van].bBoneIndex[1];
+			verAnd[van].bBoneIndex_Weight[2] = verSkin[van].bBoneWeight[0];
+			verAnd[van].bBoneIndex_Weight[3] = verSkin[van].bBoneWeight[1];
+		}
+		bp[mI]->create0<VertexSkinAndroid>(comIndex, useAlpha, numMaterial, texId, uvSw, verAnd,
+			(uint32_t)mesh->getNumPolygonVertices(),
+			newIndex, numNewIndex, attrDescs, numattrDescs, vsShaderSkinMesh,
+			bp[mI]->fs);
+#else
+		uint32_t numattrDescs = 6;
+		static VkVertexInputAttributeDescription attrDescs[] =
+		{
+				{0, 0, VK_FORMAT_R32G32B32_SFLOAT,    0},
+				{1, 0, VK_FORMAT_R32G32B32_SFLOAT,    sizeof(float) * 3},
+				{2, 0, VK_FORMAT_R32G32_SFLOAT,       sizeof(float) * 6},
+				{3, 0, VK_FORMAT_R32G32_SFLOAT,       sizeof(float) * 8},
+				{4, 0, VK_FORMAT_R32G32B32A32_SFLOAT, sizeof(float) * 10},
+				{5, 0, VK_FORMAT_R32G32B32A32_SFLOAT, sizeof(float) * 14}
+		};
 		bp[mI]->create0<VertexSkin>(comIndex, useAlpha, numMaterial, texId, uvSw, verSkin,
-									(uint32_t) mesh->getNumPolygonVertices(),
-									newIndex, numNewIndex, attrDescs, 6, vsShaderSkinMesh,
-									bp[mI]->fs);
+			(uint32_t)mesh->getNumPolygonVertices(),
+			newIndex, numNewIndex, attrDescs, numattrDescs, vsShaderSkinMesh,
+			bp[mI]->fs);
+#endif
 
 		for (uint32_t sw = 0; sw < bp[0]->numSwap; sw++) {
 			for (uint32_t matInd = 0; matInd < numMaterial; matInd++) {
 				bp[mI]->setMaterialParameter(sw, diffuse[matInd], specular[matInd], ambient[matInd],
-											 matInd);
+					matInd);
 			}
 		}
 
@@ -352,17 +381,20 @@ void VulkanSkinMesh::create(uint32_t comIndex, bool useAlpha) {
 		ARR_DELETE(newIndex);
 		ARR_DELETE(numNewIndex);
 		ARR_DELETE(verSkin);
+#if CHANGE
+		ARR_DELETE(verAnd);
+#endif
 		ARR_DELETE(texId);
 		ARR_DELETE(uvSw);
 	}
 
 	//初期姿勢行列読み込み
-	FbxMeshNode *mesh = fbxObj[0]->fbx.getFbxMeshNode(0);//0番目のメッシュ取得,ここから行列を取得
+	FbxMeshNode* mesh = fbxObj[0]->fbx.getFbxMeshNode(0);//0番目のメッシュ取得,ここから行列を取得
 	for (uint32_t i = 0; i < numBone; i++) {
 		auto defo = mesh->getDeformer(i);
 		for (int y = 0; y < 4; y++) {
 			for (int x = 0; x < 4; x++) {
-				bone[i].bindPose.m[y][x] = (float) defo->getTransformLinkMatrix(y, x);
+				bone[i].bindPose.m[y][x] = (float)defo->getTransformLinkMatrix(y, x);
 			}
 		}
 	}

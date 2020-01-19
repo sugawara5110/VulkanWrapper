@@ -118,7 +118,7 @@ private:
     std::unique_ptr<VkCommandBuffer[]> commandBuffer = nullptr;
     uint32_t currentFrameIndex = 0;
     const static uint32_t numLightMax = 256;
-#ifdef __ANDROID__
+#if CHANGE
     const static uint32_t numBoneMax = 64;
 #else
     const static uint32_t numBoneMax = 256;
