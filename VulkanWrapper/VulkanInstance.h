@@ -43,6 +43,7 @@ private:
     VkDebugReportCallbackEXT debugReportCallback;
     VkInstance instance = nullptr;
     VkSurfaceKHR surface;//画面を定義するオブジェクト,windows,android
+    bool surfaceAlive = false;
     std::unique_ptr<VkPhysicalDevice[]> adapters = nullptr;
     uint32_t adapterCount = 0;
 
@@ -50,26 +51,19 @@ private:
 
     void createDebugReportCallback();
 
-#ifdef __ANDROID__
-
-    void createSurfaceAndroid(ANativeWindow* Window);
-
-#else
-    void createSurfaceHwnd(HWND hWnd);
-#endif
-
     void createPhysicalDevice();
 
 public:
     ~VulkanInstance();
 
+    void createInstance(char* appName);
+
 #ifdef __ANDROID__
-
-    void createInstance(ANativeWindow* Window, char* appName);
-
+    void createSurfaceAndroid(ANativeWindow* Window);
 #else
-    void createInstance(HWND hWnd, char* appName);
+    void createSurfaceHwnd(HWND hWnd);
 #endif
+    void destroySurface();
 
     VkPhysicalDevice getPhysicalDevice(int index = 0);
 
@@ -83,7 +77,6 @@ private:
     friend VulkanBasicPolygon;
     friend VulkanSkinMesh;
     VkPhysicalDevice pDev = nullptr;//VulkanInstanceからポインタを受け取る
-    VkSurfaceKHR surface;//VulkanInstanceからポインタを受け取る
     VkDevice device = nullptr;
     VkQueue devQueue = nullptr;
     uint32_t queueFamilyIndex = 0xffffffff;
@@ -95,12 +88,14 @@ private:
     VkSemaphore renderCompletedSem, presentCompletedSem;
 
     struct swapchainBuffer {
-        VkSwapchainKHR swapchain;
+        VkSwapchainKHR swapchain = {};
         uint32_t imageCount = 0;
         std::unique_ptr<VkImage[]> images = nullptr;//スワップチェーンの画像表示に使う
         std::unique_ptr<VkImageView[]> views = nullptr;
         std::unique_ptr<VkFramebuffer[]> frameBuffer = nullptr;
+        VkFormat format = {};
     };
+    bool swapchainAlive = false;
     swapchainBuffer swBuf;
     VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR;
 
@@ -181,9 +176,11 @@ private:
 
     void createFence();
 
+    void createSFence();
+
     void createSemaphore();
 
-    void createSwapchain();
+    void createswapchain(VkSurfaceKHR surface);
 
     void createDepth();
 
@@ -328,12 +325,16 @@ private:
         uint32_t height);
 
 public:
-    Device(VkPhysicalDevice pd, VkSurfaceKHR surface, uint32_t numCommandBuffer = 1,
+    Device(VkPhysicalDevice pd, uint32_t numCommandBuffer = 1,
         bool V_SYNC = true);
 
     ~Device();
 
     void createDevice();
+
+    void createSwapchain(VkSurfaceKHR surface);
+
+    void destroySwapchain();
 
     void GetTexture(uint32_t comBufindex, char* fileName, unsigned char* byteArr, uint32_t width,
         uint32_t height);

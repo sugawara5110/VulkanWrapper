@@ -88,29 +88,6 @@ void VulkanInstance::createDebugReportCallback() {
     checkError(res);
 }
 
-#ifdef __ANDROID__
-void VulkanInstance::createSurfaceAndroid(ANativeWindow *Window) {
-    VkAndroidSurfaceCreateInfoKHR surfaceInfo{};
-    surfaceInfo.sType = VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR;
-    surfaceInfo.pNext = nullptr;
-    surfaceInfo.flags = 0;
-    surfaceInfo.window = Window;
-    //android用のサーフェース生成
-    auto res = vkCreateAndroidSurfaceKHR(instance, &surfaceInfo, nullptr, &surface);
-    checkError(res);
-}
-#else
-void VulkanInstance::createSurfaceHwnd(HWND hWnd) {
-	VkWin32SurfaceCreateInfoKHR surfaceInfo{};
-	surfaceInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-	surfaceInfo.hinstance = GetModuleHandle(nullptr);
-	surfaceInfo.hwnd = hWnd;
-	//Windows用のサーフェース生成
-	auto res = vkCreateWin32SurfaceKHR(instance, &surfaceInfo, nullptr, &surface);
-	checkError(res);
-}
-#endif
-
 void VulkanInstance::createPhysicalDevice() {
 
     //物理デバイス出力先にnullptrを指定:adapterCountに物理デバイス個数出力
@@ -140,26 +117,48 @@ void VulkanInstance::createPhysicalDevice() {
 }
 
 VulkanInstance::~VulkanInstance() {
-    vkDestroySurfaceKHR(instance, surface, nullptr);
+    destroySurface();
     _vkDestroyDebugReportCallbackEXT(instance, debugReportCallback, nullptr);
     vkDestroyInstance(instance, nullptr);
 }
 
-#ifdef __ANDROID__
-void VulkanInstance::createInstance(ANativeWindow *Window, char* appName) {
-    VulkanPFN();
-    createinstance(appName);//インスタンス生成
-    createSurfaceAndroid(Window);
-    createPhysicalDevice();//物理デバイス生成
-}
-#else
-void VulkanInstance::createInstance(HWND hWnd, char* appName) {
+void VulkanInstance::createInstance(char* appName) {
     createinstance(appName);//インスタンス生成
     createDebugReportCallback();//デバック
-    createSurfaceHwnd(hWnd);//ウインドウズ用サーフェス生成
     createPhysicalDevice();//物理デバイス生成
 }
+
+#ifdef __ANDROID__
+void VulkanInstance::createSurfaceAndroid(ANativeWindow* Window) {
+    VkAndroidSurfaceCreateInfoKHR surfaceInfo{};
+    surfaceInfo.sType = VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR;
+    surfaceInfo.pNext = nullptr;
+    surfaceInfo.flags = 0;
+    surfaceInfo.window = Window;
+    //android用のサーフェース生成
+    auto res = vkCreateAndroidSurfaceKHR(instance, &surfaceInfo, nullptr, &surface);
+    checkError(res);
+    surfaceAlive = true;
+}
+#else
+void VulkanInstance::createSurfaceHwnd(HWND hWnd) {
+    VkWin32SurfaceCreateInfoKHR surfaceInfo{};
+    surfaceInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+    surfaceInfo.hinstance = GetModuleHandle(nullptr);
+    surfaceInfo.hwnd = hWnd;
+    //Windows用のサーフェース生成
+    auto res = vkCreateWin32SurfaceKHR(instance, &surfaceInfo, nullptr, &surface);
+    checkError(res);
+    surfaceAlive = true;
+}
 #endif
+
+void VulkanInstance::destroySurface() {
+    if (surfaceAlive) {
+        vkDestroySurfaceKHR(instance, surface, nullptr);
+        surfaceAlive = false;
+    }
+}
 
 VkPhysicalDevice VulkanInstance::getPhysicalDevice(int index) {
     return adapters[index];
@@ -169,9 +168,8 @@ VkSurfaceKHR VulkanInstance::getSurface() {
     return surface;
 }
 
-Device::Device(VkPhysicalDevice pd, VkSurfaceKHR surfa, uint32_t numCommandBuffer, bool V_SYNC) {
+Device::Device(VkPhysicalDevice pd, uint32_t numCommandBuffer, bool V_SYNC) {
     pDev = pd;
-    surface = surfa;
     commandBufferCount = numCommandBuffer;
     if (V_SYNC) {
         presentMode = VK_PRESENT_MODE_FIFO_KHR;
@@ -182,19 +180,11 @@ Device::Device(VkPhysicalDevice pd, VkSurfaceKHR surfa, uint32_t numCommandBuffe
 }
 
 Device::~Device() {
+    destroySwapchain();
     destroyTexture();
-    for (uint32_t i = 0; i < commandBufferCount; i++)
+    for (uint32_t i = 0; i < commandBufferCount; i++) {
         vkFreeCommandBuffers(device, commandPool, commandBufferCount, commandBuffer.get());
-    vkDestroyImageView(device, depth.view, nullptr);
-    vkDestroyImage(device, depth.image, nullptr);
-    vkFreeMemory(device, depth.mem, nullptr);
-    vkDestroyRenderPass(device, renderPass, nullptr);
-    for (uint32_t i = 0; i < swBuf.imageCount; i++) {
-        vkDestroyImageView(device, swBuf.views[i], nullptr);
-        vkDestroyFramebuffer(device, swBuf.frameBuffer[i], nullptr);
-        vkDestroyFence(device, swFence[i], nullptr);
     }
-    vkDestroySwapchainKHR(device, swBuf.swapchain, nullptr);
     vkDestroyFence(device, sFence, nullptr);
     vkDestroySemaphore(device, presentCompletedSem, nullptr);
     vkDestroySemaphore(device, renderCompletedSem, nullptr);
@@ -265,14 +255,19 @@ void Device::createCommandPool() {
 void Device::createFence() {
     VkFenceCreateInfo finfo{};
     finfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-    auto res = vkCreateFence(device, &finfo, nullptr, &sFence);
-    checkError(res);
     swFence = std::make_unique<VkFence[]>(swBuf.imageCount);
     firstswFence = false;
     for (uint32_t i = 0; i < swBuf.imageCount; i++) {
         auto res = vkCreateFence(device, &finfo, nullptr, &swFence[i]);
         checkError(res);
     }
+}
+
+void Device::createSFence() {
+    VkFenceCreateInfo finfo{};
+    finfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    auto res = vkCreateFence(device, &finfo, nullptr, &sFence);
+    checkError(res);
 }
 
 void Device::createSemaphore() {
@@ -282,7 +277,7 @@ void Device::createSemaphore() {
     vkCreateSemaphore(device, &ci, nullptr, &presentCompletedSem);
 }
 
-void Device::createSwapchain() {
+void Device::createswapchain(VkSurfaceKHR surface) {
 
     VkSwapchainCreateInfoKHR scinfo{};
     //デバイスが,スワップチェーンをサポートしているか確認
@@ -350,9 +345,10 @@ void Device::createSwapchain() {
 
     //ビュー生成
     swBuf.views = std::make_unique<VkImageView[]>(swBuf.imageCount);
+    swBuf.format = scinfo.imageFormat;
 
     for (uint32_t i = 0; i < swBuf.imageCount; i++) {
-        swBuf.views[i] = createImageView(swBuf.images[i], VK_FORMAT_B8G8R8A8_UNORM,
+        swBuf.views[i] = createImageView(swBuf.images[i], swBuf.format,
             VK_IMAGE_ASPECT_COLOR_BIT,
             { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G,
              VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A });
@@ -367,9 +363,11 @@ void Device::createDepth() {
     vkGetPhysicalDeviceFormatProperties(pDev, depth_format, &props);
     if (props.linearTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) {
         tiling = VK_IMAGE_TILING_LINEAR;
-    } else if (props.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) {
+    }
+    else if (props.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) {
         tiling = VK_IMAGE_TILING_OPTIMAL;
-    } else {
+    }
+    else {
 #ifdef __ANDROID__
 #else
         OutputDebugString(L"depth_formatUnsupported.\n");
@@ -379,22 +377,22 @@ void Device::createDepth() {
 
     //深度Image生成
     createImage(width, height, depth_format,
-                tiling, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                depth.image, depth.mem);
+        tiling, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        depth.image, depth.mem);
 
     VkImageAspectFlags depthMask = VK_IMAGE_ASPECT_DEPTH_BIT;
     //view生成
     depth.view = createImageView(depth.image, depth_format, depthMask,
-                                 {VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G,
-                                  VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A});
+        { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G,
+         VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A });
     depth.format = depth_format;
 }
 
 void Device::createCommonRenderPass() {
 
     VkAttachmentDescription attachmentDesc[2]{};
-    attachmentDesc[0].format = VK_FORMAT_B8G8R8A8_UNORM;
+    attachmentDesc[0].format = swBuf.format;
     attachmentDesc[0].samples = VK_SAMPLE_COUNT_1_BIT;
     attachmentDesc[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     attachmentDesc[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -515,8 +513,8 @@ void Device::submitCommands(uint32_t comBufindex, VkFence fence, bool useRender)
 void Device::acquireNextImageAndWait(uint32_t& currentFrameIndex) {
     //vkAcquireNextImageKHR:命令はバックバッファのスワップを行い,次に描画されるべきImageのインデックスを返す
     auto res = vkAcquireNextImageKHR(device, swBuf.swapchain,
-                                     UINT64_MAX, presentCompletedSem, VK_NULL_HANDLE,
-                                     &currentFrameIndex);
+        UINT64_MAX, presentCompletedSem, VK_NULL_HANDLE,
+        &currentFrameIndex);
     checkError(res);
     if (!firstswFence) {
         firstswFence = true;
@@ -692,27 +690,27 @@ auto Device::createTextureImage(uint32_t comBufindex, unsigned char* byteArr, ui
     VkDeviceMemory stagingBufferMemory;
     VkDeviceSize size;
     createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                 stagingBuffer, stagingBufferMemory, size);
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        stagingBuffer, stagingBufferMemory, size);
 
-    void *data;
+    void* data;
     vkMapMemory(device, stagingBufferMemory, 0, imageSize, 0, &data);
     memcpy(data, byteArr, static_cast<size_t>(imageSize));
     vkUnmapMemory(device, stagingBufferMemory);
 
     Texture texture;
     createImage(width, height, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
-                VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                texture.vkIma, texture.mem);
+        VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        texture.vkIma, texture.mem);
 
-    beginCommandWithFramebuffer(comBufindex, swBuf.frameBuffer[currentFrameIndex]);
+    beginCommandWithFramebuffer(comBufindex, VkFramebuffer());
     barrierResource(comBufindex, texture.vkIma, VK_IMAGE_LAYOUT_UNDEFINED,
-                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
     copyBufferToImage(commandBuffer[comBufindex], stagingBuffer, texture.vkIma,
-                      static_cast<uint32_t>(width), static_cast<uint32_t>(height));
+        static_cast<uint32_t>(width), static_cast<uint32_t>(height));
     barrierResource(comBufindex, texture.vkIma, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     vkEndCommandBuffer(commandBuffer[comBufindex]);
     submitCommands(comBufindex, sFence, false);
     waitForFence(sFence);
@@ -1193,12 +1191,8 @@ VkPipeline Device::createGraphicsPipelineVF(bool useAlpha,
 void Device::createDevice() {
     create();
     createCommandPool();
-    createSwapchain();
-    createDepth();
-    createFence();
+    createSFence();
     createSemaphore();
-    createCommonRenderPass();
-    createFramebuffers();
     createCommandBuffers();
 
     //ダミーテクスチャ生成(テクスチャーが無い場合に代わりに入れる)
@@ -1210,11 +1204,36 @@ void Device::createDevice() {
     getTextureSub(0, numTextureMax + 1, dummy2, 64, 64);//スペキュラ無用
 }
 
+void Device::createSwapchain(VkSurfaceKHR surface) {
+    createswapchain(surface);
+    createDepth();
+    createFence();
+    createCommonRenderPass();
+    createFramebuffers();
+    swapchainAlive = true;
+}
+
+void Device::destroySwapchain() {
+    if (swapchainAlive) {
+        vkDestroyImageView(device, depth.view, nullptr);
+        vkDestroyImage(device, depth.image, nullptr);
+        vkFreeMemory(device, depth.mem, nullptr);
+        vkDestroyRenderPass(device, renderPass, nullptr);
+        for (uint32_t i = 0; i < swBuf.imageCount; i++) {
+            vkDestroyImageView(device, swBuf.views[i], nullptr);
+            vkDestroyFramebuffer(device, swBuf.frameBuffer[i], nullptr);
+            vkDestroyFence(device, swFence[i], nullptr);
+        }
+        vkDestroySwapchainKHR(device, swBuf.swapchain, nullptr);
+        swapchainAlive = false;
+    }
+}
+
 void Device::getTextureSub(uint32_t comBufindex, uint32_t texNo, unsigned char* byteArr, uint32_t width, uint32_t height) {
     texture[texNo] = createTextureImage(comBufindex, byteArr, width, height);
     texture[texNo].info.imageView = createImageView(texture[texNo].vkIma,
-                                                    VK_FORMAT_R8G8B8A8_UNORM,
-                                                    VK_IMAGE_ASPECT_COLOR_BIT);
+        VK_FORMAT_R8G8B8A8_UNORM,
+        VK_IMAGE_ASPECT_COLOR_BIT);
     createTextureSampler(texture[texNo].info.sampler);
 }
 
