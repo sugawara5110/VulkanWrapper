@@ -122,11 +122,19 @@ VulkanInstance::~VulkanInstance() {
     vkDestroyInstance(instance, nullptr);
 }
 
+#ifdef __ANDROID__
+void VulkanInstance::createInstance(char* appName) {
+    VulkanPFN();
+    createinstance(appName);//インスタンス生成
+    createPhysicalDevice();//物理デバイス生成
+}
+#else
 void VulkanInstance::createInstance(char* appName) {
     createinstance(appName);//インスタンス生成
     createDebugReportCallback();//デバック
     createPhysicalDevice();//物理デバイス生成
 }
+#endif
 
 #ifdef __ANDROID__
 void VulkanInstance::createSurfaceAndroid(ANativeWindow* Window) {
