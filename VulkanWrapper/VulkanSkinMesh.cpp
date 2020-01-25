@@ -26,8 +26,8 @@ void VulkanSkinMesh::setfbx() {
 	bone = std::make_unique<Bone[]>(numBone);
 	outPose = std::make_unique<MATRIX[]>(numBone);
 
-	cTexId = std::make_unique<textureIdSet * []>(numMesh);
-	for (uint32_t i = 0; i < numMesh; i++)cTexId[i] = new textureIdSet[fbxObj[0]->fbx.getFbxMeshNode(i)->getNumMaterial()];
+	cTexId = std::make_unique<VulkanBasicPolygon::textureIdSet * []>(numMesh);
+	for (uint32_t i = 0; i < numMesh; i++)cTexId[i] = new VulkanBasicPolygon::textureIdSet[fbxObj[0]->fbx.getFbxMeshNode(i)->getNumMaterial()];
 }
 
 void VulkanSkinMesh::setFbx(Device* dev, char* pass, float endfra) {
@@ -246,7 +246,7 @@ void VulkanSkinMesh::create(uint32_t comIndex, bool useAlpha) {
 			}
 		}
 
-		textureIdSet* texId = new textureIdSet[numMaterial];
+		VulkanBasicPolygon::textureIdSet* texId = new VulkanBasicPolygon::textureIdSet[numMaterial];
 		std::unique_ptr<VECTOR3[]> diffuse = std::make_unique<VECTOR3[]>(numMaterial);
 		std::unique_ptr<VECTOR3[]> specular = std::make_unique<VECTOR3[]>(numMaterial);
 		std::unique_ptr<VECTOR3[]> ambient = std::make_unique<VECTOR3[]>(numMaterial);

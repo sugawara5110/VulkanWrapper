@@ -55,7 +55,7 @@ private:
 	uint32_t numFbxObj = 1;
 
 	std::unique_ptr <VulkanBasicPolygon * []> bp = nullptr;
-	std::unique_ptr <textureIdSet * []> cTexId = nullptr;
+	std::unique_ptr <VulkanBasicPolygon::textureIdSet * []> cTexId = nullptr;
 	uint32_t numMesh = 0;
 	uint32_t numBone = 0;
 	std::unique_ptr<Bone[]> bone = nullptr;

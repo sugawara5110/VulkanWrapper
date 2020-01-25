@@ -38,7 +38,9 @@ VulkanBasicPolygon::~VulkanBasicPolygon() {
 			vkFreeDescriptorSets(device->device, descPool[s][i], descSetCnt, &descSet[s][i]);
 			vkDestroyDescriptorPool(device->device, descPool[s][i], nullptr);
 		}
+		texId[i].destroy(device->device);
 	}
+	ARR_DELETE(texId);
 	for (uint32_t s = 0; s < numSwap; s++) {
 		ARR_DELETE(material[s]);
 	}
@@ -54,12 +56,13 @@ void VulkanBasicPolygon::create(uint32_t comIndex, bool useAlpha, int32_t difTex
 		{ 3, 0, VK_FORMAT_R32G32_SFLOAT, sizeof(float) * 8 }
 	};
 
-	textureIdSet tex[1];
+	const uint32_t numMaterial = 1;
+	textureIdSet tex[numMaterial];
 	tex[0].diffuseId = difTexInd;
 	tex[0].normalId = norTexInd;
 	tex[0].specularId = speTexInd;
 	float sw[1] = {};
-	create0<Vertex3D>(comIndex, useAlpha, 1, tex, sw, ver, num, &ind, &indNum,
+	create0<Vertex3D>(comIndex, useAlpha, numMaterial, tex, sw, ver, num, &ind, &indNum,
 		attrDescs, 4, vsShaderBasicPolygon, fsShaderBasicPolygon);
 }
 

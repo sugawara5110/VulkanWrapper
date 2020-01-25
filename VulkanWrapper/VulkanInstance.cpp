@@ -686,11 +686,11 @@ void Device::createImage(uint32_t width, uint32_t height, VkFormat format,
     checkError(res);
 }
 
-auto Device::createTextureImage(uint32_t comBufindex, unsigned char* byteArr, uint32_t width, uint32_t height) {
+auto Device::createTextureImage(uint32_t comBufindex, Texture& inByte) {
 
-    VkDeviceSize imageSize = width * height * 4;
+    VkDeviceSize imageSize = inByte.width * inByte.height * 4;
 
-    if (!byteArr) {
+    if (!inByte.byte) {
         throw std::runtime_error("failed to load texture image!");
     }
 
@@ -703,11 +703,11 @@ auto Device::createTextureImage(uint32_t comBufindex, unsigned char* byteArr, ui
 
     void* data;
     vkMapMemory(device, stagingBufferMemory, 0, imageSize, 0, &data);
-    memcpy(data, byteArr, static_cast<size_t>(imageSize));
+    memcpy(data, inByte.byte, static_cast<size_t>(imageSize));
     vkUnmapMemory(device, stagingBufferMemory);
 
-    Texture texture;
-    createImage(width, height, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
+    VkTexture texture;
+    createImage(inByte.width, inByte.height, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
         VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
         texture.vkIma, texture.mem);
@@ -716,7 +716,7 @@ auto Device::createTextureImage(uint32_t comBufindex, unsigned char* byteArr, ui
     barrierResource(comBufindex, texture.vkIma, VK_IMAGE_LAYOUT_UNDEFINED,
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
     copyBufferToImage(commandBuffer[comBufindex], stagingBuffer, texture.vkIma,
-        static_cast<uint32_t>(width), static_cast<uint32_t>(height));
+        static_cast<uint32_t>(inByte.width), static_cast<uint32_t>(inByte.height));
     barrierResource(comBufindex, texture.vkIma, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     vkEndCommandBuffer(commandBuffer[comBufindex]);
@@ -729,8 +729,8 @@ auto Device::createTextureImage(uint32_t comBufindex, unsigned char* byteArr, ui
     vkDestroyBuffer(device, stagingBuffer, nullptr);
     vkFreeMemory(device, stagingBufferMemory, nullptr);
 
-    texture.height = height;
-    texture.width = width;
+    texture.height = inByte.height;
+    texture.width = inByte.width;
     texture.memSize = imageSize;
 
     return texture;
@@ -786,20 +786,10 @@ void Device::createTextureSampler(VkSampler& textureSampler) {
 
 void Device::destroyTexture() {
     for (uint32_t i = 0; i < numTexture; i++) {
-        vkDestroyImageView(device, texture[i].info.imageView, nullptr);
-        vkDestroySampler(device, texture[i].info.sampler, nullptr);
-        vkDestroyImage(device, texture[i].vkIma, nullptr);
-        vkFreeMemory(device, texture[i].mem, nullptr);
+        texture[i].destroy();
     }
-    vkDestroyImageView(device, texture[numTextureMax].info.imageView, nullptr);
-    vkDestroySampler(device, texture[numTextureMax].info.sampler, nullptr);
-    vkDestroyImage(device, texture[numTextureMax].vkIma, nullptr);
-    vkFreeMemory(device, texture[numTextureMax].mem, nullptr);
-
-    vkDestroyImageView(device, texture[numTextureMax + 1].info.imageView, nullptr);
-    vkDestroySampler(device, texture[numTextureMax + 1].info.sampler, nullptr);
-    vkDestroyImage(device, texture[numTextureMax + 1].vkIma, nullptr);
-    vkFreeMemory(device, texture[numTextureMax + 1].mem, nullptr);
+    texture[numTextureMax].destroy();
+    texture[numTextureMax + 1].destroy();
 }
 
 char* Device::getNameFromPass(char* pass) {
@@ -995,8 +985,8 @@ void Device::createDescriptorPool(bool useTexture, VkDescriptorPool& descPool) {
     checkError(res);
 }
 
-uint32_t Device::upDescriptorSet(bool useTexture, Texture& difTexture, Texture& norTexture, Texture& speTexture, Uniform<MatrixSet>& uni,
-	Uniform<Material>& material, VkDescriptorSet& descriptorSet, VkDescriptorPool& descPool, VkDescriptorSetLayout& descSetLayout) {
+uint32_t Device::upDescriptorSet(bool useTexture, VkTexture& difTexture, VkTexture& norTexture, VkTexture& speTexture, Uniform<MatrixSet>& uni,
+    Uniform<Material>& material, VkDescriptorSet& descriptorSet, VkDescriptorPool& descPool, VkDescriptorSetLayout& descSetLayout) {
 
     VkResult res;
 
@@ -1012,7 +1002,7 @@ uint32_t Device::upDescriptorSet(bool useTexture, Texture& difTexture, Texture& 
 
     VkWriteDescriptorSet writes[5];
     uint32_t bCnt = 0;
-    VkWriteDescriptorSet &bufferMat = writes[bCnt];
+    VkWriteDescriptorSet& bufferMat = writes[bCnt];
     bufferMat = {};
     bufferMat.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     bufferMat.pNext = nullptr;
@@ -1024,7 +1014,7 @@ uint32_t Device::upDescriptorSet(bool useTexture, Texture& difTexture, Texture& 
     bufferMat.dstBinding = bCnt++;
 
     if (useTexture) {
-        VkWriteDescriptorSet &texSampler = writes[bCnt];
+        VkWriteDescriptorSet& texSampler = writes[bCnt];
         texSampler = {};
         texSampler.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         texSampler.dstSet = descriptorSet;
@@ -1034,7 +1024,7 @@ uint32_t Device::upDescriptorSet(bool useTexture, Texture& difTexture, Texture& 
         texSampler.pImageInfo = &difTexture.info;
         texSampler.dstArrayElement = 0;
 
-        VkWriteDescriptorSet &norSampler = writes[bCnt];
+        VkWriteDescriptorSet& norSampler = writes[bCnt];
         norSampler = {};
         norSampler.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         norSampler.dstSet = descriptorSet;
@@ -1044,7 +1034,7 @@ uint32_t Device::upDescriptorSet(bool useTexture, Texture& difTexture, Texture& 
         norSampler.pImageInfo = &norTexture.info;
         norSampler.dstArrayElement = 0;
 
-        VkWriteDescriptorSet &speSampler = writes[bCnt];
+        VkWriteDescriptorSet& speSampler = writes[bCnt];
         speSampler = {};
         speSampler.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         speSampler.dstSet = descriptorSet;
@@ -1054,7 +1044,7 @@ uint32_t Device::upDescriptorSet(bool useTexture, Texture& difTexture, Texture& 
         speSampler.pImageInfo = &speTexture.info;
         speSampler.dstArrayElement = 0;
 
-        VkWriteDescriptorSet &bufferMaterial = writes[bCnt];
+        VkWriteDescriptorSet& bufferMaterial = writes[bCnt];
         bufferMaterial = {};
         bufferMaterial.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         bufferMaterial.pNext = nullptr;
@@ -1208,8 +1198,12 @@ void Device::createDevice() {
     unsigned char dummy2[64 * 4 * 64];
     memset(dummy, 255, 64 * 4 * 64);
     memset(dummy2, 0, 64 * 4 * 64);
-    getTextureSub(0, numTextureMax, dummy, 64, 64);
-    getTextureSub(0, numTextureMax + 1, dummy2, 64, 64);//スペキュラ無用
+    texture[numTextureMax].width = 64;
+    texture[numTextureMax].height = 64;
+    texture[numTextureMax].setByte(dummy);
+    texture[numTextureMax + 1].width = 64;
+    texture[numTextureMax + 1].height = 64;
+    texture[numTextureMax + 1].setByte(dummy2);//スペキュラ無用
 }
 
 void Device::createSwapchain(VkSurfaceKHR surface) {
@@ -1237,24 +1231,25 @@ void Device::destroySwapchain() {
     }
 }
 
-void Device::getTextureSub(uint32_t comBufindex, uint32_t texNo, unsigned char* byteArr, uint32_t width, uint32_t height) {
-    texture[texNo] = createTextureImage(comBufindex, byteArr, width, height);
-    texture[texNo].info.imageView = createImageView(texture[texNo].vkIma,
+void Device::createVkTexture(VkTexture& tex, uint32_t comBufindex, Texture& inByte) {
+    tex = createTextureImage(comBufindex, inByte);
+    tex.info.imageView = createImageView(tex.vkIma,
         VK_FORMAT_R8G8B8A8_UNORM,
         VK_IMAGE_ASPECT_COLOR_BIT);
-    createTextureSampler(texture[texNo].info.sampler);
+    createTextureSampler(tex.info.sampler);
 }
 
 void Device::GetTexture(uint32_t comBufindex, char* fileName, unsigned char* byteArr, uint32_t width, uint32_t height) {
     //ファイル名登録
-    char *filename = getNameFromPass(fileName);
-    if (strlen(filename) >= (size_t) numTexFileNamelenMax)
+    char* filename = getNameFromPass(fileName);
+    if (strlen(filename) >= (size_t)numTexFileNamelenMax)
         throw std::runtime_error("The file name limit has been.");
     strcpy(textureNameList[numTexture], filename);
 
-    //テクスチャ生成
-    getTextureSub(comBufindex, numTexture, byteArr, width, height);
-
+    //テクスチャ登録
+    texture[numTexture].width = width;
+    texture[numTexture].height = height;
+    texture[numTexture].setByte(byteArr);
     numTexture++;
     if (numTexture >= numTextureMax)
         throw std::runtime_error("The file limit has been.");

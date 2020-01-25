@@ -156,17 +156,39 @@ private:
         VkDescriptorBufferInfo info;
     };
 
-    struct Texture {
+    struct VkTexture {
         VkImage vkIma;
         VkDeviceMemory mem;
         VkDeviceSize memSize;
-        uint32_t width;
-        uint32_t height;
+        uint32_t width = 0;
+        uint32_t height = 0;
         VkDescriptorImageInfo info;
+        void destroy(VkDevice& device) {
+            vkDestroyImageView(device, info.imageView, nullptr);
+            vkDestroySampler(device, info.sampler, nullptr);
+            vkDestroyImage(device, vkIma, nullptr);
+            vkFreeMemory(device, mem, nullptr);
+        }
+    };
+
+    struct Texture {
+        unsigned char* byte = nullptr;
+        uint32_t width = 0;
+        uint32_t height = 0;
+        void setByte(unsigned char* inbyte) {
+            byte = new unsigned char[width * 4 * height];
+            memcpy(byte, inbyte, sizeof(unsigned char) * width * 4 * height);
+        }
+        void destroy() {
+            delete[] byte;
+            byte = nullptr;
+            width = 0;
+            height = 0;
+        }
     };
     Texture texture[numTextureMax + 2];
-    uint32_t numTexture = 0;
     char textureNameList[numTextureMax][numTexFileNamelenMax];
+    uint32_t numTexture = 0;
 
     Device() {}
 
@@ -216,8 +238,7 @@ private:
         VkMemoryPropertyFlags properties,
         VkImage& image, VkDeviceMemory& imageMemory);
 
-    auto createTextureImage(uint32_t comBufindex, unsigned char* byteArr, uint32_t width,
-        uint32_t height);
+    auto createTextureImage(uint32_t comBufindex, Texture& inByte);
 
     VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags mask,
         VkComponentMapping components = { VK_COMPONENT_SWIZZLE_IDENTITY });
@@ -303,7 +324,7 @@ private:
     void createDescriptorPool(bool useTexture, VkDescriptorPool& descPool);
 
     uint32_t
-        upDescriptorSet(bool useTexture, Texture& difTexture, Texture& norTexture, Texture& speTexture,
+        upDescriptorSet(bool useTexture, VkTexture& difTexture, VkTexture& norTexture, VkTexture& speTexture,
             Uniform<MatrixSet>& uni, Uniform<Material>& material,
             VkDescriptorSet& descriptorSet, VkDescriptorPool& descPool,
             VkDescriptorSetLayout& descSetLayout);
@@ -321,8 +342,7 @@ private:
         const VkPipelineCache& pCache);
 
     //モデル毎
-    void getTextureSub(uint32_t comBufindex, uint32_t texNo, unsigned char* byteArr, uint32_t width,
-        uint32_t height);
+    void createVkTexture(VkTexture& tex, uint32_t comBufindex, Texture& inByte);
 
 public:
     Device(VkPhysicalDevice pd, uint32_t numCommandBuffer = 1,

@@ -9,15 +9,6 @@
 
 #include "VulkanInstance.h"
 
-struct textureIdSet {
-	int diffuseId = -1;
-	char difUvName[256] = {};
-	int normalId = -1;
-	char norUvName[256] = {};
-	int specularId = -1;
-	char speUvName[256] = {};
-};
-
 struct Vertex3D {
 	float pos[3];
 	float normal[3];
@@ -31,6 +22,25 @@ class VulkanBasicPolygon {
 
 private:
 	friend VulkanSkinMesh;
+
+	struct textureIdSet {
+		int diffuseId = -1;
+		char difUvName[256] = {};
+		Device::VkTexture difTex;
+		int normalId = -1;
+		char norUvName[256] = {};
+		Device::VkTexture norTex;
+		int specularId = -1;
+		char speUvName[256] = {};
+		Device::VkTexture speTex;
+		void destroy(VkDevice& device) {
+			difTex.destroy(device);
+			norTex.destroy(device);
+			speTex.destroy(device);
+		}
+	};
+	textureIdSet* texId = nullptr;
+
 	Device* device = nullptr;
 	std::pair<VkBuffer, VkDeviceMemory> vertices;
 	std::unique_ptr<std::pair<VkBuffer, VkDeviceMemory>[]> index;
@@ -51,7 +61,7 @@ private:
 
 	template<typename T>
 	void create0(uint32_t comIndex, bool useAlpha,
-		int32_t numMat, textureIdSet* texId, float* uvSw,
+		int32_t numMat, textureIdSet* texid, float* uvSw,
 		T* ver, uint32_t num,
 		uint32_t** ind, uint32_t* indNum,
 		VkVertexInputAttributeDescription* attrDescs, uint32_t numAttr, char* vs, char* fs) {
@@ -62,6 +72,8 @@ private:
 		};
 
 		numMaterial = numMat;
+		texId = new textureIdSet[numMaterial];
+		memcpy(texId, texid, sizeof(textureIdSet) * numMaterial);
 		index = std::make_unique<std::pair<VkBuffer, VkDeviceMemory>[]>(numMaterial);
 		numIndex = std::make_unique<uint32_t[]>(numMaterial);
 		for (uint32_t i = 0; i < numSwap; i++) {
@@ -87,26 +99,32 @@ private:
 
 				device->createDescriptorPool(true, descPool[i][m]);
 
-				Device::Texture* diff = nullptr;
+				Device::VkTexture* diff = nullptr;
 				if (texId[m].diffuseId < 0) {
-					diff = &device->texture[device->numTextureMax];//-1の場合テクスチャー無いので, ダミーを入れる
+					if (i == 0)device->createVkTexture(texId[m].difTex, comIndex, device->texture[device->numTextureMax]);
+					diff = &texId[m].difTex;//-1の場合テクスチャー無いので, ダミーを入れる
 				}
 				else {
-					diff = &device->texture[texId[m].diffuseId];
+					if (i == 0)device->createVkTexture(texId[m].difTex, comIndex, device->texture[texId[m].diffuseId]);
+					diff = &texId[m].difTex;
 				}
-				Device::Texture* nor = nullptr;
+				Device::VkTexture* nor = nullptr;
 				if (texId[m].normalId < 0) {
-					nor = &device->texture[device->numTextureMax];
+					if (i == 0)device->createVkTexture(texId[m].norTex, comIndex, device->texture[device->numTextureMax]);
+					nor = &texId[m].norTex;
 				}
 				else {
-					nor = &device->texture[texId[m].normalId];
+					if (i == 0)device->createVkTexture(texId[m].norTex, comIndex, device->texture[texId[m].normalId]);
+					nor = &texId[m].norTex;
 				}
-				Device::Texture* spe = nullptr;
+				Device::VkTexture* spe = nullptr;
 				if (texId[m].specularId < 0) {
-					spe = &device->texture[device->numTextureMax + 1];
+					if (i == 0)device->createVkTexture(texId[m].speTex, comIndex, device->texture[device->numTextureMax + 1]);
+					spe = &texId[m].speTex;
 				}
 				else {
-					spe = &device->texture[texId[m].specularId];
+					if (i == 0)device->createVkTexture(texId[m].speTex, comIndex, device->texture[texId[m].specularId]);
+					spe = &texId[m].speTex;
 				}
 				descSetCnt = device->upDescriptorSet(true, *diff, *nor, *spe, uniform[i], material[i][m],
 					descSet[i][m], descPool[i][m], descSetLayout);
