@@ -20,15 +20,6 @@ struct VertexSkin {
 	float bBoneWeight[4] = { 0.0f,0.0f,0.0f,0.0f };//ボーン重み
 };
 
-#if CHANGE
-struct VertexSkinAndroid {
-	float pos[3] = {};//頂点
-	float normal[3] = {};//法線
-	float dif_speUv[4] = {};//UV座標
-	float bBoneIndex_Weight[4] = { 0.0f,0.0f,0.0f,0.0f };
-};
-#endif
-
 struct Bone {
 	MATRIX bindPose = {};
 	MATRIX newPose = {};

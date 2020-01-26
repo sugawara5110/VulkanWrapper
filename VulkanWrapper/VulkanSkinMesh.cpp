@@ -6,11 +6,7 @@
 
 #define _CRT_SECURE_NO_WARNINGS
 #include "VulkanSkinMesh.h"
-#if CHANGE
-#include "Shader/ShaderSkinMeshAndroid.h"
-#else
 #include "Shader/ShaderSkinMesh.h"
-#endif
 
 void VulkanSkinMesh::setfbx() {
 	//mesh数取得
@@ -327,33 +323,6 @@ void VulkanSkinMesh::create(uint32_t comIndex, bool useAlpha) {
 							   (float)mesh->getAmbientColor(matInd, 2) };
 		}
 
-#if CHANGE
-		uint32_t numattrDescs = 4;
-		static VkVertexInputAttributeDescription attrDescs[] =
-		{
-				{0, 0, VK_FORMAT_R32G32B32_SFLOAT,    0},
-				{1, 0, VK_FORMAT_R32G32B32_SFLOAT,    sizeof(float) * 3},
-				{2, 0, VK_FORMAT_R32G32B32A32_SFLOAT, sizeof(float) * 6},
-				{3, 0, VK_FORMAT_R32G32B32A32_SFLOAT, sizeof(float) * 10},
-		};
-		VertexSkinAndroid* verAnd = new VertexSkinAndroid[mesh->getNumPolygonVertices()];
-		for (unsigned int van = 0; van < mesh->getNumPolygonVertices(); van++) {
-			memcpy(verAnd[van].pos, verSkin[van].pos, sizeof(float) * 3);
-			memcpy(verAnd[van].normal, verSkin[van].normal, sizeof(float) * 3);
-			verAnd[van].dif_speUv[0] = verSkin[van].difUv[0];
-			verAnd[van].dif_speUv[1] = verSkin[van].difUv[1];
-			verAnd[van].dif_speUv[2] = verSkin[van].speUv[0];
-			verAnd[van].dif_speUv[3] = verSkin[van].speUv[1];
-			verAnd[van].bBoneIndex_Weight[0] = verSkin[van].bBoneIndex[0];
-			verAnd[van].bBoneIndex_Weight[1] = verSkin[van].bBoneIndex[1];
-			verAnd[van].bBoneIndex_Weight[2] = verSkin[van].bBoneWeight[0];
-			verAnd[van].bBoneIndex_Weight[3] = verSkin[van].bBoneWeight[1];
-		}
-		bp[mI]->create0<VertexSkinAndroid>(comIndex, useAlpha, numMaterial, texId, uvSw, verAnd,
-			(uint32_t)mesh->getNumPolygonVertices(),
-			newIndex, numNewIndex, attrDescs, numattrDescs, vsShaderSkinMesh,
-			bp[mI]->fs);
-#else
 		uint32_t numattrDescs = 6;
 		static VkVertexInputAttributeDescription attrDescs[] =
 		{
@@ -368,7 +337,6 @@ void VulkanSkinMesh::create(uint32_t comIndex, bool useAlpha) {
 			(uint32_t)mesh->getNumPolygonVertices(),
 			newIndex, numNewIndex, attrDescs, numattrDescs, vsShaderSkinMesh,
 			bp[mI]->fs);
-#endif
 
 		for (uint32_t sw = 0; sw < bp[0]->numSwap; sw++) {
 			for (uint32_t matInd = 0; matInd < numMaterial; matInd++) {
@@ -381,9 +349,6 @@ void VulkanSkinMesh::create(uint32_t comIndex, bool useAlpha) {
 		ARR_DELETE(newIndex);
 		ARR_DELETE(numNewIndex);
 		ARR_DELETE(verSkin);
-#if CHANGE
-		ARR_DELETE(verAnd);
-#endif
 		ARR_DELETE(texId);
 		ARR_DELETE(uvSw);
 	}

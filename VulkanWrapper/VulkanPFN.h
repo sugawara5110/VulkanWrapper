@@ -8,12 +8,6 @@
 #define VulkanPFN_Header
 
 #ifdef __ANDROID__
-#define CHANGE 1
-#else
-#define CHANGE 0
-#endif
-
-#ifdef __ANDROID__
 #define VK_NO_PROTOTYPES 1
 #endif
 #include <vulkan/vulkan.h>

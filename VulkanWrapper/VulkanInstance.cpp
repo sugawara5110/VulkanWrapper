@@ -937,15 +937,25 @@ VkPipelineLayout Device::createPipelineLayout2D() {
 }
 
 VkShaderModule Device::createShaderModule(char* shader) {
+    //codesizeは4の倍数である必要があるので揃える
+    int size = (int)strlen(shader);//忘れないようにメモ: strlenは'\0'は含まない文字数
+    int add = 4 - (size % 4);
+    char* sha = new char[size + add + 1];
+    memcpy(sha, shader, sizeof(char) * size);
+    for (int i = size; i < size + add; i++) {
+        sha[i] = ' ';
+    }
+    sha[size + add] = '\0';
 
     VkShaderModuleCreateInfo shaderInfo{};
     VkShaderModule mod;
     shaderInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    shaderInfo.codeSize = strlen(shader);
-    shaderInfo.pCode = reinterpret_cast<uint32_t *>(shader);
+    shaderInfo.codeSize = strlen(sha);
+    shaderInfo.pCode = reinterpret_cast<uint32_t*>(sha);
 
     auto res = vkCreateShaderModule(device, &shaderInfo, nullptr, &mod);
     checkError(res);
+    ARR_DELETE(sha);
     return mod;
 }
 
