@@ -927,13 +927,47 @@ void Device::descriptorAndPipelineLayouts(bool useTexture, VkPipelineLayout& pip
     checkError(res);
 }
 
-VkPipelineLayout Device::createPipelineLayout2D() {
-    VkPipelineLayoutCreateInfo pLayoutInfo{};
-    pLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    VkPipelineLayout pipelineLayout;
-    auto res = vkCreatePipelineLayout(device, &pLayoutInfo, nullptr, &pipelineLayout);
+void  Device::descriptorAndPipelineLayouts2D(bool useTexture, VkPipelineLayout& pipelineLayout, VkDescriptorSetLayout& descSetLayout) {
+    VkDescriptorSetLayoutBinding layout_bindings[2];
+    uint32_t bCnt = 0;
+    VkDescriptorSetLayoutBinding& bufferMat = layout_bindings[bCnt];
+    bufferMat.binding = bCnt++;
+    bufferMat.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    bufferMat.descriptorCount = 1;
+    bufferMat.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    bufferMat.pImmutableSamplers = nullptr;
+
+    if (useTexture) {
+        VkDescriptorSetLayoutBinding& texSampler = layout_bindings[bCnt];
+        texSampler.binding = bCnt++;
+        texSampler.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        texSampler.descriptorCount = 1;
+        texSampler.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        texSampler.pImmutableSamplers = nullptr;
+    }
+
+    VkDescriptorSetLayoutCreateInfo descriptor_layout = {};
+    descriptor_layout.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    descriptor_layout.pNext = NULL;
+    descriptor_layout.flags = 0;
+    descriptor_layout.bindingCount = bCnt;
+    descriptor_layout.pBindings = layout_bindings;
+
+    VkResult res;
+
+    res = vkCreateDescriptorSetLayout(device, &descriptor_layout, nullptr, &descSetLayout);
     checkError(res);
-    return pipelineLayout;
+
+    VkPipelineLayoutCreateInfo pPipelineLayoutCreateInfo = {};
+    pPipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pPipelineLayoutCreateInfo.pNext = nullptr;
+    pPipelineLayoutCreateInfo.pushConstantRangeCount = 0;
+    pPipelineLayoutCreateInfo.pPushConstantRanges = nullptr;
+    pPipelineLayoutCreateInfo.setLayoutCount = 1;
+    pPipelineLayoutCreateInfo.pSetLayouts = &descSetLayout;
+
+    res = vkCreatePipelineLayout(device, &pPipelineLayoutCreateInfo, nullptr, &pipelineLayout);
+    checkError(res);
 }
 
 VkShaderModule Device::createShaderModule(char* shader) {
@@ -982,6 +1016,30 @@ void Device::createDescriptorPool(bool useTexture, VkDescriptorPool& descPool) {
         VkDescriptorPoolSize &bufferMaterial = type_count[bCnt++];
         bufferMaterial.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         bufferMaterial.descriptorCount = 1;
+    }
+
+    VkDescriptorPoolCreateInfo descriptor_pool = {};
+    descriptor_pool.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    descriptor_pool.pNext = nullptr;
+    descriptor_pool.maxSets = 1;
+    descriptor_pool.poolSizeCount = bCnt;
+    descriptor_pool.pPoolSizes = type_count;
+
+    res = vkCreateDescriptorPool(device, &descriptor_pool, nullptr, &descPool);
+    checkError(res);
+}
+
+void Device::createDescriptorPool2D(bool useTexture, VkDescriptorPool& descPool) {
+    VkResult res;
+    VkDescriptorPoolSize type_count[2];
+    uint32_t bCnt = 0;
+    VkDescriptorPoolSize& bufferMat = type_count[bCnt++];
+    bufferMat.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    bufferMat.descriptorCount = 1;
+    if (useTexture) {
+        VkDescriptorPoolSize& texSampler = type_count[bCnt++];
+        texSampler.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        texSampler.descriptorCount = 1;
     }
 
     VkDescriptorPoolCreateInfo descriptor_pool = {};
@@ -1064,6 +1122,51 @@ uint32_t Device::upDescriptorSet(bool useTexture, VkTexture& difTexture, VkTextu
         bufferMaterial.pBufferInfo = &material.info;
         bufferMaterial.dstArrayElement = 0;
         bufferMaterial.dstBinding = bCnt++;
+    }
+
+    vkUpdateDescriptorSets(device, bCnt, writes, 0, nullptr);
+    return bCnt;
+}
+
+uint32_t Device::upDescriptorSet2D(bool useTexture, VkTexture& texture, Uniform<MatrixSet2D>& uni,
+    VkDescriptorSet& descriptorSet, VkDescriptorPool& descPool,
+    VkDescriptorSetLayout& descSetLayout) {
+
+    VkResult res;
+
+    VkDescriptorSetAllocateInfo alloc_info[1];
+    alloc_info[0].sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    alloc_info[0].pNext = NULL;
+    alloc_info[0].descriptorPool = descPool;
+    alloc_info[0].descriptorSetCount = 1;
+    alloc_info[0].pSetLayouts = &descSetLayout;
+
+    res = vkAllocateDescriptorSets(device, alloc_info, &descriptorSet);
+    checkError(res);
+
+    VkWriteDescriptorSet writes[2];
+    uint32_t bCnt = 0;
+    VkWriteDescriptorSet& bufferMat = writes[bCnt];
+    bufferMat = {};
+    bufferMat.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    bufferMat.pNext = nullptr;
+    bufferMat.dstSet = descriptorSet;
+    bufferMat.descriptorCount = 1;
+    bufferMat.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    bufferMat.pBufferInfo = &uni.info;
+    bufferMat.dstArrayElement = 0;
+    bufferMat.dstBinding = bCnt++;
+
+    if (useTexture) {
+        VkWriteDescriptorSet& texSampler = writes[bCnt];
+        texSampler = {};
+        texSampler.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        texSampler.dstSet = descriptorSet;
+        texSampler.dstBinding = bCnt++;
+        texSampler.descriptorCount = 1;
+        texSampler.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        texSampler.pImageInfo = &texture.info;
+        texSampler.dstArrayElement = 0;
     }
 
     vkUpdateDescriptorSets(device, bCnt, writes, 0, nullptr);

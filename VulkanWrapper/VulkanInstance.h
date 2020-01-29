@@ -147,6 +147,10 @@ private:
         VECTOR4 UvSwitch = {};//.x==0:そのまま, 1:切り替え
     };
 
+    struct MatrixSet2D {
+        VECTOR2 world;
+    };
+
     template<typename UNI>
     struct Uniform {
         VkBuffer vkBuf;
@@ -317,15 +321,23 @@ private:
     void descriptorAndPipelineLayouts(bool useTexture, VkPipelineLayout& pipelineLayout,
         VkDescriptorSetLayout& descSetLayout);
 
-    VkPipelineLayout createPipelineLayout2D();
+    void descriptorAndPipelineLayouts2D(bool useTexture, VkPipelineLayout& pipelineLayout,
+        VkDescriptorSetLayout& descSetLayout);
 
     VkShaderModule createShaderModule(char* shader);
 
     void createDescriptorPool(bool useTexture, VkDescriptorPool& descPool);
 
+    void createDescriptorPool2D(bool useTexture, VkDescriptorPool& descPool);
+
     uint32_t
         upDescriptorSet(bool useTexture, VkTexture& difTexture, VkTexture& norTexture, VkTexture& speTexture,
             Uniform<MatrixSet>& uni, Uniform<Material>& material,
+            VkDescriptorSet& descriptorSet, VkDescriptorPool& descPool,
+            VkDescriptorSetLayout& descSetLayout);
+
+    uint32_t
+        upDescriptorSet2D(bool useTexture, VkTexture& texture, Uniform<MatrixSet2D>& uni,
             VkDescriptorSet& descriptorSet, VkDescriptorPool& descPool,
             VkDescriptorSetLayout& descSetLayout);
 
