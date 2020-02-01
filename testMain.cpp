@@ -1,4 +1,5 @@
 
+#define _CRT_SECURE_NO_WARNINGS
 #include "../../../VulkanWrapper/VulkanInstance.h"
 #include "../../../VulkanWrapper/Vulkan2D.h"
 #include "../../../VulkanWrapper/VulkanBasicPolygon.h"
@@ -6,16 +7,42 @@
 #include "../../../T_float/T_float.h"
 #include "../../../PPMLoader/PPMLoader.h"
 #include "../../../PNGLoader/PNGLoader.h"
+#include "../../../JPGLoader/JPGLoader.h"
 #include <iostream>
 #include <thread>
 
+HWND hWnd;
+VulkanInstance* vins;
+Device* device;
+float the = 180.0f;
+float frame = 1.0f;
+Vulkan2D* v2;
+const int Num = 1;
+VulkanBasicPolygon* v22[Num];
+VulkanSkinMesh* sk;
+VulkanSkinMesh* sk1;
+VulkanSkinMesh* sk2;
+volatile bool loop = true;
+volatile bool firstDraw = false;
+volatile bool sync = false;
+volatile bool run = true;
+
+void update(uint32_t sw);
+void draw(uint32_t& sw);
 static int para = 0;
 
 std::function<void()> g_RenderFunc;
 LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 	switch (uMsg)
 	{
-	case WM_DESTROY: PostQuitMessage(0);
+	case WM_CLOSE: 
+		run = false;
+		while (true) {
+			if (sync)break;
+		}
+		loop = false;
+		sync = false;
+		PostQuitMessage(0);
 		break;
 	case WM_KEYDOWN:
 		switch ((CHAR)wParam) {
@@ -33,42 +60,38 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 	return DefWindowProc(hWnd, uMsg, wParam, lParam);
 }
 
-auto initApp(HINSTANCE hInstance) {
-	WNDCLASSEX wce{};
+HWND initApp(HINSTANCE hInstance) {
+	//ウインドウクラスの初期化
+	WNDCLASSEX wcex;
+	wcex.cbSize = sizeof(WNDCLASSEX); //この構造体のサイズ
+	wcex.style = NULL;               //ウインドウスタイル(default)
+	wcex.lpfnWndProc = WndProc;  //メッセージ処理関数の登録
+	wcex.cbClsExtra = 0;       //通常は0	                
+	wcex.cbWndExtra = 0;      //通常は0					
+	wcex.hInstance = hInstance; //インスタンスへのハンドル				
+	wcex.hIcon = NULL;         //アイコン (無し)				
+	wcex.hCursor = NULL;      //カーソルの形				
+	wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1); //背景				
+	wcex.lpszMenuName = NULL;                       //メニュー無し				
+	wcex.lpszClassName = L"VulkanTest";          //クラス名               
+	wcex.hIconSm = NULL;                          //小アイコン			   
 
-	wce.cbSize = sizeof wce;
-	wce.hInstance = hInstance;
-	wce.lpszClassName = L"VulkanTest";
-	wce.lpfnWndProc = &WndProc;
-	wce.style = CS_OWNDC;
-	wce.hCursor = LoadCursor(nullptr, IDC_ARROW);
-	if (!RegisterClassEx(&wce)) return (HWND)nullptr;
+	//ウインドウクラスの登録(RegisterClassEx関数)
+	if (!RegisterClassEx(&wcex))return nullptr;
 
-	RECT rc;
-	SetRect(&rc, 0, 0, 640, 480);
-	AdjustWindowRectEx(&rc, WS_OVERLAPPEDWINDOW, false, 0);
-	return CreateWindowEx(0, wce.lpszClassName, L"vkTest", WS_OVERLAPPEDWINDOW,
-		CW_USEDEFAULT, CW_USEDEFAULT, rc.right - rc.left, rc.bottom - rc.top, nullptr, nullptr, hInstance, nullptr);
+	//ウインドウ生成ウインドウモード
+	return CreateWindow(wcex.lpszClassName, //登録クラス名
+		wcex.lpszClassName,                      //ウインドウ名
+		WS_OVERLAPPEDWINDOW ^ WS_MAXIMIZEBOX ^ WS_THICKFRAME | WS_VISIBLE,//ウインドウスタイル
+		CW_USEDEFAULT, //ウインドウ横位置
+		0,            //ウインドウ縦位置
+		800,             //ウインドウ幅
+		600,            //ウインドウ高さ
+		NULL,          //親ウインドウハンドル
+		NULL,         //メニュー,子ウインドウハンドル
+		hInstance,   //アプリケーションインスタンスハンドル
+		NULL);     //ウインドウ作成データ
 }
-
-HWND hWnd;
-VulkanInstance* vins;
-Device* device;
-float the = 180.0f;
-float frame = 1.0f;
-Vulkan2D* v2;
-Vulkan2D* v20;
-const int Num = 1;
-VulkanBasicPolygon* v22[Num];
-VulkanSkinMesh* sk;
-VulkanSkinMesh* sk1;
-VulkanSkinMesh* sk2;
-volatile bool loop = true;
-volatile bool firstDraw = false;
-volatile bool sync = false;
-
-void update(uint32_t sw);
-void draw(uint32_t& sw);
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 {
@@ -76,23 +99,28 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	if (hWnd == nullptr) return 1;
 
 	vins = new VulkanInstance();
-	vins->createInstance(hWnd, "vulkanTest");
+	vins->createInstance("vulkanTest");
 	auto pd = vins->getPhysicalDevice(0);
-	auto sur = vins->getSurface();
-	device = new Device(pd, sur, 2, false);
+	device = new Device(pd, 2, false);
 	device->createDevice();
+	vins->createSurfaceHwnd(hWnd);
+	auto sur = vins->getSurface();
+	device->createSwapchain(sur);
 	device->updateProjection();
 
 	static Vertex2D ver[] = {
-	{ { 0.0f, -0.70f }, { 1.0f, 1.0f, 1.0f, 1.0f } },
-	{ { -0.5f, 0.0f }, { 1.0f, 0.5f, 0.0f, 1.0f } },
-	{ { 0.5f, 0.0f }, { 0.0f, 0.5f, 1.0f, 1.0f } }
+	{ { -0.1f, -0.1f }, { 1.0f, 1.0f, 1.0f, 1.0f } },
+	{ { 0.1f, -0.1f }, { 1.0f, 0.5f, 0.0f, 1.0f } },
+	{ { -0.1f, 0.1f }, { 0.0f, 0.5f, 1.0f, 1.0f } },
+	{ { 0.1f, 0.1f }, { 0.0f, 0.5f, 1.0f, 1.0f } }
 	};
-	static Vertex2D ver0[] = {
-	{ { 0.3f, -0.70f }, { 1.0f, 1.0f, 1.0f, 1.0f } },
-	{ { -0.2f, 0.0f }, { 1.0f, 0.5f, 0.0f, 1.0f } },
-	{ { 0.8f, 0.0f }, { 0.0f, 0.5f, 1.0f, 1.0f } }
+	static Vertex2DTex vertex[] = {
+	{ { -0.1f, -0.1f }, {0.0f,0.0f} },
+	{ { 0.1f, -0.1f }, {1.0f,0.0f} },
+	{ { -0.1f, 0.1f }, {0.0f,1.0f} },
+	{ { 0.1f, 0.1f }, {1.0f,1.0f} }
 	};
+	uint32_t index2d[] = { 0, 2, 1, 1, 2, 3 };
 	static Vertex3D ver11[] = {
 		//前
 		{ {-0.5f, -0.5f,0.5f }, { 0.0f, 0.0f, 1.0f} ,{0.0f,0.0f},{0.0f,0.0f}},
@@ -134,29 +162,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 
 
 	//4chに変換する処理追加↓
-	wchar_t pass[18][60] = {
-		L"../../../wall1.ppm",
-		L"../../../wallNor1.ppm",
+	wchar_t pass[6][60] = {
 		L"../../../texturePPM/boss1.ppm",
 		L"../../../texturePPM/boss1_normal.ppm",
-		L"../../../texturePPM/brown_eye.ppm",
-		L"../../../texturePPM/classicshoes_texture_diffuse.ppm",
-		L"../../../texturePPM/classicshoes_texture_normals.ppm",
-		L"../../../texturePPM/eyebrow001.ppm",
-		L"../../../texturePPM/jacket01_diffuse.ppm",
-		L"../../../texturePPM/jacket01_normals.ppm",
-		L"../../../texturePPM/jeans01_black_diffuse.ppm",
-		L"../../../texturePPM/jeans01_normals.ppm",
-		L"../../../texturePPM/male01_diffuse_black.ppm",
-		L"../../../texturePPM/young_lightskinned_male_diffuse.ppm",
 		L"../../../Black Dragon NEW/textures/Dragon_Bump_Col2.ppm",
 		L"../../../Black Dragon NEW/textures/Dragon_Nor_mirror2.ppm",
 		L"../../../Black Dragon NEW/textures/Dragon_ground_color.ppm",
 		L"../../../Black Dragon NEW/textures/Dragon_Nor.ppm"
 	};
 
-	int tex1, tex2, tex3, tex4, tex5, tex6;
-	int fnum = 18;
+	int fnum = 6;
 	int numstr = 256 * 4 * 256;
 	unsigned char** ima = nullptr;
 	ima = new unsigned char* [fnum];
@@ -176,65 +191,88 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 		S_DELETE(ppm);
 	}
 	PNGLoader png;
-	unsigned char* wall1 = png.loadPNG("../../../alfa01.png", 256, 256);
-	//unsigned char* wall1 = png.loadPNG("../../../iwao1.png", 256, 256);
-	//unsigned char* wall1 = png.loadPNG("../../../wall1.png", 256, 256);
-	//unsigned char* wall1 = png.loadPNG("../../../mahou2.png", 256, 256);//インデックスカラーテスト
-	try {
-		//device->GetTexture(0, "../../../wall1.ppm", ima[0], 256, 256);
-		device->GetTexture(0, "../../../wall1.ppm", wall1, 256, 256); ARR_DELETE(wall1);
-		device->GetTexture(0, "../../../wallNor1.ppm", ima[1], 256, 256);
-		device->GetTexture(0, "../../../texturePPM/boss1.jpg", ima[2], 256, 256);
-		device->GetTexture(0, "../../../texturePPM/boss1_normal.png", ima[3], 256, 256);
-		device->GetTexture(0, "../../../texturePPM/brown_eye.png", ima[4], 256, 256);
-		device->GetTexture(0, "../../../texturePPM/classicshoes_texture_diffuse.png", ima[5], 256, 256);//
-		device->GetTexture(0, "../../../texturePPM/classicshoes_texture_normals.png", ima[6], 256, 256);
-		device->GetTexture(0, "../../../texturePPM/eyebrow001.png", ima[7], 256, 256);
-		device->GetTexture(0, "../../../texturePPM/jacket01_diffuse.png", ima[8], 256, 256);
-		device->GetTexture(0, "../../../texturePPM/jacket01_normals.png", ima[9], 256, 256);
-		device->GetTexture(0, "../../../texturePPM/jeans01_black_diffuse.png", ima[10], 256, 256);//
-		device->GetTexture(0, "../../../texturePPM/jeans01_normals.png", ima[11], 256, 256);
-		device->GetTexture(0, "../../../texturePPM/male01_diffuse_black.png", ima[12], 256, 256);
-		device->GetTexture(0, "../../../texturePPM/young_lightskinned_male_diffuse.png", ima[13], 256, 256);
-		device->GetTexture(0, "../../../Black Dragon NEW/textures/Dragon_Bump_Col2.jpg", ima[14], 256, 256);
-		device->GetTexture(0, "../../../Black Dragon NEW/textures/Dragon_Nor_mirror2.jpg", ima[15], 256, 256);
-		device->GetTexture(0, "../../../Black Dragon NEW/textures/Dragon_ground_color.jpg", ima[16], 256, 256);
-		device->GetTexture(0, "../../../Black Dragon NEW/textures/Dragon_Nor.jpg", ima[17], 256, 256);
+	JPGLoader jpg;
 
-		tex1 = device->getTextureNo("wall1.ppm");
-		tex2 = device->getTextureNo("wallNor1.ppm");
-		tex3 = device->getTextureNo("boss1.jpg");
-		tex4 = device->getTextureNo("boss1_normal.png");
-		tex5 = device->getTextureNo("Dragon_Bump_Col2.jpg");
-		tex6 = device->getTextureNo("Dragon_Nor_mirror2.jpg");
+	unsigned char* wall1 = jpg.loadJPG("../../../wall1.jpg", 256, 256);
+
+	//unsigned char* wall1 = png.loadPNG("../../../wall1.png", 256, 256);
+	//unsigned char* wall1 = jpg.loadJPG("../../../resize/testG.jpg", 40, 40);
+	//unsigned char* wall1 = jpg.loadJPG("../../../resize/color_grid.jpg", 256, 256);
+	unsigned char* wallNor1 = png.loadPNG("../../../wall1Nor.png", 256, 256);
+	unsigned char* MagicCircle1 = png.loadPNG("../../../MagicCircle1.png", 256, 256);
+
+	unsigned char* brown_eye = png.loadPNG("../../../texturePPM/brown_eye.png", 256, 256);
+	unsigned char* classicshoes_texture_diffuse = png.loadPNG("../../../texturePPM/classicshoes_texture_diffuse.png", 256, 256);
+	unsigned char* classicshoes_texture_normals = png.loadPNG("../../../texturePPM/classicshoes_texture_normals.png", 256, 256);
+	unsigned char* eyebrow001 = png.loadPNG("../../../texturePPM/eyebrow001.png", 256, 256);
+	unsigned char* jacket01_diffuse = png.loadPNG("../../../texturePPM/jacket01_diffuse.png", 256, 256);
+	unsigned char* jacket01_normals = png.loadPNG("../../../texturePPM/jacket01_normals.png", 256, 256);
+	unsigned char* jeans01_black_diffuse = png.loadPNG("../../../texturePPM/jeans01_black_diffuse.png", 256, 256);
+	unsigned char* jeans01_normals = png.loadPNG("../../../texturePPM/jeans01_normals.png", 256, 256);
+	unsigned char* male01_diffuse_black = png.loadPNG("../../../texturePPM/male01_diffuse_black.png", 256, 256);
+	unsigned char* young_lightskinned_male_diffuse = png.loadPNG("../../../texturePPM/young_lightskinned_male_diffuse.png", 256, 256);
+	try {
+		device->GetTexture(0, "wall1.jpg", wall1, 256, 256); ARR_DELETE(wall1);
+		device->GetTexture(0, "wallNor1.png", wallNor1, 256, 256); ARR_DELETE(wallNor1);
+		device->GetTexture(0, "mahou2.png", MagicCircle1, 256, 256); ARR_DELETE(MagicCircle1);
+
+		device->GetTexture(0, "boss1.jpg", ima[0], 256, 256);
+		device->GetTexture(0, "boss1_normal.png", ima[1], 256, 256);
+
+		device->GetTexture(0, "brown_eye.png", brown_eye, 256, 256); ARR_DELETE(brown_eye);
+		device->GetTexture(0, "classicshoes_texture_diffuse.png", classicshoes_texture_diffuse, 256, 256); ARR_DELETE(classicshoes_texture_diffuse);
+		device->GetTexture(0, "classicshoes_texture_normals.png", classicshoes_texture_normals, 256, 256); ARR_DELETE(classicshoes_texture_normals);
+		device->GetTexture(0, "eyebrow001.png", eyebrow001, 256, 256); ARR_DELETE(eyebrow001);
+		device->GetTexture(0, "jacket01_diffuse.png", jacket01_diffuse, 256, 256); ARR_DELETE(jacket01_diffuse);
+		device->GetTexture(0, "jacket01_normals.png", jacket01_normals, 256, 256); ARR_DELETE(jacket01_normals);
+		device->GetTexture(0, "jeans01_black_diffuse.png", jeans01_black_diffuse, 256, 256); ARR_DELETE(jeans01_black_diffuse);
+		device->GetTexture(0, "jeans01_normals.png", jeans01_normals, 256, 256); ARR_DELETE(jeans01_normals);
+		device->GetTexture(0, "male01_diffuse_black.png", male01_diffuse_black, 256, 256); ARR_DELETE(male01_diffuse_black);
+		device->GetTexture(0, "young_lightskinned_male_diffuse.png", young_lightskinned_male_diffuse, 256, 256); ARR_DELETE(young_lightskinned_male_diffuse);
+
+		device->GetTexture(0, "Dragon_Bump_Col2.jpg", ima[2], 256, 256);
+		device->GetTexture(0, "Dragon_Nor_mirror2.jpg", ima[3], 256, 256);
+		device->GetTexture(0, "Dragon_ground_color.jpg", ima[4], 256, 256);
+		device->GetTexture(0, "Dragon_Nor.jpg", ima[5], 256, 256);
 	}
 	catch (std::runtime_error e) {
 		std::cerr << "runtime_error: " << e.what() << std::endl;
 	}
 
 	v2 = new Vulkan2D(device);
-	v2->create(0, ver, 3);
-	v20 = new Vulkan2D(device);
-	v20->create(0, ver0, 3);
-	for (int i = 0; i < Num; i++) {
-		v22[i] = new VulkanBasicPolygon(device);
-		v22[i]->create(0, true, 0, -1, -1, ver11, 24, index1, 36);
-	}
+	//v2->createColor(0, ver, 4, index2d, 6);
+	v2->createTexture(0, vertex, 4, index2d, 6, 2);
+	//for (int i = 0; i < Num; i++) {
+	v22[0] = new VulkanBasicPolygon(device);
+	v22[0]->create(0, false, 0, 1, -1, ver11, 24, index1, 36);
+	//v22[1] = new VulkanBasicPolygon(device);
+	//v22[1]->create(0, true, 2, -1, -1, ver11, 24, index1, 36);
+	//}
 
-	sk = new VulkanSkinMesh(device, "../../../texturePPM/boss1bone.fbx", 100.0f);
+	sk = new VulkanSkinMesh();
+	sk->setFbx(device, "../../../texturePPM/boss1bone.fbx", 100.0f);
 	sk->additionalAnimation("../../../texturePPM/boss1bone_wait.fbx", 50.0f);
-	sk1 = new VulkanSkinMesh(device, "../../../texturePPM/player1_fbx_att.fbx", 300.0f);
+	sk1 = new VulkanSkinMesh();
+	sk1->setFbx(device, "../../../texturePPM/player1_fbx_att.fbx", 300.0f);
 	sk1->additionalAnimation("../../../texturePPM/player1_fbx_walk_deform.fbx", 200.0f);
-	sk2 = new VulkanSkinMesh(device, "../../../Black Dragon NEW/Dragon_Baked_Actions2.fbx", 300);
+	sk2 = new VulkanSkinMesh();
+	sk2->setFbx(device, "../../../Black Dragon NEW/Dragon_Baked_Actions2.fbx", 300);
 
 	sk2->create(0, true);
 	sk1->create(0, true);
-	sk->setChangeTexture(0, 0, -1, 3, -1);
+	sk->setChangeTexture(0, 0, -1, device->getTextureNo("boss1_normal.png"), -1);
 	sk->create(0, true);
 	sk->setMaterialParameter(0, 0, 0, { 1,1,1 }, { 0.1f,0.1f,0.1f }, { 0.3f,0.3f,0.3f });
 	sk->setMaterialParameter(1, 0, 0, { 1,1,1 }, { 0.1f,0.1f,0.1f }, { 0.3f,0.3f,0.3f });
 	ShowWindow(hWnd, nCmdShow);
 	ValidateRect(hWnd, 0);// WM_PAINTが呼ばれないようにする
+
+	//スワップチェインtest
+	device->destroySwapchain();
+	vins->destroySurface();
+	vins->createSurfaceHwnd(hWnd);
+	device->createSwapchain(vins->getSurface());
+
 	MSG msg;
 	uint32_t swap = 0;
 	std::thread th(draw, std::ref(swap));
@@ -242,11 +280,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	while (1)
 	{
 		if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+			// メッセージの翻訳とディスパッチWindowProc呼び出し
 			if (msg.message == WM_QUIT) {	// PostQuitMessage()が呼ばれた(×押された)
 				break;	//アプリ終了
 			}
 			else {
-				// メッセージの翻訳とディスパッチWindowProc呼び出し
 				TranslateMessage(&msg);
 				DispatchMessage(&msg);
 			}
@@ -254,24 +292,21 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 		T_float::GetTime(hWnd);
 		//ループ内処理
 		update(swap);
-
-		while (true) {
+		while (run) {
 			if (sync)break;
 		}
 		sync = false;
 		swap = 1 - swap;
 		//ループ内処理
 	}
-	loop = false;
 	th.join();
 	for (int i = 0; i < fnum; i++)ARR_DELETE(ima[i]);
 	ARR_DELETE(ima);
+	S_DELETE(v2);
+	for (int i = 0; i < Num; i++)S_DELETE(v22[i]);
 	S_DELETE(sk);
 	S_DELETE(sk1);
 	S_DELETE(sk2);
-	S_DELETE(v2);
-	S_DELETE(v20);
-	for (int i = 0; i < Num; i++)S_DELETE(v22[i]);
 	S_DELETE(device);
 	S_DELETE(vins);
 	return (int)msg.wParam;
@@ -287,17 +322,18 @@ void update(uint32_t sw) {
 	VectorMatrixMultiply(&light2, &thetaY);
 	//device->updateView({ 0,-0.2f,-8 }, { 0,0,25 }, { 0,1,0 });
 	//device->updateView({ 1.5f,-0.2f,-3 }, { 1.5f,0,25 }, { 0,1,0 });
-	device->updateView({ -1.3f,0.0f,-3 }, { -1.3f,0,25 }, { 0,1,0 });
+	device->updateView({ -1.3f,0.0f,-7 }, { -1.3f,0,25 }, { 0,1,0 });
 	device->setNumLight(2);
 	device->setLight(0, light1, { 1.0f,1.0f,1.0f });
-	device->setLight(1, light2, { 1,0.3f,0.3f });
+	device->setLight(1, light2, { 1.0f,0.0f,0.0f });
 	for (int i = 0; i < Num; i++) {
 		v22[i]->setMaterialParameter(sw, { 0.5f,0.5f,0.5f }, { 1.0f,1.0f,1.0f }, { 0.0f,0.0f,0.0f });
-		v22[i]->update(sw, { 0.4f * (float)i - 0.7f ,0.7f,0.0f }, { 0,the,0 });
+		v22[i]->update(sw, { 0.4f * (float)i - 1.3f ,0.7f,0.0f }, { 0,the,0 }, { 1,1,1 });
 	}
-	sk->autoUpdate(sw, 0, frame, { 0,0,0 }, { 180,0,0 }, { 2.0f,2.0f,2.0f });
+	sk->autoUpdate(sw, 0, frame, { 0,0,0 }, { 180,0,0 }, { 1.0f,1.0f,1.0f });
 	sk1->autoUpdate(sw, para, frame, { 2,0,0 }, { 90,0.0f,0 }, { 0.2f,0.2f,0.2f });
 	sk2->autoUpdate(sw, 0, frame, { -2,0,0 }, { 90,0,0 }, { 0.1f,0.1f,0.1f });
+	v2->update(sw, { -0.5f,-0.5f });
 	firstDraw = true;
 }
 
@@ -306,8 +342,7 @@ void draw(uint32_t& sw0) {
 		uint32_t sw = 1 - sw0;
 		if (firstDraw) {
 			device->beginCommand(0);
-			//v2->draw(0);
-			//v20->draw(0);
+			v2->draw(sw, 0);
 			for (int i = 0; i < Num; i++) {
 				v22[i]->draw(sw, 0);
 			}

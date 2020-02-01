@@ -15,6 +15,7 @@ VulkanBasicPolygon::VulkanBasicPolygon(Device* dev) {
 }
 
 VulkanBasicPolygon::~VulkanBasicPolygon() {
+	device->waitForFence(device->swFence[0]);
 	for (uint32_t s = 0; s < numSwap; s++) {
 		vkDestroyBuffer(device->device, uniform[s].vkBuf, nullptr);
 		vkFreeMemory(device->device, uniform[s].mem, nullptr);

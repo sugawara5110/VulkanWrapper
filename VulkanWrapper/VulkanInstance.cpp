@@ -190,9 +190,7 @@ Device::Device(VkPhysicalDevice pd, uint32_t numCommandBuffer, bool V_SYNC) {
 Device::~Device() {
     destroySwapchain();
     destroyTexture();
-    for (uint32_t i = 0; i < commandBufferCount; i++) {
-        vkFreeCommandBuffers(device, commandPool, commandBufferCount, commandBuffer.get());
-    }
+    vkFreeCommandBuffers(device, commandPool, commandBufferCount, commandBuffer.get());
     vkDestroyFence(device, sFence, nullptr);
     vkDestroySemaphore(device, presentCompletedSem, nullptr);
     vkDestroySemaphore(device, renderCompletedSem, nullptr);

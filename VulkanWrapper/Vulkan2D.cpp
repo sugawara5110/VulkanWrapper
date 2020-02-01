@@ -12,6 +12,7 @@ Vulkan2D::Vulkan2D(Device* dev) {
 }
 
 Vulkan2D::~Vulkan2D() {
+	device->waitForFence(device->swFence[0]);
 	texture.destroy(device->device);
 	for (uint32_t s = 0; s < numSwap; s++) {
 		vkDestroyBuffer(device->device, uniform[s].vkBuf, nullptr);
