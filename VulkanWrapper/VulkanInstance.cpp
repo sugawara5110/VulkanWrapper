@@ -118,7 +118,10 @@ void VulkanInstance::createPhysicalDevice() {
 
 VulkanInstance::~VulkanInstance() {
     destroySurface();
+#ifdef __ANDROID__
+#else
     _vkDestroyDebugReportCallbackEXT(instance, debugReportCallback, nullptr);
+#endif
     vkDestroyInstance(instance, nullptr);
 }
 
