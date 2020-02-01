@@ -26,12 +26,14 @@ VulkanBasicPolygon::~VulkanBasicPolygon() {
 	vkDestroyBuffer(device->device, vertices.first, nullptr);
 	vkFreeMemory(device->device, vertices.second, nullptr);
 	for (uint32_t i = 0; i < numMaterial; i++) {
+		if (numIndex[i] <= 0)continue;
 		vkDestroyBuffer(device->device, index[i].first, nullptr);
 		vkFreeMemory(device->device, index[i].second, nullptr);
 		for (uint32_t s = 0; s < numSwap; s++) {
 			vkDestroyBuffer(device->device, material[s][i].vkBuf, nullptr);
 			vkFreeMemory(device->device, material[s][i].mem, nullptr);
-			vkFreeDescriptorSets(device->device, descPool[s][i], descSetCnt, &descSet[s][i]);
+			//VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT の場合のみ個別に開放できる
+			//vkFreeDescriptorSets(device->device, descPool[s][i], descSetCnt, &descSet[s][i]);
 			vkDestroyDescriptorPool(device->device, descPool[s][i], nullptr);
 		}
 		texId[i].destroy(device->device);
@@ -92,6 +94,7 @@ void VulkanBasicPolygon::update0(uint32_t swapIndex, VECTOR3 pos, VECTOR3 theta,
 	device->updateUniform(uniform[swapIndex]);
 
 	for (uint32_t m = 0; m < numMaterial; m++) {
+		if (numIndex[m] <= 0)continue;
 		Device::Uniform<Device::Material>& mat = material[swapIndex][m];
 		mat.uni.viewPos.as(device->viewPos.x, device->viewPos.y, device->viewPos.z, 0.0f);
 		memcpy(mat.uni.lightPos, device->lightPos, sizeof(VECTOR4) * device->numLight);

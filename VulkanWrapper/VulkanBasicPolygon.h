@@ -91,11 +91,11 @@ private:
 		for (uint32_t i = 0; i < numSwap; i++) {
 			device->createUniform(uniform[i]);
 			for (uint32_t m = 0; m < numMaterial; m++) {
-				device->createUniform(material[i][m]);
-				numIndex[m] = indNum[m];
+				if (i == 0)numIndex[m] = indNum[m];
 				if (numIndex[m] <= 0)continue;
+				device->createUniform(material[i][m]);
 				material[i][m].uni.UvSwitch.x = uvSw[m];
-				index[m] = device->createVertexBuffer<uint32_t>(comIndex, ind[m], indNum[m], true);
+				if (i == 0)index[m] = device->createVertexBuffer<uint32_t>(comIndex, ind[m], indNum[m], true);
 
 				device->createDescriptorPool(true, descPool[i][m]);
 
