@@ -138,17 +138,18 @@ private:
 		vkDestroyShaderModule(device->device, fsModule, nullptr);
 	}
 
-	void update0(uint32_t swapIndex, VECTOR3 pos, VECTOR3 theta, VECTOR3 scale, MATRIX* bone, uint32_t numBone);
+	void update0(uint32_t swapIndex, CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale,
+		CoordTf::MATRIX* bone, uint32_t numBone);
 
 public:
 	VulkanBasicPolygon(Device* device);
 	~VulkanBasicPolygon();
 	void create(uint32_t comIndex, bool useAlpha, int32_t difTexInd, int32_t norTexInd, int32_t speTexInd,
 		Vertex3D* ver, uint32_t num, uint32_t* ind, uint32_t indNum);
-	void setMaterialParameter(uint32_t swapIndex, VECTOR3 diffuse, VECTOR3 specular, VECTOR3 ambient,
+	void setMaterialParameter(uint32_t swapIndex, CoordTf::VECTOR3 diffuse, CoordTf::VECTOR3 specular, CoordTf::VECTOR3 ambient,
 		uint32_t materialIndex = 0);
-	void update(uint32_t swapIndex, VECTOR3 pos = { 0.0f,0.0f,0.0f },
-		VECTOR3 theta = { 0.0f,0.0f,0.0f }, VECTOR3 scale = { 1.0f,1.0f,1.0f });
+	void update(uint32_t swapIndex, CoordTf::VECTOR3 pos = { 0.0f,0.0f,0.0f },
+		CoordTf::VECTOR3 theta = { 0.0f,0.0f,0.0f }, CoordTf::VECTOR3 scale = { 1.0f,1.0f,1.0f });
 	void draw(uint32_t swapIndex, uint32_t comIndex);
 };
 

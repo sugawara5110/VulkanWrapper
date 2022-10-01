@@ -37,18 +37,18 @@ void VulkanInstance::createinstance(char* appName) {
     instanceInfo.enabledLayerCount = 0;
 #else
     const char* extensions[] = { "VK_KHR_surface", "VK_KHR_win32_surface", "VK_EXT_debug_report" };
-    const char* layers[] = { "VK_LAYER_LUNARG_standard_validation" };//検証レイヤ
+    const char* layers[] = { "VK_LAYER_KHRONOS_validation" };
     instanceInfo.ppEnabledLayerNames = layers;
     instanceInfo.enabledLayerCount = (uint32_t)COUNTOF(layers);
 #endif
 
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     appInfo.pNext = nullptr;
-    appInfo.applicationVersion = VK_MAKE_VERSION(0, 0, 1);
+    appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
     appInfo.pApplicationName = appName;
     appInfo.pEngineName = appName;
     appInfo.engineVersion = 1;
-    appInfo.apiVersion = VK_API_VERSION_1_0;
+    appInfo.apiVersion = VK_API_VERSION_1_3;
 
     instanceInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     instanceInfo.pNext = nullptr;
@@ -767,8 +767,10 @@ void Device::createTextureSampler(VkSampler& textureSampler) {
     samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
     samplerInfo.magFilter = VK_FILTER_LINEAR;
     samplerInfo.minFilter = VK_FILTER_LINEAR;
-    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    //samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;//VK_SAMPLER_CREATE_SUBSAMPLED_BIT_EXTの場合はこれにする
+    //samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;//VK_SAMPLER_CREATE_SUBSAMPLED_BIT_EXTの場合はこれにする
     samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
     samplerInfo.anisotropyEnable = VK_FALSE;
     samplerInfo.maxAnisotropy = 16;
@@ -776,7 +778,8 @@ void Device::createTextureSampler(VkSampler& textureSampler) {
     samplerInfo.unnormalizedCoordinates = VK_FALSE;
     samplerInfo.compareEnable = VK_FALSE;
     samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    //samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;//VK_SAMPLER_CREATE_SUBSAMPLED_BIT_EXTの場合はこれにする
     samplerInfo.mipLodBias = 0.0f;
     samplerInfo.minLod = 0.0f;
     samplerInfo.maxLod = 0.0f;
@@ -1383,11 +1386,8 @@ void Device::updateProjection(float AngleView, float Near, float Far) {
     MatrixPerspectiveFovLH(&proj, AngleView, (float) width / (float) height, Near, Far);
 }
 
-void Device::updateView(VECTOR3 vi, VECTOR3 gaze, VECTOR3 up) {
-    MatrixLookAtLH(&view,
-                   vi.x, vi.y, vi.z,
-                   gaze.x, gaze.y, gaze.z,
-                   up.x, up.y, up.z);
+void Device::updateView(CoordTf::VECTOR3 vi, CoordTf::VECTOR3 gaze, CoordTf::VECTOR3 up) {
+    MatrixLookAtLH(&view, vi, gaze, up);
     viewPos.as(vi.x, vi.y, vi.z, 0.0f);
 }
 
@@ -1401,7 +1401,7 @@ void Device::setLightAttenuation(float att1, float att2, float att3) {
     attenuation3 = att3;
 }
 
-void Device::setLight(uint32_t index, VECTOR3 pos, VECTOR3 color) {
+void Device::setLight(uint32_t index, CoordTf::VECTOR3 pos, CoordTf::VECTOR3 color) {
     lightPos[index].as(pos.x, pos.y, pos.z, 0.0f);
     lightColor[index].as(color.x, color.y, color.z, 1.0f);
 }

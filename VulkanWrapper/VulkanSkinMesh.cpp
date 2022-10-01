@@ -18,11 +18,11 @@ void VulkanSkinMesh::setfbx() {
 		fbxObj[0]->defo[i] = fbxObj[0]->fbx.getFbxMeshNode(0)->getDeformer(i);
 	}
 	//mesh数分BasicPolygon生成
-	bp = std::make_unique<VulkanBasicPolygon * []>(numMesh);
+	bp = std::make_unique<VulkanBasicPolygon* []>(numMesh);
 	bone = std::make_unique<Bone[]>(numBone);
-	outPose = std::make_unique<MATRIX[]>(numBone);
+	outPose = std::make_unique<CoordTf::MATRIX[]>(numBone);
 
-	cTexId = std::make_unique<VulkanBasicPolygon::textureIdSet * []>(numMesh);
+	cTexId = std::make_unique<VulkanBasicPolygon::textureIdSet* []>(numMesh);
 	for (uint32_t i = 0; i < numMesh; i++)cTexId[i] = new VulkanBasicPolygon::textureIdSet[fbxObj[0]->fbx.getFbxMeshNode(i)->getNumMaterial()];
 }
 
@@ -243,6 +243,9 @@ void VulkanSkinMesh::create(uint32_t comIndex, bool useAlpha) {
 		}
 
 		VulkanBasicPolygon::textureIdSet* texId = new VulkanBasicPolygon::textureIdSet[numMaterial];
+
+		using namespace CoordTf;
+
 		std::unique_ptr<VECTOR3[]> diffuse = std::make_unique<VECTOR3[]>(numMaterial);
 		std::unique_ptr<VECTOR3[]> specular = std::make_unique<VECTOR3[]>(numMaterial);
 		std::unique_ptr<VECTOR3[]> ambient = std::make_unique<VECTOR3[]>(numMaterial);
@@ -403,7 +406,9 @@ void VulkanSkinMesh::setNewPoseMatrixConnection(float connectionRatio) {
 	}
 }
 
-MATRIX VulkanSkinMesh::getCurrentPoseMatrix(uint32_t index) {
+CoordTf::MATRIX VulkanSkinMesh::getCurrentPoseMatrix(uint32_t index) {
+
+	using namespace CoordTf;
 	MATRIX inv;
 	MatrixIdentity(&inv);
 	MatrixInverse(&inv, &bone[index].bindPose);
@@ -413,7 +418,9 @@ MATRIX VulkanSkinMesh::getCurrentPoseMatrix(uint32_t index) {
 	return ret;
 }
 
-void VulkanSkinMesh::setMaterialParameter(uint32_t swapIndex, uint32_t meshIndex, uint32_t materialIndex, VECTOR3 diffuse, VECTOR3 specular, VECTOR3 ambient) {
+void VulkanSkinMesh::setMaterialParameter(uint32_t swapIndex, uint32_t meshIndex, uint32_t materialIndex,
+	CoordTf::VECTOR3 diffuse, CoordTf::VECTOR3 specular, CoordTf::VECTOR3 ambient) {
+
 	bp[meshIndex]->setMaterialParameter(swapIndex, diffuse, specular, ambient, materialIndex);
 }
 
@@ -423,7 +430,8 @@ void VulkanSkinMesh::setChangeTexture(uint32_t meshIndex, uint32_t materialIndex
 	cTexId[meshIndex][materialIndex].specularId = specularTexId;
 }
 
-void VulkanSkinMesh::subUpdate(uint32_t swapIndex, VECTOR3 pos, VECTOR3 theta, VECTOR3 scale) {
+void VulkanSkinMesh::subUpdate(uint32_t swapIndex, CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale) {
+
 	for (uint32_t i = 0; i < numBone; i++)
 		outPose[i] = getCurrentPoseMatrix(i);
 
@@ -431,7 +439,9 @@ void VulkanSkinMesh::subUpdate(uint32_t swapIndex, VECTOR3 pos, VECTOR3 theta, V
 		bp[i]->update0(swapIndex, pos, theta, scale, outPose.get(), numBone);
 }
 
-void VulkanSkinMesh::update(uint32_t swapIndex, uint32_t animationIndex, float time, VECTOR3 pos, VECTOR3 theta, VECTOR3 scale) {
+void VulkanSkinMesh::update(uint32_t swapIndex, uint32_t animationIndex, float time,
+	CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale) {
+
 	setNewPoseMatrix(animationIndex, time);
 	subUpdate(swapIndex, pos, theta, scale);
 }
@@ -440,7 +450,9 @@ void VulkanSkinMesh::setConnectionPitch(float pitch) {
 	connectionPitch = pitch;
 }
 
-bool VulkanSkinMesh::autoUpdate(uint32_t swapIndex, uint32_t animationIndex, float pitchTime, VECTOR3 pos, VECTOR3 theta, VECTOR3 scale) {
+bool VulkanSkinMesh::autoUpdate(uint32_t swapIndex, uint32_t animationIndex, float pitchTime,
+	CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale) {
+
 	if (prevAnimationIndex == -1)prevAnimationIndex = animationIndex;
 	if (!connectionOn && prevAnimationIndex != animationIndex) {
 		fbxObj[prevAnimationIndex]->currentframe = 0.0f;

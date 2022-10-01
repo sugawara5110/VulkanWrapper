@@ -21,10 +21,10 @@ struct VertexSkin {
 };
 
 struct Bone {
-	MATRIX bindPose = {};
-	MATRIX newPose = {};
-	MATRIX connectFirstPose = {};
-	MATRIX connectLastPose = {};
+	CoordTf::MATRIX bindPose = {};
+	CoordTf::MATRIX newPose = {};
+	CoordTf::MATRIX connectFirstPose = {};
+	CoordTf::MATRIX connectLastPose = {};
 };
 
 class VulkanSkinMesh {
@@ -45,12 +45,12 @@ private:
 	FbxObj* fbxObj[32] = {};
 	uint32_t numFbxObj = 1;
 
-	std::unique_ptr <VulkanBasicPolygon * []> bp = nullptr;
-	std::unique_ptr <VulkanBasicPolygon::textureIdSet * []> cTexId = nullptr;
+	std::unique_ptr <VulkanBasicPolygon* []> bp = nullptr;
+	std::unique_ptr <VulkanBasicPolygon::textureIdSet* []> cTexId = nullptr;
 	uint32_t numMesh = 0;
 	uint32_t numBone = 0;
 	std::unique_ptr<Bone[]> bone = nullptr;
-	std::unique_ptr<MATRIX[]>outPose = nullptr;
+	std::unique_ptr<CoordTf::MATRIX[]>outPose = nullptr;
 	uint32_t prevAnimationIndex = -1;
 	bool connectionOn = false;
 	float ConnectionRatio = 0.0f;
@@ -59,8 +59,8 @@ private:
 	void setNewPoseMatrix(uint32_t animationIndex, float time);
 	void copyConnectionPoseMatrix(uint32_t nextAnimationIndex);
 	void setNewPoseMatrixConnection(float connectionRatio);
-	MATRIX getCurrentPoseMatrix(uint32_t index);
-	void subUpdate(uint32_t swapIndex, VECTOR3 pos, VECTOR3 theta, VECTOR3 scale);
+	CoordTf::MATRIX getCurrentPoseMatrix(uint32_t index);
+	void subUpdate(uint32_t swapIndex, CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale);
 	void setfbx();
 	void setAnimation();
 
@@ -71,13 +71,20 @@ public:
 	void additionalAnimation(char* pass, float endframe);
 	void additionalAnimationInByteArray(char* byteArray, unsigned int size, float endframe);
 	void create(uint32_t comIndex, bool useAlpha);
-	void setMaterialParameter(uint32_t swapIndex, uint32_t meshIndex, uint32_t materialIndex, VECTOR3 diffuse, VECTOR3 specular, VECTOR3 ambient);
+
+	void setMaterialParameter(uint32_t swapIndex, uint32_t meshIndex, uint32_t materialIndex,
+		CoordTf::VECTOR3 diffuse, CoordTf::VECTOR3 specular, CoordTf::VECTOR3 ambient);
+
 	void setChangeTexture(uint32_t meshIndex, uint32_t materialIndex, int diffuseTexId, int normalTexId, int specularTexId);
-	void update(uint32_t swapIndex, uint32_t animationIndex, float time, VECTOR3 pos = { 0.0f,0.0f,0.0f },
-		VECTOR3 theta = { 0.0f,0.0f,0.0f }, VECTOR3 scale = { 1.0f,1.0f,1.0f });
+
+	void update(uint32_t swapIndex, uint32_t animationIndex, float time, CoordTf::VECTOR3 pos = { 0.0f,0.0f,0.0f },
+		CoordTf::VECTOR3 theta = { 0.0f,0.0f,0.0f }, CoordTf::VECTOR3 scale = { 1.0f,1.0f,1.0f });
+
 	void setConnectionPitch(float pitch);
-	bool autoUpdate(uint32_t swapIndex, uint32_t animationIndex, float pitchTime, VECTOR3 pos = { 0.0f,0.0f,0.0f },
-		VECTOR3 theta = { 0.0f,0.0f,0.0f }, VECTOR3 scale = { 1.0f,1.0f,1.0f });
+
+	bool autoUpdate(uint32_t swapIndex, uint32_t animationIndex, float pitchTime, CoordTf::VECTOR3 pos = { 0.0f,0.0f,0.0f },
+		CoordTf::VECTOR3 theta = { 0.0f,0.0f,0.0f }, CoordTf::VECTOR3 scale = { 1.0f,1.0f,1.0f });
+
 	void draw(uint32_t swapIndex, uint32_t comIndex);
 };
 

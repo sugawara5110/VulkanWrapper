@@ -65,14 +65,18 @@ void VulkanBasicPolygon::create(uint32_t comIndex, bool useAlpha, int32_t difTex
 		attrDescs, 4, vsShaderBasicPolygon, fsShaderBasicPolygon);
 }
 
-void VulkanBasicPolygon::setMaterialParameter(uint32_t swapIndex, VECTOR3 diffuse, VECTOR3 specular, VECTOR3 ambient, uint32_t materialIndex) {
+void VulkanBasicPolygon::setMaterialParameter(uint32_t swapIndex,
+	CoordTf::VECTOR3 diffuse, CoordTf::VECTOR3 specular, CoordTf::VECTOR3 ambient, uint32_t materialIndex) {
+
 	material[swapIndex][materialIndex].uni.diffuse.as(diffuse.x, diffuse.y, diffuse.z, 1.0f);
 	material[swapIndex][materialIndex].uni.specular.as(specular.x, specular.y, specular.z, 1.0f);
 	material[swapIndex][materialIndex].uni.ambient.as(ambient.x, ambient.y, ambient.z, 1.0f);
 }
 
-void VulkanBasicPolygon::update0(uint32_t swapIndex, VECTOR3 pos, VECTOR3 theta, VECTOR3 scale, MATRIX* bone, uint32_t numBone) {
+void VulkanBasicPolygon::update0(uint32_t swapIndex,
+	CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale, CoordTf::MATRIX* bone, uint32_t numBone) {
 
+	using namespace CoordTf;
 	MATRIX mov;
 	MATRIX rotZ, rotY, rotX, rotZY, rotZYX;
 	MATRIX sca;
@@ -108,7 +112,9 @@ void VulkanBasicPolygon::update0(uint32_t swapIndex, VECTOR3 pos, VECTOR3 theta,
 	}
 }
 
-void VulkanBasicPolygon::update(uint32_t swapIndex, VECTOR3 pos, VECTOR3 theta, VECTOR3 scale) {
+void VulkanBasicPolygon::update(uint32_t swapIndex,
+	CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale) {
+
 	update0(swapIndex, pos, theta, scale, nullptr, 0);
 }
 

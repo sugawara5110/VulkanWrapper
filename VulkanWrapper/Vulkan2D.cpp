@@ -51,7 +51,7 @@ void Vulkan2D::createTexture(uint32_t comIndex, Vertex2DTex* ver, uint32_t num, 
 	create(comIndex, ver, num, ind, indNum, attrDescs, 2, vsShader2DTex, fsShader2DTex, textureId);
 }
 
-void Vulkan2D::update(uint32_t swapIndex, VECTOR2 pos) {
+void Vulkan2D::update(uint32_t swapIndex, CoordTf::VECTOR2 pos) {
 	uniform[swapIndex].uni.world.as(pos.x, pos.y);
 	device->updateUniform(uniform[swapIndex]);
 }

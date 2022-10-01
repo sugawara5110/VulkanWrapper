@@ -19,7 +19,7 @@
 #include <stdexcept>
 #include <tuple>
 #include <functional>
-#include "VulkanTransformation.h"
+#include "../CoordTf/CoordTf.h"
 #pragma comment(lib, "vulkan-1")
 #define S_DELETE(p)   if(p){delete p;      p=nullptr;}
 #define ARR_DELETE(p) if(p){delete[] p;    p=nullptr;}
@@ -121,34 +121,34 @@ private:
     const static uint32_t numTextureMax = 254;
     const static uint32_t numTexFileNamelenMax = 256;
 
-    MATRIX proj, view;
-    VECTOR4 viewPos;
-    VECTOR4 lightPos[numLightMax];
-    VECTOR4 lightColor[numLightMax];
+    CoordTf::MATRIX proj, view;
+    CoordTf::VECTOR4 viewPos;
+    CoordTf::VECTOR4 lightPos[numLightMax];
+    CoordTf::VECTOR4 lightColor[numLightMax];
     uint32_t numLight = 1;
     float attenuation1 = 1.0f;
     float attenuation2 = 0.001f;
     float attenuation3 = 0.001f;
 
     struct MatrixSet {
-        MATRIX world;
-        MATRIX mvp;
-        MATRIX bone[numBoneMax];
+        CoordTf::MATRIX world;
+        CoordTf::MATRIX mvp;
+        CoordTf::MATRIX bone[numBoneMax];
     };
 
     struct Material {
-        VECTOR4 diffuse = { 1.0f, 1.0f, 1.0f, 1.0f };
-        VECTOR4 specular = { 0.0f, 0.0f, 0.0f, 0.0f };
-        VECTOR4 ambient = { 0.0f, 0.0f, 0.0f, 0.0f };
-        VECTOR4 viewPos;
-        VECTOR4 lightPos[numLightMax];
-        VECTOR4 lightColor[numLightMax];
-        VECTOR4 numLight;//ライト数,減衰1,減衰2,減衰3
-        VECTOR4 UvSwitch = {};//.x==0:そのまま, 1:切り替え
+        CoordTf::VECTOR4 diffuse = { 1.0f, 1.0f, 1.0f, 1.0f };
+        CoordTf::VECTOR4 specular = { 0.0f, 0.0f, 0.0f, 0.0f };
+        CoordTf::VECTOR4 ambient = { 0.0f, 0.0f, 0.0f, 0.0f };
+        CoordTf::VECTOR4 viewPos;
+        CoordTf::VECTOR4 lightPos[numLightMax];
+        CoordTf::VECTOR4 lightColor[numLightMax];
+        CoordTf::VECTOR4 numLight;//ライト数,減衰1,減衰2,減衰3
+        CoordTf::VECTOR4 UvSwitch = {};//.x==0:そのまま, 1:切り替え
     };
 
     struct MatrixSet2D {
-        VECTOR2 world;
+        CoordTf::VECTOR2 world;
     };
 
     template<typename UNI>
@@ -375,13 +375,13 @@ public:
 
     void updateProjection(float AngleView = 45.0f, float Near = 1.0f, float Far = 100.0f);
 
-    void updateView(VECTOR3 view, VECTOR3 gaze, VECTOR3 up);
+    void updateView(CoordTf::VECTOR3 view, CoordTf::VECTOR3 gaze, CoordTf::VECTOR3 up);
 
     void setNumLight(uint32_t num);
 
     void setLightAttenuation(float att1, float att2, float att3);
 
-    void setLight(uint32_t index, VECTOR3 pos, VECTOR3 color);
+    void setLight(uint32_t index, CoordTf::VECTOR3 pos, CoordTf::VECTOR3 color);
 
     void beginCommand(uint32_t comBufindex);
 

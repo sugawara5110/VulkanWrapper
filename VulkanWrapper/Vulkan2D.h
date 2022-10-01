@@ -82,7 +82,7 @@ public:
 	~Vulkan2D();
 	void createColor(uint32_t comIndex, Vertex2D* ver, uint32_t num, uint32_t* ind, uint32_t indNum);
 	void createTexture(uint32_t comIndex, Vertex2DTex* ver, uint32_t num, uint32_t* ind, uint32_t indNum, int textureId);
-	void update(uint32_t swapIndex, VECTOR2 pos = { 0.0f,0.0f });
+	void update(uint32_t swapIndex, CoordTf::VECTOR2 pos = { 0.0f,0.0f });
 	void draw(uint32_t swapIndex, uint32_t comIndex);
 };
 
