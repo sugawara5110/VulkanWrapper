@@ -50,8 +50,8 @@ private:
 			0, sizeof(T), VK_VERTEX_INPUT_RATE_VERTEX
 		};
 
-		VkShaderModule vsModule = device->createShaderModule(vs);
-		VkShaderModule fsModule = device->createShaderModule(fs);
+		VkShaderModule vsModule = device->createShaderModule(vs, VK_SHADER_STAGE_VERTEX_BIT);
+		VkShaderModule fsModule = device->createShaderModule(fs, VK_SHADER_STAGE_FRAGMENT_BIT);
 
 		vertices = device->createVertexBuffer<T>(comIndex, ver, sizeof(T) * num, false);
 		index = device->createVertexBuffer<uint32_t>(comIndex, ind, sizeof(uint32_t) * indNum, true);

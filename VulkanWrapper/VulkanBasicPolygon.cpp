@@ -39,9 +39,9 @@ VulkanBasicPolygon::~VulkanBasicPolygon() {
 		}
 		texId[i].destroy(device->device);
 	}
-	ARR_DELETE(texId);
+	vk::ARR_DELETE(texId);
 	for (uint32_t s = 0; s < numSwap; s++) {
-		ARR_DELETE(material[s]);
+		vk::ARR_DELETE(material[s]);
 	}
 }
 

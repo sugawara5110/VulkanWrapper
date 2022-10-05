@@ -82,8 +82,8 @@ private:
 			material[i] = new Device::Uniform<Device::Material>[numMaterial];
 		}
 
-		VkShaderModule vsModule = device->createShaderModule(vs);
-		VkShaderModule fsModule = device->createShaderModule(fs);
+		VkShaderModule vsModule = device->createShaderModule(vs, VK_SHADER_STAGE_VERTEX_BIT);
+		VkShaderModule fsModule = device->createShaderModule(fs, VK_SHADER_STAGE_FRAGMENT_BIT);
 
 		vertices = device->createVertexBuffer<T>(comIndex, ver, num, false);
 		device->descriptorAndPipelineLayouts(true, pipelineLayout, descSetLayout);

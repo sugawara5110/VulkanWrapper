@@ -39,7 +39,7 @@ private:
 		float currentframe = 0.0f;
 
 		~FbxObj() {
-			ARR_DELETE(defo);
+			vk::ARR_DELETE(defo);
 		}
 	};
 	FbxObj* fbxObj[32] = {};

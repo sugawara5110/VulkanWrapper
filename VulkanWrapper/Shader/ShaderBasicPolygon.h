@@ -36,7 +36,7 @@ char* vsShaderBasicPolygon =
 
 char* fsShaderBasicPolygon =
 "#version 450\n"
-"##extension GL_ARB_separate_shader_objects : enable\n"
+"#extension GL_ARB_separate_shader_objects : enable\n"
 
 "layout (binding = 1) uniform sampler2D texSampler;\n"
 "layout (binding = 2) uniform sampler2D norSampler;\n"

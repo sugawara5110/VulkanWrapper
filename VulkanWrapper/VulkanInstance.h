@@ -14,20 +14,25 @@
 #define VK_USE_PLATFORM_WIN32_KHR
 #endif
 #include "VulkanPFN.h"
+#include <vector>
 #include <memory>
 #include <string>
 #include <stdexcept>
 #include <tuple>
 #include <functional>
+#include <shaderc/shaderc.hpp>
 #include "../CoordTf/CoordTf.h"
 #pragma comment(lib, "vulkan-1")
-#define S_DELETE(p)   if(p){delete p;      p=nullptr;}
-#define ARR_DELETE(p) if(p){delete[] p;    p=nullptr;}
+#pragma comment(lib, "shaderc_shared.lib")
 
-void checkError(VkResult res);
+namespace vk {
+    void S_DELETE(void* p);
+    void ARR_DELETE(void* p);
+    void checkError(VkResult res);
 
-VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT, uint64_t object,
-	size_t location, int32_t messageCode, const char* pLayerPrefix, const char* pMessage, void* pUserData);
+    VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT, uint64_t object,
+        size_t location, int32_t messageCode, const char* pLayerPrefix, const char* pMessage, void* pUserData);
+}
 
 class Vulkan2D;
 class VulkanBasicPolygon;
@@ -113,11 +118,7 @@ private:
     std::unique_ptr<VkCommandBuffer[]> commandBuffer = nullptr;
     uint32_t currentFrameIndex = 0;
     const static uint32_t numLightMax = 256;
-#if CHANGE
-    const static uint32_t numBoneMax = 64;
-#else
     const static uint32_t numBoneMax = 256;
-#endif
     const static uint32_t numTextureMax = 254;
     const static uint32_t numTexFileNamelenMax = 256;
 
@@ -310,7 +311,7 @@ private:
     void updateUniform(UNI& uni) {
         uint8_t* pData;
         auto res = vkMapMemory(device, uni.mem, 0, uni.memSize, 0, (void**)&pData);
-        checkError(res);
+        vk::checkError(res);
         memcpy(pData, &uni.uni, sizeof(UNI));
         vkUnmapMemory(device, uni.mem);
         uni.info.buffer = uni.vkBuf;
@@ -324,7 +325,7 @@ private:
     void descriptorAndPipelineLayouts2D(bool useTexture, VkPipelineLayout& pipelineLayout,
         VkDescriptorSetLayout& descSetLayout);
 
-    VkShaderModule createShaderModule(char* shader);
+    VkShaderModule createShaderModule(char* shader, VkShaderStageFlags stage);
 
     void createDescriptorPool(bool useTexture, VkDescriptorPool& descPool);
 

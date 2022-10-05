@@ -92,11 +92,11 @@ void VulkanSkinMesh::additionalAnimationInByteArray(char* byteArray, unsigned in
 
 VulkanSkinMesh::~VulkanSkinMesh() {
 	for (uint32_t i = 0; i < numMesh; i++) {
-		ARR_DELETE(cTexId[i]);
-		S_DELETE(bp[i]);
+		vk::ARR_DELETE(cTexId[i]);
+		vk::S_DELETE(bp[i]);
 	}
 	for (uint32_t i = 0; i < numFbxObj; i++) {
-		S_DELETE(fbxObj[i]);
+		vk::S_DELETE(fbxObj[i]);
 	}
 }
 
@@ -183,8 +183,8 @@ void VulkanSkinMesh::create(uint32_t comIndex, bool useAlpha) {
 				v->bBoneIndex[vbI] = (float)boneWeiIndArr[index[vI] * 4 + vbI];
 			}
 		}
-		ARR_DELETE(boneWeiArr);
-		ARR_DELETE(boneWeiIndArr);
+		vk::ARR_DELETE(boneWeiArr);
+		vk::ARR_DELETE(boneWeiIndArr);
 
 		//4頂点ポリゴン分割後のIndex数カウント
 		auto numMaterial = mesh->getNumMaterial();
@@ -348,6 +348,7 @@ void VulkanSkinMesh::create(uint32_t comIndex, bool useAlpha) {
 			}
 		}
 
+		using namespace vk;
 		for (uint32_t ind1 = 0; ind1 < numMaterial; ind1++)ARR_DELETE(newIndex[ind1]);
 		ARR_DELETE(newIndex);
 		ARR_DELETE(numNewIndex);

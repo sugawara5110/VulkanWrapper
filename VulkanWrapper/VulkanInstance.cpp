@@ -8,17 +8,20 @@
 #include "VulkanInstance.h"
 #define COUNTOF(array) (sizeof(array) / sizeof(array[0]))
 
-void checkError(VkResult res) {
+void vk::S_DELETE(void* p) { if (p) { delete p;    p = nullptr; } }
+void vk::ARR_DELETE(void* p) { if (p) { delete[] p;    p = nullptr; } }
+
+void vk::checkError(VkResult res) {
     if (res != VK_SUCCESS)
 #ifdef __ANDROID__
         __android_log_print(ANDROID_LOG_ERROR, "VulkanERROR", "NOT_VK_SUCCESS");
 #else
-    throw std::runtime_error(std::to_string(res).c_str());
+        throw std::runtime_error(std::to_string(res).c_str());
 #endif
 }
 
-VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT, uint64_t object,
-	size_t location, int32_t messageCode, const char* pLayerPrefix, const char* pMessage, void* pUserData) {
+VKAPI_ATTR VkBool32 VKAPI_CALL vk::debugCallback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT, uint64_t object,
+    size_t location, int32_t messageCode, const char* pLayerPrefix, const char* pMessage, void* pUserData) {
 #ifdef __ANDROID__
 #else
     OutputDebugString(L"Vulkan DebugCall: "); OutputDebugStringA(pMessage); OutputDebugString(L"\n");
@@ -48,7 +51,7 @@ void VulkanInstance::createinstance(char* appName) {
     appInfo.pApplicationName = appName;
     appInfo.pEngineName = appName;
     appInfo.engineVersion = 1;
-    appInfo.apiVersion = VK_API_VERSION_1_3;
+    appInfo.apiVersion = VK_API_VERSION_1_2;
 
     instanceInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     instanceInfo.pNext = nullptr;
@@ -59,7 +62,7 @@ void VulkanInstance::createinstance(char* appName) {
 
     //Vulkanインスタンス生成
     auto res = vkCreateInstance(&instanceInfo, nullptr, &instance);
-    checkError(res);
+    vk::checkError(res);
 
     //デバック
 #ifdef __ANDROID__
@@ -79,24 +82,24 @@ void VulkanInstance::createDebugReportCallback() {
 
     callbackInfo.sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT;
     callbackInfo.flags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT
-                         | VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT |
-                         VK_DEBUG_REPORT_INFORMATION_BIT_EXT;
-    callbackInfo.pfnCallback = &debugCallback;
+        | VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT |
+        VK_DEBUG_REPORT_INFORMATION_BIT_EXT;
+    callbackInfo.pfnCallback = &vk::debugCallback;
     //デバック有効化
     auto res = _vkCreateDebugReportCallbackEXT(instance, &callbackInfo, nullptr,
-                                               &debugReportCallback);
-    checkError(res);
+        &debugReportCallback);
+    vk::checkError(res);
 }
 
 void VulkanInstance::createPhysicalDevice() {
 
     //物理デバイス出力先にnullptrを指定:adapterCountに物理デバイス個数出力
     auto res = vkEnumeratePhysicalDevices(instance, &adapterCount, nullptr);
-    checkError(res);
+    vk::checkError(res);
     adapters = std::make_unique<VkPhysicalDevice[]>(adapterCount);
     //個数分の物理デバイス出力
     res = vkEnumeratePhysicalDevices(instance, &adapterCount, adapters.get());
-    checkError(res);
+    vk::checkError(res);
     //物理デバイスのプロパティ情報出力
 #ifdef __ANDROID__
 #else
@@ -159,7 +162,7 @@ void VulkanInstance::createSurfaceHwnd(HWND hWnd) {
     surfaceInfo.hwnd = hWnd;
     //Windows用のサーフェース生成
     auto res = vkCreateWin32SurfaceKHR(instance, &surfaceInfo, nullptr, &surface);
-    checkError(res);
+    vk::checkError(res);
     surfaceAlive = true;
 }
 #endif
@@ -221,9 +224,9 @@ void Device::create() {
     if (queueFamilyIndex == 0xffffffff)
         throw std::runtime_error("No Graphics queues available on current device.");
 
-    const char *layers[] = {"VK_LAYER_LUNARG_standard_validation"};
-    const char *extensions[] = {"VK_KHR_swapchain"};//スワップチェーンで必須
-    static float qPriorities[] = {0.0f};
+    const char* layers[] = { "VK_LAYER_KHRONOS_validation" };
+    const char* extensions[] = { "VK_KHR_swapchain" };//スワップチェーンで必須
+    static float qPriorities[] = { 0.0f };
     queueInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
     queueInfo.pNext = nullptr;
     queueInfo.queueCount = 1;
@@ -234,15 +237,15 @@ void Device::create() {
     devInfo.pNext = nullptr;
     devInfo.queueCreateInfoCount = 1;
     devInfo.pQueueCreateInfos = &queueInfo;
-    devInfo.enabledLayerCount = (uint32_t) COUNTOF(layers);
+    devInfo.enabledLayerCount = (uint32_t)COUNTOF(layers);
     devInfo.ppEnabledLayerNames = layers;
-    devInfo.enabledExtensionCount = (uint32_t) COUNTOF(extensions);
+    devInfo.enabledExtensionCount = (uint32_t)COUNTOF(extensions);
     devInfo.ppEnabledExtensionNames = extensions;
     devInfo.pEnabledFeatures = nullptr;
 
     //論理デバイス生成,キューも生成される
     auto res = vkCreateDevice(pDev, &devInfo, nullptr, &device);
-    checkError(res);
+    vk::checkError(res);
     //キュー取得
     vkGetDeviceQueue(device, queueFamilyIndex, 0, &devQueue);
     //VRAMプロパティ取得:頂点バッファ取得時使用
@@ -258,7 +261,7 @@ void Device::createCommandPool() {
     info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
     //コマンドプールの作成:コマンドバッファーメモリが割り当てられるオブジェクト
     auto res = vkCreateCommandPool(device, &info, nullptr, &commandPool);
-    checkError(res);
+    vk::checkError(res);
 }
 
 void Device::createFence() {
@@ -268,7 +271,7 @@ void Device::createFence() {
     firstswFence = false;
     for (uint32_t i = 0; i < swBuf.imageCount; i++) {
         auto res = vkCreateFence(device, &finfo, nullptr, &swFence[i]);
-        checkError(res);
+        vk::checkError(res);
     }
 }
 
@@ -276,7 +279,7 @@ void Device::createSFence() {
     VkFenceCreateInfo finfo{};
     finfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     auto res = vkCreateFence(device, &finfo, nullptr, &sFence);
-    checkError(res);
+    vk::checkError(res);
 }
 
 void Device::createSemaphore() {
@@ -341,16 +344,16 @@ void Device::createswapchain(VkSurfaceKHR surface) {
     scinfo.clipped = VK_TRUE;
     //スワップチェーン生成
     auto res = vkCreateSwapchainKHR(device, &scinfo, nullptr, &swBuf.swapchain);
-    checkError(res);
+    vk::checkError(res);
 
     //ウインドウに直接表示する画像のオブジェクト生成
     res = vkGetSwapchainImagesKHR(device, swBuf.swapchain, &swBuf.imageCount,
         nullptr);//個数imageCount取得
-    checkError(res);
+    vk::checkError(res);
     swBuf.images = std::make_unique<VkImage[]>(swBuf.imageCount);
     res = vkGetSwapchainImagesKHR(device, swBuf.swapchain, &swBuf.imageCount,
         swBuf.images.get());//個数分生成
-    checkError(res);
+    vk::checkError(res);
 
     //ビュー生成
     swBuf.views = std::make_unique<VkImageView[]>(swBuf.imageCount);
@@ -446,7 +449,7 @@ void Device::createCommonRenderPass() {
     renderPassInfo.pSubpasses = &subpass;
 
     auto res = vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass);
-    checkError(res);
+    vk::checkError(res);
 }
 
 void Device::createFramebuffers() {
@@ -470,7 +473,7 @@ void Device::createFramebuffers() {
     for (uint32_t i = 0; i < swBuf.imageCount; i++) {
         attachmentViews[0] = swBuf.views[i];
         auto res = vkCreateFramebuffer(device, &fbinfo, nullptr, &swBuf.frameBuffer[i]);
-        checkError(res);
+        vk::checkError(res);
     }
 }
 
@@ -485,7 +488,7 @@ void Device::createCommandBuffers() {
     //コマンドバッファの作成
     commandBuffer = std::make_unique<VkCommandBuffer[]>(commandBufferCount);
     auto res = vkAllocateCommandBuffers(device, &cbAllocInfo, commandBuffer.get());
-    checkError(res);
+    vk::checkError(res);
 }
 
 void Device::beginCommandWithFramebuffer(uint32_t comBufindex, VkFramebuffer fb) {
@@ -516,7 +519,7 @@ void Device::submitCommands(uint32_t comBufindex, VkFence fence, bool useRender)
         resetFence(fence);
     }
     auto res = vkQueueSubmit(devQueue, 1, &sinfo, fence);
-    checkError(res);
+    vk::checkError(res);
 }
 
 void Device::acquireNextImageAndWait(uint32_t& currentFrameIndex) {
@@ -524,7 +527,7 @@ void Device::acquireNextImageAndWait(uint32_t& currentFrameIndex) {
     auto res = vkAcquireNextImageKHR(device, swBuf.swapchain,
         UINT64_MAX, presentCompletedSem, VK_NULL_HANDLE,
         &currentFrameIndex);
-    checkError(res);
+    vk::checkError(res);
     if (!firstswFence) {
         firstswFence = true;
         return;
@@ -551,17 +554,17 @@ void Device::present(uint32_t currentframeIndex) {
     pinfo.pWaitSemaphores = &renderCompletedSem;
 
     auto res = vkQueuePresentKHR(devQueue, &pinfo);
-    checkError(res);
+    vk::checkError(res);
 }
 
 void Device::resetFence(VkFence fence) {
     //指定数(ここでは1)のフェンスをリセット
     auto res = vkResetFences(device, 1, &fence);
-    checkError(res);
+    vk::checkError(res);
 }
 
 void Device::barrierResource(uint32_t comBufindex, VkImage image,
-	VkImageLayout srcImageLayout, VkImageLayout dstImageLayout) {
+    VkImageLayout srcImageLayout, VkImageLayout dstImageLayout) {
 
     VkImageMemoryBarrier barrier = {};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -586,26 +589,31 @@ void Device::barrierResource(uint32_t comBufindex, VkImage image,
 
         srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
         dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-    } else if (srcImageLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL &&
-               dstImageLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+    }
+    else if (srcImageLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL &&
+        dstImageLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
         barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
         barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 
         srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
         dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-    } else if (srcImageLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR &&
-               dstImageLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) {
+    }
+    else if (srcImageLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR &&
+        dstImageLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) {
         barrier.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
         barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
         srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
         dstStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    } else {
+    }
+    else {
         throw std::invalid_argument("unsupported layout transition!");
     }
 
-    vkCmdPipelineBarrier(commandBuffer[comBufindex], srcStage, dstStage, 0, 0, nullptr, 0, nullptr,
-                         1, &barrier);
+    vkCmdPipelineBarrier(commandBuffer[comBufindex], srcStage, dstStage,
+        0, 0, nullptr,
+        0, nullptr,
+        1, &barrier);
 }
 
 void Device::beginRenderPass(uint32_t comBufindex, uint32_t currentframeIndex) {
@@ -651,8 +659,8 @@ void Device::copyBufferToImage(VkCommandBuffer commandBuffer, VkBuffer buffer, V
 }
 
 void Device::createImage(uint32_t width, uint32_t height, VkFormat format,
-	VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties,
-	VkImage& image, VkDeviceMemory& imageMemory) {
+    VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties,
+    VkImage& image, VkDeviceMemory& imageMemory) {
 
     VkImageCreateInfo imageInfo = {};
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -670,7 +678,7 @@ void Device::createImage(uint32_t width, uint32_t height, VkFormat format,
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
     auto res = vkCreateImage(device, &imageInfo, nullptr, &image);
-    checkError(res);
+    vk::checkError(res);
 
     VkMemoryRequirements memRequirements;
     vkGetImageMemoryRequirements(device, image, &memRequirements);
@@ -681,10 +689,10 @@ void Device::createImage(uint32_t width, uint32_t height, VkFormat format,
     allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
 
     res = vkAllocateMemory(device, &allocInfo, nullptr, &imageMemory);
-    checkError(res);
+    vk::checkError(res);
 
     res = vkBindImageMemory(device, image, imageMemory, 0);
-    checkError(res);
+    vk::checkError(res);
 }
 
 auto Device::createTextureImage(uint32_t comBufindex, Texture& inByte) {
@@ -738,7 +746,7 @@ auto Device::createTextureImage(uint32_t comBufindex, Texture& inByte) {
 }
 
 VkImageView Device::createImageView(VkImage image, VkFormat format,
-	VkImageAspectFlags mask, VkComponentMapping components) {
+    VkImageAspectFlags mask, VkComponentMapping components) {
 
     VkImageViewCreateInfo viewInfo = {};
     viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -757,7 +765,7 @@ VkImageView Device::createImageView(VkImage image, VkFormat format,
 
     VkImageView imageView;
     VkResult res = vkCreateImageView(device, &viewInfo, nullptr, &imageView);
-    checkError(res);
+    vk::checkError(res);
     return imageView;
 }
 
@@ -785,7 +793,7 @@ void Device::createTextureSampler(VkSampler& textureSampler) {
     samplerInfo.maxLod = 0.0f;
     samplerInfo.flags = VK_SAMPLER_CREATE_SUBSAMPLED_BIT_EXT;
     auto res = vkCreateSampler(device, &samplerInfo, nullptr, &textureSampler);
-    checkError(res);
+    vk::checkError(res);
 }
 
 void Device::destroyTexture() {
@@ -812,7 +820,7 @@ char* Device::getNameFromPass(char* pass) {
 }
 
 void Device::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
-	VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory, VkDeviceSize& memSize) {
+    VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory, VkDeviceSize& memSize) {
 
     VkBufferCreateInfo bufferInfo = {};
     bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -821,7 +829,7 @@ void Device::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
     auto res = vkCreateBuffer(device, &bufferInfo, nullptr, &buffer);
-    checkError(res);
+    vk::checkError(res);
 
     VkMemoryRequirements memRequirements;
     vkGetBufferMemoryRequirements(device, buffer, &memRequirements);
@@ -833,7 +841,7 @@ void Device::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
     allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
 
     res = vkAllocateMemory(device, &allocInfo, nullptr, &bufferMemory);
-    checkError(res);
+    vk::checkError(res);
 
     vkBindBufferMemory(device, buffer, bufferMemory, 0);
 }
@@ -847,7 +855,7 @@ void Device::copyBuffer(uint32_t comBufindex, VkBuffer srcBuffer, VkBuffer dstBu
     vkCmdCopyBuffer(commandBuffer[comBufindex], srcBuffer, dstBuffer, 1, &copyRegion);
 
     auto res = vkEndCommandBuffer(commandBuffer[comBufindex]);
-    checkError(res);
+    vk::checkError(res);
     submitCommands(comBufindex, sFence, false);
     waitForFence(sFence);
     resetFence(sFence);
@@ -870,7 +878,7 @@ uint32_t Device::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags prope
 void Device::descriptorAndPipelineLayouts(bool useTexture, VkPipelineLayout& pipelineLayout, VkDescriptorSetLayout& descSetLayout) {
     VkDescriptorSetLayoutBinding layout_bindings[5];
     uint32_t bCnt = 0;
-    VkDescriptorSetLayoutBinding &bufferMat = layout_bindings[bCnt];
+    VkDescriptorSetLayoutBinding& bufferMat = layout_bindings[bCnt];
     bufferMat.binding = bCnt++;
     bufferMat.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     bufferMat.descriptorCount = 1;
@@ -878,28 +886,28 @@ void Device::descriptorAndPipelineLayouts(bool useTexture, VkPipelineLayout& pip
     bufferMat.pImmutableSamplers = nullptr;
 
     if (useTexture) {
-        VkDescriptorSetLayoutBinding &texSampler = layout_bindings[bCnt];
+        VkDescriptorSetLayoutBinding& texSampler = layout_bindings[bCnt];
         texSampler.binding = bCnt++;
         texSampler.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         texSampler.descriptorCount = 1;
         texSampler.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
         texSampler.pImmutableSamplers = nullptr;
 
-        VkDescriptorSetLayoutBinding &norSampler = layout_bindings[bCnt];
+        VkDescriptorSetLayoutBinding& norSampler = layout_bindings[bCnt];
         norSampler.binding = bCnt++;
         norSampler.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         norSampler.descriptorCount = 1;
         norSampler.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
         norSampler.pImmutableSamplers = nullptr;
 
-        VkDescriptorSetLayoutBinding &speSampler = layout_bindings[bCnt];
+        VkDescriptorSetLayoutBinding& speSampler = layout_bindings[bCnt];
         speSampler.binding = bCnt++;
         speSampler.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         speSampler.descriptorCount = 1;
         speSampler.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
         speSampler.pImmutableSamplers = nullptr;
 
-        VkDescriptorSetLayoutBinding &bufferMaterial = layout_bindings[bCnt];
+        VkDescriptorSetLayoutBinding& bufferMaterial = layout_bindings[bCnt];
         bufferMaterial.binding = bCnt++;
         bufferMaterial.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         bufferMaterial.descriptorCount = 1;
@@ -917,7 +925,7 @@ void Device::descriptorAndPipelineLayouts(bool useTexture, VkPipelineLayout& pip
     VkResult res;
 
     res = vkCreateDescriptorSetLayout(device, &descriptor_layout, nullptr, &descSetLayout);
-    checkError(res);
+    vk::checkError(res);
 
     VkPipelineLayoutCreateInfo pPipelineLayoutCreateInfo = {};
     pPipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -928,7 +936,7 @@ void Device::descriptorAndPipelineLayouts(bool useTexture, VkPipelineLayout& pip
     pPipelineLayoutCreateInfo.pSetLayouts = &descSetLayout;
 
     res = vkCreatePipelineLayout(device, &pPipelineLayoutCreateInfo, nullptr, &pipelineLayout);
-    checkError(res);
+    vk::checkError(res);
 }
 
 void  Device::descriptorAndPipelineLayouts2D(bool useTexture, VkPipelineLayout& pipelineLayout, VkDescriptorSetLayout& descSetLayout) {
@@ -960,7 +968,7 @@ void  Device::descriptorAndPipelineLayouts2D(bool useTexture, VkPipelineLayout& 
     VkResult res;
 
     res = vkCreateDescriptorSetLayout(device, &descriptor_layout, nullptr, &descSetLayout);
-    checkError(res);
+    vk::checkError(res);
 
     VkPipelineLayoutCreateInfo pPipelineLayoutCreateInfo = {};
     pPipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -971,29 +979,79 @@ void  Device::descriptorAndPipelineLayouts2D(bool useTexture, VkPipelineLayout& 
     pPipelineLayoutCreateInfo.pSetLayouts = &descSetLayout;
 
     res = vkCreatePipelineLayout(device, &pPipelineLayoutCreateInfo, nullptr, &pipelineLayout);
-    checkError(res);
+    vk::checkError(res);
 }
 
-VkShaderModule Device::createShaderModule(char* shader) {
-    //codesizeは4の倍数である必要があるので揃える
-    int size = (int)strlen(shader);//忘れないようにメモ: strlenは'\0'は含まない文字数
-    int add = 4 - (size % 4);
-    char* sha = new char[size + add + 1];
-    memcpy(sha, shader, sizeof(char) * size);
-    for (int i = size; i < size + add; i++) {
-        sha[i] = ' ';
+static std::vector<uint32_t> CompileShader(char* source, VkShaderStageFlags stage) {
+
+    shaderc::Compiler compiler;
+    auto sourceText = std::string(source, strlen(source));
+    // コンパイラに設定するオプションの指定.
+    shaderc::CompileOptions options{};
+    options.SetTargetEnvironment(
+        shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_2);
+#if _DEBUG
+    options.SetOptimizationLevel(shaderc_optimization_level_zero);
+    options.SetGenerateDebugInfo();
+#else
+    options.SetOptimizationLevel(shaderc_optimization_level_performance);
+#endif
+    // シェーダーの種類.
+    shaderc_shader_kind kind;
+    switch (stage) {
+    case VK_SHADER_STAGE_RAYGEN_BIT_KHR:
+        kind = shaderc_raygen_shader;
+        break;
+    case VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR:
+        kind = shaderc_closesthit_shader;
+        break;
+    case VK_SHADER_STAGE_MISS_BIT_KHR:
+        kind = shaderc_miss_shader;
+        break;
+    case VK_SHADER_STAGE_ANY_HIT_BIT_KHR:
+        kind = shaderc_anyhit_shader;
+        break;
+    case VK_SHADER_STAGE_INTERSECTION_BIT_KHR:
+        kind = shaderc_intersection_shader;
+        break;
+    case VK_SHADER_STAGE_VERTEX_BIT:
+        kind = shaderc_vertex_shader;
+        break;
+    case VK_SHADER_STAGE_FRAGMENT_BIT:
+        kind = shaderc_fragment_shader;
+        break;
+    case VK_SHADER_STAGE_COMPUTE_BIT:
+        kind = shaderc_compute_shader;
+        break;
     }
-    sha[size + add] = '\0';
+    // コンパイルの実行.
+    auto result = compiler.CompileGlslToSpv(
+        sourceText, kind, "", options);
+    auto status = result.GetCompilationStatus();
+    std::vector<uint32_t> compiled;
+    if (status == shaderc_compilation_status_success) {
+        // コンパイルに成功. SPIR-Vコードを取得.
+        compiled.assign(result.cbegin(), result.cend());
+    }
+    else {
+        auto errMessage = result.GetErrorMessage();
+        OutputDebugStringA(errMessage.c_str());
+    }
+    return compiled;
+}
+
+VkShaderModule Device::createShaderModule(char* shader, VkShaderStageFlags stage) {
+
+    std::vector<uint32_t> spv = CompileShader(shader, stage);
 
     VkShaderModuleCreateInfo shaderInfo{};
     VkShaderModule mod;
     shaderInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    shaderInfo.codeSize = strlen(sha);
-    shaderInfo.pCode = reinterpret_cast<uint32_t*>(sha);
+    shaderInfo.codeSize = spv.size() * sizeof(uint32_t);
+    shaderInfo.pCode = spv.data();
 
     auto res = vkCreateShaderModule(device, &shaderInfo, nullptr, &mod);
-    checkError(res);
-    ARR_DELETE(sha);
+    vk::checkError(res);
     return mod;
 }
 
@@ -1001,23 +1059,23 @@ void Device::createDescriptorPool(bool useTexture, VkDescriptorPool& descPool) {
     VkResult res;
     VkDescriptorPoolSize type_count[5];
     uint32_t bCnt = 0;
-    VkDescriptorPoolSize &bufferMat = type_count[bCnt++];
+    VkDescriptorPoolSize& bufferMat = type_count[bCnt++];
     bufferMat.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     bufferMat.descriptorCount = 1;
     if (useTexture) {
-        VkDescriptorPoolSize &texSampler = type_count[bCnt++];
+        VkDescriptorPoolSize& texSampler = type_count[bCnt++];
         texSampler.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         texSampler.descriptorCount = 1;
 
-        VkDescriptorPoolSize &norSampler = type_count[bCnt++];
+        VkDescriptorPoolSize& norSampler = type_count[bCnt++];
         norSampler.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         norSampler.descriptorCount = 1;
 
-        VkDescriptorPoolSize &speSampler = type_count[bCnt++];
+        VkDescriptorPoolSize& speSampler = type_count[bCnt++];
         speSampler.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         speSampler.descriptorCount = 1;
 
-        VkDescriptorPoolSize &bufferMaterial = type_count[bCnt++];
+        VkDescriptorPoolSize& bufferMaterial = type_count[bCnt++];
         bufferMaterial.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         bufferMaterial.descriptorCount = 1;
     }
@@ -1030,7 +1088,7 @@ void Device::createDescriptorPool(bool useTexture, VkDescriptorPool& descPool) {
     descriptor_pool.pPoolSizes = type_count;
 
     res = vkCreateDescriptorPool(device, &descriptor_pool, nullptr, &descPool);
-    checkError(res);
+    vk::checkError(res);
 }
 
 void Device::createDescriptorPool2D(bool useTexture, VkDescriptorPool& descPool) {
@@ -1054,7 +1112,7 @@ void Device::createDescriptorPool2D(bool useTexture, VkDescriptorPool& descPool)
     descriptor_pool.pPoolSizes = type_count;
 
     res = vkCreateDescriptorPool(device, &descriptor_pool, nullptr, &descPool);
-    checkError(res);
+    vk::checkError(res);
 }
 
 uint32_t Device::upDescriptorSet(bool useTexture, VkTexture& difTexture, VkTexture& norTexture, VkTexture& speTexture, Uniform<MatrixSet>& uni,
@@ -1070,7 +1128,7 @@ uint32_t Device::upDescriptorSet(bool useTexture, VkTexture& difTexture, VkTextu
     alloc_info[0].pSetLayouts = &descSetLayout;
 
     res = vkAllocateDescriptorSets(device, alloc_info, &descriptorSet);
-    checkError(res);
+    vk::checkError(res);
 
     VkWriteDescriptorSet writes[5];
     uint32_t bCnt = 0;
@@ -1146,7 +1204,7 @@ uint32_t Device::upDescriptorSet2D(bool useTexture, VkTexture& texture, Uniform<
     alloc_info[0].pSetLayouts = &descSetLayout;
 
     res = vkAllocateDescriptorSets(device, alloc_info, &descriptorSet);
-    checkError(res);
+    vk::checkError(res);
 
     VkWriteDescriptorSet writes[2];
     uint32_t bCnt = 0;
@@ -1182,18 +1240,18 @@ VkPipelineCache Device::createPipelineCache() {
     VkPipelineCache pipelineCache;
     cacheInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
     auto res = vkCreatePipelineCache(device, &cacheInfo, nullptr, &pipelineCache);
-    checkError(res);
+    vk::checkError(res);
     return pipelineCache;
 }
 
 VkPipeline Device::createGraphicsPipelineVF(bool useAlpha,
-	const VkShaderModule& vshader, const VkShaderModule& fshader,
-	const VkVertexInputBindingDescription& bindDesc, const VkVertexInputAttributeDescription* attrDescs, uint32_t numAttr,
-	const VkPipelineLayout& pLayout, const VkRenderPass renderPass, const VkPipelineCache& pCache) {
+    const VkShaderModule& vshader, const VkShaderModule& fshader,
+    const VkVertexInputBindingDescription& bindDesc, const VkVertexInputAttributeDescription* attrDescs, uint32_t numAttr,
+    const VkPipelineLayout& pLayout, const VkRenderPass renderPass, const VkPipelineCache& pCache) {
 
-    static VkViewport vports[] = {{0.0f, 0.0f, (float) width, (float) height, 0.0f, 1.0f}};
-    static VkRect2D scissors[] = {{{0, 0}, {width, height}}};
-    static VkDynamicState dynamicStates[] = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
+    static VkViewport vports[] = { {0.0f, 0.0f, (float)width, (float)height, 0.0f, 1.0f} };
+    static VkRect2D scissors[] = { {{0, 0}, {width, height}} };
+    static VkDynamicState dynamicStates[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
 
     VkPipelineShaderStageCreateInfo stageInfo[2]{};
     stageInfo[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -1246,8 +1304,8 @@ VkPipeline Device::createGraphicsPipelineVF(bool useAlpha,
     VkPipelineColorBlendAttachmentState blendState{};
     blendState.blendEnable = VK_FALSE;
     blendState.colorWriteMask = VK_COLOR_COMPONENT_A_BIT
-                                | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_G_BIT |
-                                VK_COLOR_COMPONENT_R_BIT;
+        | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_G_BIT |
+        VK_COLOR_COMPONENT_R_BIT;
 
     VkPipelineColorBlendStateCreateInfo blendInfo{};
     blendInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
@@ -1257,7 +1315,7 @@ VkPipeline Device::createGraphicsPipelineVF(bool useAlpha,
 
     VkPipelineDynamicStateCreateInfo dynamicInfo{};
     dynamicInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-    dynamicInfo.dynamicStateCount = (uint32_t) COUNTOF(dynamicStates);
+    dynamicInfo.dynamicStateCount = (uint32_t)COUNTOF(dynamicStates);
     dynamicInfo.pDynamicStates = dynamicStates;
 
     VkPipelineDepthStencilStateCreateInfo ds;
@@ -1283,7 +1341,7 @@ VkPipeline Device::createGraphicsPipelineVF(bool useAlpha,
 
     VkGraphicsPipelineCreateInfo gpInfo{};
     gpInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-    gpInfo.stageCount = (uint32_t) COUNTOF(stageInfo);
+    gpInfo.stageCount = (uint32_t)COUNTOF(stageInfo);
     gpInfo.pStages = stageInfo;
     gpInfo.pVertexInputState = &vinStateInfo;
     gpInfo.pInputAssemblyState = &iaInfo;
@@ -1299,7 +1357,7 @@ VkPipeline Device::createGraphicsPipelineVF(bool useAlpha,
 
     VkPipeline pipeline;
     auto res = vkCreateGraphicsPipelines(device, pCache, 1, &gpInfo, nullptr, &pipeline);
-    checkError(res);
+    vk::checkError(res);
     return pipeline;
 }
 
