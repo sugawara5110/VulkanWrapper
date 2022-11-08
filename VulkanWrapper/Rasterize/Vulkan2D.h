@@ -9,23 +9,23 @@
 
 #include "VulkanInstance.h"
 
-struct Vertex2D {
-	float pos[2];
-	float color[4];
-};
-
-struct Vertex2DTex {
-	float pos[2];
-	float uv[2];
-};
-
 class Vulkan2D {
 
+public:
+	struct Vertex2D {
+		float pos[2];
+		float color[4];
+	};
+
+	struct Vertex2DTex {
+		float pos[2];
+		float uv[2];
+	};
+
 private:
-	Device* device = nullptr;
-	Device::VkTexture texture;
-	std::pair<VkBuffer, VkDeviceMemory> vertices;
-	std::pair<VkBuffer, VkDeviceMemory> index;
+	VulkanDevice::VkTexture texture;
+	VulkanDevice::BufferSet vertices;
+	VulkanDevice::BufferSet index;
 	uint32_t numIndex;
 	VkDescriptorSetLayout descSetLayout;
 	const static uint32_t numSwap = 2;
@@ -35,7 +35,7 @@ private:
 	VkPipelineLayout pipelineLayout;
 	VkPipelineCache pipelineCache;
 	VkPipeline pipeline;
-	Device::Uniform<Device::MatrixSet2D> uniform[numSwap];
+	VulkanDevice::Uniform<VulkanDevice::MatrixSet2D> uniform[numSwap];
 
 	template<typename T>
 	void create(uint32_t comIndex, T* ver, uint32_t num, uint32_t* ind, uint32_t indNum,
@@ -50,11 +50,14 @@ private:
 			0, sizeof(T), VK_VERTEX_INPUT_RATE_VERTEX
 		};
 
-		VkShaderModule vsModule = device->createShaderModule(vs, VK_SHADER_STAGE_VERTEX_BIT);
-		VkShaderModule fsModule = device->createShaderModule(fs, VK_SHADER_STAGE_FRAGMENT_BIT);
+		VulkanDevice* device = VulkanDevice::GetInstance();
 
-		vertices = device->createVertexBuffer<T>(comIndex, ver, sizeof(T) * num, false);
-		index = device->createVertexBuffer<uint32_t>(comIndex, ind, sizeof(uint32_t) * indNum, true);
+		VkPipelineShaderStageCreateInfo vsInfo = device->createShaderModule("2Dvs", vs, VK_SHADER_STAGE_VERTEX_BIT);
+		VkPipelineShaderStageCreateInfo fsInfo = device->createShaderModule("2Dfs", fs, VK_SHADER_STAGE_FRAGMENT_BIT);
+
+		vertices = device->createVertexBuffer<T>(comIndex, ver, sizeof(T) * num, false, nullptr, nullptr);
+		index = device->createVertexBuffer<uint32_t>(comIndex, ind, sizeof(uint32_t) * indNum,
+			true, nullptr, nullptr);
 
 		device->descriptorAndPipelineLayouts2D(useTexture, pipelineLayout, descSetLayout);
 
@@ -68,17 +71,19 @@ private:
 			else {
 				if (i == 0)device->createVkTexture(texture, comIndex, device->texture[textureId]);
 			}
-			descSetCnt = device->upDescriptorSet2D(useTexture, texture, uniform[i], descSet[i], descPool[i], descSetLayout);
+			descSetCnt = device->upDescriptorSet2D(useTexture, texture, uniform[i], descSet[i],
+				descPool[i], descSetLayout);
 		}
 
 		pipelineCache = device->createPipelineCache();
-		pipeline = device->createGraphicsPipelineVF(false, vsModule, fsModule, bindDesc, attrDescs, 2, pipelineLayout, device->renderPass, pipelineCache);
-		vkDestroyShaderModule(device->device, vsModule, nullptr);
-		vkDestroyShaderModule(device->device, fsModule, nullptr);
+		pipeline = device->createGraphicsPipelineVF(false, vsInfo, fsInfo,
+			bindDesc, attrDescs, 2, pipelineLayout, device->swBuf.getRenderPass(), pipelineCache);
+		vkDestroyShaderModule(device->device, vsInfo.module, nullptr);
+		vkDestroyShaderModule(device->device, fsInfo.module, nullptr);
 	}
 
 public:
-	Vulkan2D(Device* device);
+	Vulkan2D();
 	~Vulkan2D();
 	void createColor(uint32_t comIndex, Vertex2D* ver, uint32_t num, uint32_t* ind, uint32_t indNum);
 	void createTexture(uint32_t comIndex, Vertex2DTex* ver, uint32_t num, uint32_t* ind, uint32_t indNum, int textureId);

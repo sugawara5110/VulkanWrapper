@@ -22,12 +22,11 @@ void VulkanSkinMesh::setfbx() {
 	bone = std::make_unique<Bone[]>(numBone);
 	outPose = std::make_unique<CoordTf::MATRIX[]>(numBone);
 
-	cTexId = std::make_unique<VulkanBasicPolygon::textureIdSet* []>(numMesh);
-	for (uint32_t i = 0; i < numMesh; i++)cTexId[i] = new VulkanBasicPolygon::textureIdSet[fbxObj[0]->fbx.getFbxMeshNode(i)->getNumMaterial()];
+	cTexId = std::make_unique<VulkanDevice::textureIdSet* []>(numMesh);
+	for (uint32_t i = 0; i < numMesh; i++)cTexId[i] = new VulkanDevice::textureIdSet[fbxObj[0]->fbx.getFbxMeshNode(i)->getNumMaterial()];
 }
 
-void VulkanSkinMesh::setFbx(Device* dev, char* pass, float endfra) {
-	device = dev;
+void VulkanSkinMesh::setFbx(char* pass, float endfra) {
 	fbxObj[0] = new FbxObj();
 	//フレーム数
 	fbxObj[0]->endframe = endfra;
@@ -36,8 +35,7 @@ void VulkanSkinMesh::setFbx(Device* dev, char* pass, float endfra) {
 	setfbx();
 }
 
-void VulkanSkinMesh::setFbxInByteArray(Device* dev, char* byteArray, unsigned int size, float endfra) {
-	device = dev;
+void VulkanSkinMesh::setFbxInByteArray(char* byteArray, unsigned int size, float endfra) {
 	fbxObj[0] = new FbxObj();
 	fbxObj[0]->endframe = endfra;
 	fbxObj[0]->fbx.setBinaryInFbxFile(byteArray, size);
@@ -92,18 +90,18 @@ void VulkanSkinMesh::additionalAnimationInByteArray(char* byteArray, unsigned in
 
 VulkanSkinMesh::~VulkanSkinMesh() {
 	for (uint32_t i = 0; i < numMesh; i++) {
-		vk::ARR_DELETE(cTexId[i]);
-		vk::S_DELETE(bp[i]);
+		vkUtil::ARR_DELETE(cTexId[i]);
+		vkUtil::S_DELETE(bp[i]);
 	}
 	for (uint32_t i = 0; i < numFbxObj; i++) {
-		vk::S_DELETE(fbxObj[i]);
+		vkUtil::S_DELETE(fbxObj[i]);
 	}
 }
 
 void VulkanSkinMesh::create(uint32_t comIndex, bool useAlpha) {
 	//各mesh読み込み
 	for (uint32_t mI = 0; mI < numMesh; mI++) {
-		bp[mI] = new VulkanBasicPolygon(device);
+		bp[mI] = new VulkanBasicPolygon();
 		FbxMeshNode* mesh = fbxObj[0]->fbx.getFbxMeshNode(mI);//mI番目のMesh取得
 		auto index = mesh->getPolygonVertices();//頂点Index取得(頂点xyzに対してのIndex)
 		auto ver = mesh->getVertices();//頂点取得
@@ -183,8 +181,8 @@ void VulkanSkinMesh::create(uint32_t comIndex, bool useAlpha) {
 				v->bBoneIndex[vbI] = (float)boneWeiIndArr[index[vI] * 4 + vbI];
 			}
 		}
-		vk::ARR_DELETE(boneWeiArr);
-		vk::ARR_DELETE(boneWeiIndArr);
+		vkUtil::ARR_DELETE(boneWeiArr);
+		vkUtil::ARR_DELETE(boneWeiIndArr);
 
 		//4頂点ポリゴン分割後のIndex数カウント
 		auto numMaterial = mesh->getNumMaterial();
@@ -242,9 +240,11 @@ void VulkanSkinMesh::create(uint32_t comIndex, bool useAlpha) {
 			}
 		}
 
-		VulkanBasicPolygon::textureIdSet* texId = new VulkanBasicPolygon::textureIdSet[numMaterial];
+		VulkanDevice::textureIdSet* texId = new VulkanDevice::textureIdSet[numMaterial];
 
 		using namespace CoordTf;
+
+		VulkanDevice* device = VulkanDevice::GetInstance();
 
 		std::unique_ptr<VECTOR3[]> diffuse = std::make_unique<VECTOR3[]>(numMaterial);
 		std::unique_ptr<VECTOR3[]> specular = std::make_unique<VECTOR3[]>(numMaterial);
@@ -348,7 +348,7 @@ void VulkanSkinMesh::create(uint32_t comIndex, bool useAlpha) {
 			}
 		}
 
-		using namespace vk;
+		using namespace vkUtil;
 		for (uint32_t ind1 = 0; ind1 < numMaterial; ind1++)ARR_DELETE(newIndex[ind1]);
 		ARR_DELETE(newIndex);
 		ARR_DELETE(numNewIndex);

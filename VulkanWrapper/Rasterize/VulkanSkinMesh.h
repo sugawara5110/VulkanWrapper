@@ -9,7 +9,7 @@
 
 #include "VulkanInstance.h"
 #include "VulkanBasicPolygon.h"
-#include "../FbxLoader/FbxLoader.h"
+#include "../../FbxLoader/FbxLoader.h"
 
 struct VertexSkin {
 	float pos[3] = {};//頂点
@@ -30,8 +30,6 @@ struct Bone {
 class VulkanSkinMesh {
 
 private:
-	Device* device = nullptr;
-
 	struct FbxObj {
 		FbxLoader fbx;
 		Deformer** defo = nullptr;
@@ -39,14 +37,14 @@ private:
 		float currentframe = 0.0f;
 
 		~FbxObj() {
-			vk::ARR_DELETE(defo);
+			vkUtil::ARR_DELETE(defo);
 		}
 	};
 	FbxObj* fbxObj[32] = {};
 	uint32_t numFbxObj = 1;
 
 	std::unique_ptr <VulkanBasicPolygon* []> bp = nullptr;
-	std::unique_ptr <VulkanBasicPolygon::textureIdSet* []> cTexId = nullptr;
+	std::unique_ptr <VulkanDevice::textureIdSet* []> cTexId = nullptr;
 	uint32_t numMesh = 0;
 	uint32_t numBone = 0;
 	std::unique_ptr<Bone[]> bone = nullptr;
@@ -66,8 +64,8 @@ private:
 
 public:
 	~VulkanSkinMesh();
-	void setFbx(Device* device, char* pass, float endframe);
-	void setFbxInByteArray(Device* device, char* byteArray, unsigned int size, float endframe);
+	void setFbx(char* pass, float endframe);
+	void setFbxInByteArray(char* byteArray, unsigned int size, float endframe);
 	void additionalAnimation(char* pass, float endframe);
 	void additionalAnimationInByteArray(char* byteArray, unsigned int size, float endframe);
 	void create(uint32_t comIndex, bool useAlpha);

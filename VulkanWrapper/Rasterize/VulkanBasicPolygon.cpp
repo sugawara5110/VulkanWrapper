@@ -8,44 +8,40 @@
 #include "VulkanBasicPolygon.h"
 #include "Shader/ShaderBasicPolygon.h"
 
-VulkanBasicPolygon::VulkanBasicPolygon(Device* dev) {
-	device = dev;
+VulkanBasicPolygon::VulkanBasicPolygon() {
 	vs = vsShaderBasicPolygon;
 	fs = fsShaderBasicPolygon;
 }
 
 VulkanBasicPolygon::~VulkanBasicPolygon() {
-	device->waitForFence(device->swFence[0]);
+	VulkanDevice* device = VulkanDevice::GetInstance();
+	device->waitForFence(device->swBuf.getFence());
 	for (uint32_t s = 0; s < numSwap; s++) {
-		vkDestroyBuffer(device->device, uniform[s].vkBuf, nullptr);
-		vkFreeMemory(device->device, uniform[s].mem, nullptr);
+		uniform[s].buf.destroy();
 	}
 	vkDestroyDescriptorSetLayout(device->device, descSetLayout, nullptr);
 	vkDestroyPipeline(device->device, pipeline, nullptr);
 	vkDestroyPipelineCache(device->device, pipelineCache, nullptr);
 	vkDestroyPipelineLayout(device->device, pipelineLayout, nullptr);
-	vkDestroyBuffer(device->device, vertices.first, nullptr);
-	vkFreeMemory(device->device, vertices.second, nullptr);
+	vertices.destroy();
 	for (uint32_t i = 0; i < numMaterial; i++) {
 		if (numIndex[i] <= 0)continue;
-		vkDestroyBuffer(device->device, index[i].first, nullptr);
-		vkFreeMemory(device->device, index[i].second, nullptr);
+		index[i].destroy();
 		for (uint32_t s = 0; s < numSwap; s++) {
-			vkDestroyBuffer(device->device, material[s][i].vkBuf, nullptr);
-			vkFreeMemory(device->device, material[s][i].mem, nullptr);
+			material[s][i].buf.destroy();
 			//VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT の場合のみ個別に開放できる
 			//vkFreeDescriptorSets(device->device, descPool[s][i], descSetCnt, &descSet[s][i]);
 			vkDestroyDescriptorPool(device->device, descPool[s][i], nullptr);
 		}
-		texId[i].destroy(device->device);
+		texId[i].destroy();
 	}
-	vk::ARR_DELETE(texId);
+	vkUtil::ARR_DELETE(texId);
 	for (uint32_t s = 0; s < numSwap; s++) {
-		vk::ARR_DELETE(material[s]);
+		vkUtil::ARR_DELETE(material[s]);
 	}
 }
 
-void VulkanBasicPolygon::create(uint32_t comIndex, bool useAlpha, int32_t difTexInd, int32_t norTexInd, int32_t speTexInd, Vertex3D* ver, uint32_t num, uint32_t* ind, uint32_t indNum) {
+void VulkanBasicPolygon::create(uint32_t comIndex, bool useAlpha, int32_t difTexInd, int32_t norTexInd, int32_t speTexInd, VulkanDevice::Vertex3D* ver, uint32_t num, uint32_t* ind, uint32_t indNum) {
 
 	static VkVertexInputAttributeDescription attrDescs[] =
 	{
@@ -56,12 +52,12 @@ void VulkanBasicPolygon::create(uint32_t comIndex, bool useAlpha, int32_t difTex
 	};
 
 	const uint32_t numMaterial = 1;
-	textureIdSet tex[numMaterial];
+	VulkanDevice::textureIdSet tex[numMaterial];
 	tex[0].diffuseId = difTexInd;
 	tex[0].normalId = norTexInd;
 	tex[0].specularId = speTexInd;
 	float sw[1] = {};
-	create0<Vertex3D>(comIndex, useAlpha, numMaterial, tex, sw, ver, num, &ind, &indNum,
+	create0<VulkanDevice::Vertex3D>(comIndex, useAlpha, numMaterial, tex, sw, ver, num, &ind, &indNum,
 		attrDescs, 4, vsShaderBasicPolygon, fsShaderBasicPolygon);
 }
 
@@ -76,21 +72,12 @@ void VulkanBasicPolygon::setMaterialParameter(uint32_t swapIndex,
 void VulkanBasicPolygon::update0(uint32_t swapIndex,
 	CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale, CoordTf::MATRIX* bone, uint32_t numBone) {
 
+	VulkanDevice* device = VulkanDevice::GetInstance();
 	using namespace CoordTf;
-	MATRIX mov;
-	MATRIX rotZ, rotY, rotX, rotZY, rotZYX;
-	MATRIX sca;
-	MATRIX scro;
 	MATRIX world;
-	MatrixScaling(&sca, scale.x, scale.y, scale.z);
-	MatrixRotationZ(&rotZ, theta.z);
-	MatrixRotationY(&rotY, theta.y);
-	MatrixRotationX(&rotX, theta.x);
-	MatrixMultiply(&rotZY, &rotZ, &rotY);
-	MatrixMultiply(&rotZYX, &rotZY, &rotX);
-	MatrixTranslation(&mov, pos.x, pos.y, pos.z);
-	MatrixMultiply(&scro, &rotZYX, &sca);
-	MatrixMultiply(&world, &scro, &mov);
+
+	vkUtil::calculationMatrixWorld(world, pos, theta, scale);
+
 	MATRIX vm;
 	MatrixMultiply(&vm, &world, &device->view);
 	MatrixMultiply(&uniform[swapIndex].uni.mvp, &vm, &device->proj);
@@ -100,7 +87,7 @@ void VulkanBasicPolygon::update0(uint32_t swapIndex,
 
 	for (uint32_t m = 0; m < numMaterial; m++) {
 		if (numIndex[m] <= 0)continue;
-		Device::Uniform<Device::Material>& mat = material[swapIndex][m];
+		VulkanDevice::Uniform<VulkanDevice::Material>& mat = material[swapIndex][m];
 		mat.uni.viewPos.as(device->viewPos.x, device->viewPos.y, device->viewPos.z, 0.0f);
 		memcpy(mat.uni.lightPos, device->lightPos, sizeof(VECTOR4) * device->numLight);
 		memcpy(mat.uni.lightColor, device->lightColor, sizeof(VECTOR4) * device->numLight);
@@ -119,20 +106,23 @@ void VulkanBasicPolygon::update(uint32_t swapIndex,
 }
 
 void VulkanBasicPolygon::draw(uint32_t swapIndex, uint32_t comIndex) {
-	static VkViewport vp = { 0.0f, 0.0f, (float)device->width, (float)device->height, 0.0f, 1.0f };
-	static VkRect2D sc = { { 0, 0 }, { device->width, device->height } };
+	VulkanDevice* device = VulkanDevice::GetInstance();
+	uint32_t width = device->swBuf.getSize().width;
+	uint32_t height = device->swBuf.getSize().height;
+	static VkViewport vp = { 0.0f, 0.0f, (float)width, (float)height, 0.0f, 1.0f };
+	static VkRect2D sc = { { 0, 0 }, { width, height } };
 	static VkDeviceSize offsets[] = { 0 };
 
 	vkCmdBindPipeline(device->commandBuffer[comIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 	vkCmdSetViewport(device->commandBuffer[comIndex], 0, 1, &vp);
 	vkCmdSetScissor(device->commandBuffer[comIndex], 0, 1, &sc);
-	vkCmdBindVertexBuffers(device->commandBuffer[comIndex], 0, 1, &vertices.first, offsets);
+	vkCmdBindVertexBuffers(device->commandBuffer[comIndex], 0, 1, vertices.getBufferAddress(), offsets);
 
 	for (uint32_t m = 0; m < numMaterial; m++) {
 		if (numIndex[m] <= 0)continue;
 		vkCmdBindDescriptorSets(device->commandBuffer[comIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
 			&descSet[swapIndex][m], 0, nullptr);
-		vkCmdBindIndexBuffer(device->commandBuffer[comIndex], index[m].first, 0, VK_INDEX_TYPE_UINT32);
+		vkCmdBindIndexBuffer(device->commandBuffer[comIndex], index[m].getBuffer(), 0, VK_INDEX_TYPE_UINT32);
 		vkCmdDrawIndexed(device->commandBuffer[comIndex], numIndex[m], 1, 0, 0, 0);
 	}
 }

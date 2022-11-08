@@ -1,9 +1,9 @@
 
 #define _CRT_SECURE_NO_WARNINGS
-#include "../../../VulkanWrapper/VulkanInstance.h"
-#include "../../../VulkanWrapper/Vulkan2D.h"
-#include "../../../VulkanWrapper/VulkanBasicPolygon.h"
-#include "../../../VulkanWrapper/VulkanSkinMesh.h"
+#include "../../../VulkanWrapper/Rasterize/VulkanInstance.h"
+#include "../../../VulkanWrapper/Rasterize/Vulkan2D.h"
+#include "../../../VulkanWrapper/Rasterize/VulkanBasicPolygon.h"
+#include "../../../VulkanWrapper/Rasterize/VulkanSkinMesh.h"
 #include "../../../T_float/T_float.h"
 #include "../../../PPMLoader/PPMLoader.h"
 #include "../../../PNGLoader/PNGLoader.h"
@@ -11,9 +11,10 @@
 #include <iostream>
 #include <thread>
 
+using namespace CoordTf;
+using namespace vkUtil;
 HWND hWnd;
 VulkanInstance* vins;
-Device* device;
 float the = 180.0f;
 float frame = 1.0f;
 Vulkan2D* v2;
@@ -99,29 +100,31 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	if (hWnd == nullptr) return 1;
 
 	vins = new VulkanInstance();
-	vins->createInstance("vulkanTest");
+	vins->createInstance("vulkanTest", VK_API_VERSION_1_0);
 	auto pd = vins->getPhysicalDevice(0);
-	device = new Device(pd, 2, false);
+
+	VulkanDevice::InstanceCreate(pd, 2, false);
+	VulkanDevice* device = VulkanDevice::GetInstance();
 	device->createDevice();
 	vins->createSurfaceHwnd(hWnd);
 	auto sur = vins->getSurface();
-	device->createSwapchain(sur);
+	device->createSwapchain(sur, true);
 	device->updateProjection();
 
-	static Vertex2D ver[] = {
+	static Vulkan2D::Vertex2D ver[] = {
 	{ { -0.1f, -0.1f }, { 1.0f, 1.0f, 1.0f, 1.0f } },
 	{ { 0.1f, -0.1f }, { 1.0f, 0.5f, 0.0f, 1.0f } },
 	{ { -0.1f, 0.1f }, { 0.0f, 0.5f, 1.0f, 1.0f } },
 	{ { 0.1f, 0.1f }, { 0.0f, 0.5f, 1.0f, 1.0f } }
 	};
-	static Vertex2DTex vertex[] = {
+	static Vulkan2D::Vertex2DTex vertex[] = {
 	{ { -0.1f, -0.1f }, {0.0f,0.0f} },
 	{ { 0.1f, -0.1f }, {1.0f,0.0f} },
 	{ { -0.1f, 0.1f }, {0.0f,1.0f} },
 	{ { 0.1f, 0.1f }, {1.0f,1.0f} }
 	};
 	uint32_t index2d[] = { 0, 2, 1, 1, 2, 3 };
-	static Vertex3D ver11[] = {
+	static VulkanDevice::Vertex3D ver11[] = {
 		//前
 		{ {-0.5f, -0.5f,0.5f }, { 0.0f, 0.0f, 1.0f} ,{0.0f,0.0f},{0.0f,0.0f}},
 		{ { 0.5f, -0.5f,0.5f }, { 0.0f, 0.0f, 1.0f} ,{1.0f,0.0f},{1.0f,0.0f}},
@@ -188,12 +191,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 			ima[j][i + 2] = image[imageCnt++];
 			ima[j][i + 3] = 255;
 		}
-		S_DELETE(ppm);
+		vkUtil::S_DELETE(ppm);
 	}
 	PNGLoader png;
 	JPGLoader jpg;
 
 	unsigned char* wall1 = jpg.loadJPG("../../../wall1.jpg", 256, 256);
+	//unsigned char* wall1 = jpg.loadJPG("../../../ceiling1.jpg", 256, 256);
 
 	//unsigned char* wall1 = png.loadPNG("../../../wall1.png", 256, 256);
 	//unsigned char* wall1 = jpg.loadJPG("../../../resize/testG.jpg", 40, 40);
@@ -239,24 +243,24 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 		std::cerr << "runtime_error: " << e.what() << std::endl;
 	}
 
-	v2 = new Vulkan2D(device);
+	v2 = new Vulkan2D();
 	//v2->createColor(0, ver, 4, index2d, 6);
 	v2->createTexture(0, vertex, 4, index2d, 6, 2);
 	//for (int i = 0; i < Num; i++) {
-	v22[0] = new VulkanBasicPolygon(device);
+	v22[0] = new VulkanBasicPolygon();
 	v22[0]->create(0, false, 0, 1, -1, ver11, 24, index1, 36);
 	//v22[1] = new VulkanBasicPolygon(device);
 	//v22[1]->create(0, true, 2, -1, -1, ver11, 24, index1, 36);
 	//}
 
 	sk = new VulkanSkinMesh();
-	sk->setFbx(device, "../../../texturePPM/boss1bone.fbx", 100.0f);
+	sk->setFbx("../../../texturePPM/boss1bone.fbx", 100.0f);
 	sk->additionalAnimation("../../../texturePPM/boss1bone_wait.fbx", 50.0f);
 	sk1 = new VulkanSkinMesh();
-	sk1->setFbx(device, "../../../texturePPM/player1_fbx_att.fbx", 300.0f);
+	sk1->setFbx("../../../texturePPM/player1_fbx_att.fbx", 300.0f);
 	sk1->additionalAnimation("../../../texturePPM/player1_fbx_walk_deform.fbx", 200.0f);
 	sk2 = new VulkanSkinMesh();
-	sk2->setFbx(device, "../../../Black Dragon NEW/Dragon_Baked_Actions2.fbx", 300);
+	sk2->setFbx("../../../Black Dragon NEW/Dragon_Baked_Actions2.fbx", 300);
 
 	sk2->create(0, true);
 	sk1->create(0, true);
@@ -268,11 +272,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	ValidateRect(hWnd, 0);// WM_PAINTが呼ばれないようにする
 
 	//スワップチェインtest
-	device->destroySwapchain();
+	/*device->destroySwapchain();
 	vins->destroySurface();
 	vins->createSurfaceHwnd(hWnd);
-	device->createSwapchain(vins->getSurface());
-
+	device->createSwapchain(vins->getSurface(), true);
+	device->updateProjection();
+	*/
 	MSG msg;
 	uint32_t swap = 0;
 	std::thread th(draw, std::ref(swap));
@@ -307,12 +312,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	S_DELETE(sk);
 	S_DELETE(sk1);
 	S_DELETE(sk2);
-	S_DELETE(device);
+	VulkanDevice::DeleteInstance();
 	S_DELETE(vins);
 	return (int)msg.wParam;
 }
 
 void update(uint32_t sw) {
+	VulkanDevice* device = VulkanDevice::GetInstance();
 	if (the++ > 360.0f)the = 0.0f;
 	MATRIX thetaY;
 	VECTOR3 light1 = { 0.3f,0.4f,-2.0f };
@@ -338,10 +344,12 @@ void update(uint32_t sw) {
 }
 
 void draw(uint32_t& sw0) {
+	VulkanDevice* device = VulkanDevice::GetInstance();
 	while (loop) {
 		uint32_t sw = 1 - sw0;
 		if (firstDraw) {
-			device->beginCommand(0);
+			device->beginCommandNextImage(0);
+			device->beginDraw(0);
 			v2->draw(sw, 0);
 			for (int i = 0; i < Num; i++) {
 				v22[i]->draw(sw, 0);
@@ -349,6 +357,7 @@ void draw(uint32_t& sw0) {
 			sk->draw(sw, 0);
 			sk1->draw(sw, 0);
 			sk2->draw(sw, 0);
+			device->endDraw(0);
 			device->endCommand(0);
 			device->Present(0);
 		}

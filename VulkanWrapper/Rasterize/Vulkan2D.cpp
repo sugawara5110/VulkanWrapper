@@ -7,16 +7,16 @@
 #include "Vulkan2D.h"
 #include "Shader/Shader2D.h"
 
-Vulkan2D::Vulkan2D(Device* dev) {
-	device = dev;
+Vulkan2D::Vulkan2D() {
+
 }
 
 Vulkan2D::~Vulkan2D() {
-	device->waitForFence(device->swFence[0]);
-	texture.destroy(device->device);
+	VulkanDevice* device = VulkanDevice::GetInstance();
+	device->waitForFence(device->swBuf.getFence());
+	texture.destroy();
 	for (uint32_t s = 0; s < numSwap; s++) {
-		vkDestroyBuffer(device->device, uniform[s].vkBuf, nullptr);
-		vkFreeMemory(device->device, uniform[s].mem, nullptr);
+		uniform[s].buf.destroy();
 	}
 	vkDestroyDescriptorSetLayout(device->device, descSetLayout, nullptr);
 	for (uint32_t s = 0; s < numSwap; s++) {
@@ -27,10 +27,8 @@ Vulkan2D::~Vulkan2D() {
 	vkDestroyPipeline(device->device, pipeline, nullptr);
 	vkDestroyPipelineCache(device->device, pipelineCache, nullptr);
 	vkDestroyPipelineLayout(device->device, pipelineLayout, nullptr);
-	vkDestroyBuffer(device->device, vertices.first, nullptr);
-	vkFreeMemory(device->device, vertices.second, nullptr);
-	vkDestroyBuffer(device->device, index.first, nullptr);
-	vkFreeMemory(device->device, index.second, nullptr);
+	vertices.destroy();
+	index.destroy();
 }
 
 void Vulkan2D::createColor(uint32_t comIndex, Vertex2D* ver, uint32_t num, uint32_t* ind, uint32_t indNum) {
@@ -52,21 +50,25 @@ void Vulkan2D::createTexture(uint32_t comIndex, Vertex2DTex* ver, uint32_t num, 
 }
 
 void Vulkan2D::update(uint32_t swapIndex, CoordTf::VECTOR2 pos) {
+	VulkanDevice* device = VulkanDevice::GetInstance();
 	uniform[swapIndex].uni.world.as(pos.x, pos.y);
 	device->updateUniform(uniform[swapIndex]);
 }
 
 void Vulkan2D::draw(uint32_t swapIndex, uint32_t comIndex) {
-	static VkViewport vp = { 0.0f, 0.0f, (float)device->width, (float)device->height, 0.0f, 1.0f };
-	static VkRect2D sc = { { 0, 0 }, { device->width, device->height } };
+	VulkanDevice* device = VulkanDevice::GetInstance();
+	uint32_t width = device->swBuf.getSize().width;
+	uint32_t height = device->swBuf.getSize().height;
+	static VkViewport vp = { 0.0f, 0.0f, (float)width, (float)height, 0.0f, 1.0f };
+	static VkRect2D sc = { { 0, 0 }, { width, height } };
 	static VkDeviceSize offsets[] = { 0 };
 
 	vkCmdBindPipeline(device->commandBuffer[comIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 	vkCmdSetViewport(device->commandBuffer[comIndex], 0, 1, &vp);
 	vkCmdSetScissor(device->commandBuffer[comIndex], 0, 1, &sc);
-	vkCmdBindVertexBuffers(device->commandBuffer[comIndex], 0, 1, &vertices.first, offsets);
+	vkCmdBindVertexBuffers(device->commandBuffer[comIndex], 0, 1, vertices.getBufferAddress(), offsets);
 	vkCmdBindDescriptorSets(device->commandBuffer[comIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
 		&descSet[swapIndex], 0, nullptr);
-	vkCmdBindIndexBuffer(device->commandBuffer[comIndex], index.first, 0, VK_INDEX_TYPE_UINT32);
+	vkCmdBindIndexBuffer(device->commandBuffer[comIndex], index.getBuffer(), 0, VK_INDEX_TYPE_UINT32);
 	vkCmdDrawIndexed(device->commandBuffer[comIndex], numIndex, 1, 0, 0, 0);
 }
