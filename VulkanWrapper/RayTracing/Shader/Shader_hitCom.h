@@ -1,14 +1,16 @@
 ﻿//*****************************************************************************************//
-//**                                                                                     **//
-//**                             Shader_hitCom.h                                         **//
-//**                                                                                     **//
+//**                             Shader_hitCom.h                                         **//
 //*****************************************************************************************//
 
 char* Shader_hitCom =
 
-"layout(location = 0) rayPayloadInEXT vkRayPayload payload;\n"
-
 "hitAttributeEXT vec2 attribs;\n"
+
+"const int NONREFLECTION  = 0; \n"//0b0000
+"const int METALLIC       = 8; \n"//0b1000
+"const int EMISSIVE       = 4; \n"//0b0100
+"const int DIRECTIONLIGHT = 2; \n"//0b0010
+"const int TRANSLUCENCE   = 1; \n"//0b0001
 
 "struct Vertex {\n"
 "    vec4 Position;\n"
@@ -33,7 +35,7 @@ char* Shader_hitCom =
 "};\n"
 
 ///////////////////////////////////////////Material識別////////////////////////////////////////////
-"bool materialIdent(uint matNo, uint MaterialBit)\n"
+"bool materialIdent(int matNo, int MaterialBit)\n"
 "{\n"
 "    return (matNo & MaterialBit) == MaterialBit;\n"
 "}\n"
@@ -125,29 +127,6 @@ char* Shader_hitCom =
 "    return ret;\n"
 "}\n"
 
-//////////////////////////////////////ピクセル値取得///////////////////////////////////////////
-//////////////ディフェーズ
-"vec4 getDifPixel()\n"
-"{\n"
-"    vec2 uv = getTexUV();\n"
-"    vec4 ret = texture(texturesDif[gl_InstanceID], uv);\n"
-"    return ret;\n"
-"}\n"
-//////////////ノーマル
-"vec4 getNorPixel()\n"
-"{\n"
-"    vec2 uv = getTexUV();\n"
-"    vec4 ret = texture(texturesNor[gl_InstanceID], uv);\n"
-"    return ret;\n"
-"}\n"
-//////////////スペキュラ
-"vec4 getSpePixel()\n"
-"{\n"
-"    vec2 uv = getSpeUV();\n"
-"    vec4 ret = texture(texturesSpe[gl_InstanceID], uv);\n"
-"    return ret;\n"
-"}\n"
-
 /////////////////////////////ノーマルテクスチャから法線取得/////////////////////////////////////
 "vec3 getNormalMap(in vec3 normal, in vec2 uv, in vec3 tangent)\n"
 "{\n"
@@ -158,4 +137,30 @@ char* Shader_hitCom =
 "    vec4 Tnor = texture(texturesNor[gl_InstanceID], uv);\n"
 //ノーマルマップでの法線出力
 "    return GetNormal(Tnor.xyz, tan.normal, tan.tangent);\n"
+"}\n"
+
+//////////////////////////////////////ピクセル値取得///////////////////////////////////////////
+//////////////ディフェーズ
+"vec4 getDifPixel()\n"
+"{\n"
+"    vec2 uv = getTexUV();\n"
+"    vec4 ret = texture(texturesDif[gl_InstanceID], uv);\n"
+"    return ret;\n"
+"}\n"
+//////////////ノーマル
+"vec3 getNorPixel()\n"
+"{\n"
+"    vec2 uv = getTexUV();\n"
+"    vec3 tan = getTangent();\n"
+"    vec3 nor = getNormal();\n"
+
+"    vec3 ret = getNormalMap(nor, uv, tan);\n"
+"    return ret;\n"
+"}\n"
+//////////////スペキュラ
+"vec3 getSpePixel()\n"
+"{\n"
+"    vec2 uv = getSpeUV();\n"
+"    vec4 ret = texture(texturesSpe[gl_InstanceID], uv);\n"
+"    return ret.xyz;\n"
 "}\n";

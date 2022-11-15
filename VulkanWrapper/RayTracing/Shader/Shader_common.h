@@ -1,7 +1,5 @@
 ﻿//*****************************************************************************************//
-//**                                                                                     **//
-//**                             Shader_common.h                                         **//
-//**                                                                                     **//
+//**                             Shader_common.h                                         **//
 //*****************************************************************************************//
 
 char* Shader_common =
@@ -11,6 +9,8 @@ char* Shader_common =
 "#extension GL_EXT_nonuniform_qualifier : enable\n"//gl_InstanceIDで必要
 
 "#define NumLightMax 256 \n"
+
+"layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;\n"
 
 "layout(binding = 2, set = 0) uniform SceneParameters {\n"
 "    mat4 projectionToWorld;\n"
@@ -30,15 +30,15 @@ char* Shader_common =
 "    vec4 Diffuse;\n"
 "    vec4 Speculer; \n"
 "    vec4 Ambient;\n"
-"    float shininess;\n"
-"    float RefractiveIndex;\n"//屈折率
-"    float AlphaBlend;\n"
-"    int materialNo;\n"
 "    vec4 lightst;\n"//レンジ, 減衰1, 減衰2, 減衰3
+"    vec4 shininess;\n"//x:
+"    vec4 RefractiveIndex;\n"//x:屈折率
+"    vec4 AlphaBlend;\n"//x:
+"    vec4 materialNo;\n"//x:
 "};\n"
 
 "layout(binding = 8, set = 0) uniform Materials {\n"
-"    MaterialCB mat[];\n"
+"    MaterialCB matCB[256];\n"
 "};\n"
 
 "struct vkRayPayload\n"

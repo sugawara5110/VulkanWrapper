@@ -37,17 +37,17 @@ private:
         VkStridedDeviceAddressRegionKHR hit = { };
     };
     struct SceneParam {
-        CoordTf::MATRIX projectionToWorld;
-        CoordTf::VECTOR4 cameraPosition;
-        CoordTf::VECTOR4 emissivePosition[VulkanDevice::numLightMax];//xyz:Pos, w:オンオフ
-        CoordTf::VECTOR4 numEmissive;//.xのみ
-        CoordTf::VECTOR4 GlobalAmbientColor = { 0.01f,0.01f,0.01f,0.0f };
-        CoordTf::VECTOR4 emissiveNo[VulkanDevice::numLightMax];//.xのみ
-        CoordTf::VECTOR4 dDirection;
-        CoordTf::VECTOR4 dLightColor;
-        CoordTf::VECTOR4 dLightst;//x:オンオフ
-        CoordTf::VECTOR4 TMin_TMax;//x, y
-        uint32_t maxRecursion;
+        CoordTf::MATRIX projectionToWorld = {};
+        CoordTf::VECTOR4 cameraPosition = {};
+        CoordTf::VECTOR4 emissivePosition[VulkanDevice::numLightMax] = {};//xyz:Pos, w:オンオフ
+        CoordTf::VECTOR4 numEmissive = {};//.xのみ
+        CoordTf::VECTOR4 GlobalAmbientColor = {};
+        CoordTf::VECTOR4 emissiveNo[VulkanDevice::numLightMax] = {};//.xのみ
+        CoordTf::VECTOR4 dDirection = {};
+        CoordTf::VECTOR4 dLightColor = {};
+        CoordTf::VECTOR4 dLightst = {};//x:オンオフ
+        CoordTf::VECTOR4 TMin_TMax = {};//x, y
+        uint32_t maxRecursion = 0;
     };
 
     // ジオメトリ情報.
@@ -63,8 +63,14 @@ private:
 
     enum ShaderGroups {
         GroupRayGenShader = 0,
-        GroupMissShader = 1,
-        GroupHitShader = 2,
+        GroupMissShader0 = 1,
+        GroupMissShader1 = 2,
+        GroupEmMissShader0 = 3,
+        GroupEmMissShader1 = 4,
+        GroupHitShader0 = 5,
+        GroupHitShader1 = 6,
+        GroupEmHitShader0 = 7,
+        GroupEmHitShader1 = 8,
         MaxShaderGroup
     };
     std::vector<VkRayTracingShaderGroupCreateInfoKHR> m_shaderGroups;
@@ -79,7 +85,8 @@ private:
 
     SceneParam m_sceneParam;
     VulkanDevice::Uniform<SceneParam> m_sceneUBO;
-    std::vector<VkDescriptorBufferInfo> materialArr;
+    std::vector<VulkanBasicPolygonRt::RtMaterial> materialArr;
+    BufferSetRt materialUBO;
 
 public:
     std::unique_ptr<VulkanDeviceRt> m_device;

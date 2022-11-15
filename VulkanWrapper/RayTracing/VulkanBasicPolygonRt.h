@@ -30,11 +30,11 @@ public:
 		CoordTf::VECTOR4 vDiffuse = { 0.8f,0.8f,0.8f,1.0f };//ディフューズ色
 		CoordTf::VECTOR4 vSpeculer = { 0.6f,0.6f,0.6f,1.0f };//スぺキュラ色
 		CoordTf::VECTOR4 vAmbient = { 0.1f,0.1f,0.1f,0.0f };//アンビエント
-		float shininess = 4.0f;//スペキュラ強さ
-		float RefractiveIndex = 0.0f;//屈折率
-		bool useAlpha = false;
-		uint32_t MaterialType = NONREFLECTION;
-		CoordTf::VECTOR4 lightst = { 100.0f,0.01f, 0.001f, 0.001f };//レンジ, 減衰1, 減衰2, 減衰3
+		CoordTf::VECTOR4 lightst = { 100.0f,0.1f, 0.001f, 0.001f };//レンジ, 減衰1, 減衰2, 減衰3
+		CoordTf::VECTOR4 shininess = { 4.0f,0.0f,0.0f,0.0f };//x:スペキュラ強さ
+		CoordTf::VECTOR4 RefractiveIndex = { 0.0f,0.0f,0.0f,0.0f };//x:屈折率
+		CoordTf::VECTOR4 useAlpha = { 0.0f,0.0f,0.0f,0.0f };//x:
+		CoordTf::VECTOR4 MaterialType = { NONREFLECTION,0.0f,0.0f,0.0f };//x:
 	};
 	struct RtData {
 		BufferSetRt vertexBuf = {};
@@ -43,9 +43,11 @@ public:
 		uint32_t indexCount = 0;
 		uint32_t vertexStride = 0;
 
+		CoordTf::VECTOR4 pos = { 0.0f,0.0f,0.0f,1.0f };//w:on, off
+
 		VulkanDevice::textureIdSet texId = {};
 
-		VulkanDevice::Uniform<RtMaterial> mat = {};
+		RtMaterial mat = {};
 
 		AccelerationStructure BLAS = {};
 		std::vector<Instance> instance;
@@ -79,6 +81,8 @@ public:
 		VulkanDevice::textureIdSet* texid, uint32_t InstanceSize);
 
 	void setMaterialType(vkMaterialType type, uint32_t matIndex);
+
+	void LightOn(bool on, uint32_t matIndex);
 
 	void create(uint32_t comIndex, bool useAlpha,
 		VulkanDevice::Vertex3D* ver, uint32_t num, uint32_t* ind, uint32_t indNum,

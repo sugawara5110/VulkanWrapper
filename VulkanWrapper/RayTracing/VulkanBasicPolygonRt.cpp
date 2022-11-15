@@ -16,12 +16,16 @@ VulkanBasicPolygonRt::~VulkanBasicPolygonRt() {
         Rdata[i].indexBuf.destroy();
         Rdata[i].BLAS.destroy();
         Rdata[i].texId.destroy();
-        Rdata[i].mat.buf.destroy();
     }
 }
 
 void VulkanBasicPolygonRt::setMaterialType(vkMaterialType type, uint32_t matIndex) {
-    Rdata[matIndex].mat.uni.MaterialType = type;
+    Rdata[matIndex].mat.MaterialType.x = (float)type;
+}
+
+void VulkanBasicPolygonRt::LightOn(bool on, uint32_t matIndex) {
+    Rdata[matIndex].pos.w = 0.0f;
+    if (on)Rdata[matIndex].pos.w = 1.0f;
 }
 
 void VulkanBasicPolygonRt::createVertexBuffer(RtData& rdata, uint32_t comIndex, Vertex3D_t* ver, uint32_t num, uint32_t* ind, uint32_t indNum) {
@@ -102,7 +106,7 @@ void VulkanBasicPolygonRt::updateInstance(RtData& rdata) {
         if (InstanceCnt > i) instance.mask = 0xFF;
         instance.flags = 0;
         instance.accelerationStructureReference = rdata.BLAS.getDeviceAddress();
-        instance.instanceShaderBindingTableRecordOffset = 0;
+        instance.instanceShaderBindingTableRecordOffset = 0;//hit Shader Index
         if (rdataCreateF)
             instance.transform = rdata.instance[i].vkWorld;
         else
@@ -134,8 +138,9 @@ void VulkanBasicPolygonRt::createMultipleMaterials(uint32_t comIndex, bool useAl
         createBLAS(Rdata[i]);
         updateInstance(Rdata[i]);
         createTexture(Rdata[i], comIndex, texid[i]);
-        Rdata[i].mat.uni.useAlpha = useAlpha;
-        VulkanDevice::GetInstance()->createUniform(Rdata[i].mat);
+        Rdata[i].mat.useAlpha.x = 0.0f;
+        if (useAlpha)
+            Rdata[i].mat.useAlpha.x = 1.0f;
     }
     rdataCreateF = true;
 }
@@ -170,25 +175,26 @@ void VulkanBasicPolygonRt::setMaterialParameter(
     CoordTf::VECTOR3 diffuse, CoordTf::VECTOR3 specular, CoordTf::VECTOR3 ambient,
     uint32_t materialIndex, float shininess, float RefractiveIndex) {
 
-    VulkanBasicPolygonRt::RtMaterial& m = Rdata[materialIndex].mat.uni;
+    VulkanBasicPolygonRt::RtMaterial& m = Rdata[materialIndex].mat;
     m.vDiffuse.as(diffuse.x, diffuse.y, diffuse.z, 1.0f);
     m.vSpeculer.as(specular.x, specular.y, specular.z, 1.0f);
     m.vAmbient.as(ambient.x, ambient.y, ambient.z, 1.0f);
-    m.shininess = shininess;
-    m.RefractiveIndex = RefractiveIndex;
+    m.shininess.x = shininess;
+    m.RefractiveIndex.x = RefractiveIndex;
 }
 
 void VulkanBasicPolygonRt::instancing(CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale) {
-
-    CoordTf::MATRIX w = {};
+    using namespace CoordTf;
+    MATRIX w = {};
     VkTransformMatrixKHR vw = {};
     vkUtil::calculationMatrixWorld(w, pos, theta, scale);
-    CoordTf::MatrixTranspose(&w);
+    MatrixTranspose(&w);
     memcpy(&vw.matrix[0], &w.m[0], sizeof(float) * 4);
     memcpy(&vw.matrix[1], &w.m[1], sizeof(float) * 4);
     memcpy(&vw.matrix[2], &w.m[2], sizeof(float) * 4);
 
     for (auto i = 0; i < Rdata.size(); i++) {
+        memcpy(&Rdata[i].pos, &pos, sizeof(VECTOR3));
         Rdata[i].instance[InstanceCnt].world = w;
         Rdata[i].instance[InstanceCnt].vkWorld = vw;
         if (InstanceCnt > Rdata[i].instance.size()) {
@@ -201,7 +207,6 @@ void VulkanBasicPolygonRt::instancing(CoordTf::VECTOR3 pos, CoordTf::VECTOR3 the
 void VulkanBasicPolygonRt::instancingUpdate() {
     for (auto i = 0; i < Rdata.size(); i++) {
         updateInstance(Rdata[i]);
-        VulkanDevice::GetInstance()->updateUniform(Rdata[i].mat);
     }
     InstanceCnt = 0;
 }

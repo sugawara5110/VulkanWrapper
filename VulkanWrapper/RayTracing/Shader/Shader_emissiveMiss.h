@@ -1,8 +1,8 @@
-ï»¿//*****************************************************************************************//
-//**                             Shader_miss.h                                           **//
+//*****************************************************************************************//
+//**                             Shader_emissiveMiss.h                                   **//
 //*****************************************************************************************//
 
-char* Shader_miss =
+char* Shader_emissiveMiss =
 
 "#extension GL_EXT_ray_tracing : enable\n"
 
@@ -16,7 +16,7 @@ char* Shader_miss =
 "    int RecursionCnt;\n"
 "    int instanceID;\n"
 "    int mNo;\n"
-"    vec4 lightst;\n"//ãƒ¬ãƒ³ã‚¸, æ¸›è¡°1, æ¸›è¡°2, æ¸›è¡°3
+"    vec4 lightst;\n"//ƒŒƒ“ƒW, Œ¸Š1, Œ¸Š2, Œ¸Š3
 "    float depth;\n"
 "};\n"
 
@@ -24,7 +24,6 @@ char* Shader_miss =
 
 "void main()\n"
 "{\n"
-"    payloadIn.color = vec3(0.0, 0.8, 0.0);\n"
-"    payloadIn.hit = false;\n"
+"    payloadIn.color = vec3(0.5, 0.5, 0.5);\n"
 "    payloadIn.reTry = false;\n"
 "}\n";

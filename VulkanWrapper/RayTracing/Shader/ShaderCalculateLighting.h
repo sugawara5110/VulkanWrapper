@@ -14,9 +14,7 @@ char* ShaderCalculateLighting =
 "                  vec3 wPos, vec3 lightCol, vec3 eyePos, vec3 lightVec, float distAtten, float shininess)\n"
 "{\n"
 //出力用
-"    LightOut Out;\n"
-"    Out.Diffuse = vec3(0.0f, 0.0f, 0.0f);\n"
-"    Out.Speculer = vec3(0.0f, 0.0f, 0.0f);\n"
+"    LightOut Out = LightOut(vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 0.0f, 0.0f));\n"
 
 //ライトベクトル正規化
 "    vec3 LVec = normalize(lightVec);\n"
@@ -43,9 +41,7 @@ char* ShaderCalculateLighting =
 "                       vec4 lightPos, vec3 wPos, vec4 lightSt, vec3 lightCol, vec3 eyePos, float shininess)\n"
 "{\n"
 //出力用
-"    LightOut Out;\n"
-"    Out.Diffuse = vec3(0.0f, 0.0f, 0.0f);\n"
-"    Out.Speculer = vec3(0.0f, 0.0f, 0.0f);\n"
+"    LightOut Out = LightOut(vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 0.0f, 0.0f));\n"
 
 //ライトベクトル
 "    vec3 lightVec = lightPos.xyz - wPos;\n"
@@ -76,9 +72,7 @@ char* ShaderCalculateLighting =
 "                             vec4 DlightSt, vec3 Dir, vec3 DCol, vec3 wPos, vec3 eyePos, float shininess)\n"
 "{\n"
 //出力用
-"    LightOut Out;\n"
-"    Out.Diffuse = vec3(0.0f, 0.0f, 0.0f);\n"
-"    Out.Speculer = vec3(0.0f, 0.0f, 0.0f);\n"
+"    LightOut Out = LightOut(vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 0.0f, 0.0f));\n"
 
 "    if(DlightSt.x == 1.0f)\n"
 "    {\n"

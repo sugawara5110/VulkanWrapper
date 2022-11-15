@@ -12,9 +12,14 @@
 #include "Shader/Shader_closesthit.h"
 #include "Shader/Shader_miss.h"
 #include "Shader/Shader_raygen.h"
+#include "Shader/Shader_anyHit.h"
+#include "Shader/Shader_emissiveHit.h"
+#include "Shader/Shader_emissiveMiss.h"
+#include "Shader/Shader_traceRay.h"
+#include "Shader/Shader_location_Index.h"
 
 namespace {
-    VkRayTracingShaderGroupCreateInfoKHR CreateShaderGroupRayGeneration(uint32_t shaderIndex) {
+    VkRayTracingShaderGroupCreateInfoKHR createShaderGroupRayGeneration(uint32_t shaderIndex) {
 
         VkRayTracingShaderGroupCreateInfoKHR shaderGroupCI{
             VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR
@@ -27,7 +32,7 @@ namespace {
         return shaderGroupCI;
     }
 
-    VkRayTracingShaderGroupCreateInfoKHR CreateShaderGroupMiss(uint32_t shaderIndex) {
+    VkRayTracingShaderGroupCreateInfoKHR createShaderGroupMiss(uint32_t shaderIndex) {
 
         VkRayTracingShaderGroupCreateInfoKHR shaderGroupCI{
             VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR
@@ -40,7 +45,7 @@ namespace {
         return shaderGroupCI;
     }
 
-    VkRayTracingShaderGroupCreateInfoKHR CreateShaderGroupHit(
+    VkRayTracingShaderGroupCreateInfoKHR createShaderGroupHit(
         uint32_t closestHitShaderIndex,
         uint32_t anyHitShaderIndex = VK_SHADER_UNUSED_KHR,
         uint32_t intersectionShaderIndex = VK_SHADER_UNUSED_KHR) {
@@ -64,8 +69,11 @@ namespace {
 
 void VulkanRendererRt::Init(std::vector<VulkanBasicPolygonRt::RtData*> r) {
 
+    VulkanDevice::GetInstance()->createUniform(m_sceneUBO);
+
     rt = r;
 
+    int emissiveCnt = 0;
     for (int i = 0; i < rt.size(); i++) {
         vertexArr.push_back(rt[i]->vertexBuf.info);
         indexArr.push_back(rt[i]->indexBuf.info);
@@ -73,35 +81,46 @@ void VulkanRendererRt::Init(std::vector<VulkanBasicPolygonRt::RtData*> r) {
             textureDifArr.push_back(rt[i]->texId.difTex.image.info);
             textureNorArr.push_back(rt[i]->texId.norTex.image.info);
             textureSpeArr.push_back(rt[i]->texId.speTex.image.info);
-            materialArr.push_back(rt[i]->mat.buf.info);
+
+            materialArr.push_back(rt[i]->mat);
+            if (rt[i]->mat.MaterialType.x == (float)EMISSIVE) {
+                memcpy(&m_sceneParam.emissivePosition[emissiveCnt], &rt[i]->pos, sizeof(CoordTf::VECTOR4));
+                m_sceneParam.emissiveNo[emissiveCnt].x = (float)i;
+                emissiveCnt++;
+            }
         }
     }
+    m_sceneParam.numEmissive.x = (float)emissiveCnt;
 
-    // レイトレーシングするためTLASを準備します.
+    VkMemoryAllocateFlagsInfo memoryAllocateFlagsInfo{
+  VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO,
+  nullptr,
+    };
+    memoryAllocateFlagsInfo.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR;
+    void* pNext = &memoryAllocateFlagsInfo;
+    materialUBO.createUploadBuffer(materialArr.size() * sizeof(VulkanBasicPolygonRt::RtMaterial),
+        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, pNext);
+    materialUBO.memoryMap(materialArr.data());
+
     CreateSceneTLAS();
 
-    // レイトレーシング用の結果バッファを準備する.
     CreateRaytracedBuffer();
 
-    // これから必要になる各種レイアウトの準備.
     CreateLayouts();
 
-    // シーンパラメータ用UniformBufferを生成.
-    VulkanDevice::GetInstance()->createUniform(m_sceneUBO);
-
-    // レイトレーシングパイプラインを構築する.
     CreateRaytracePipeline();
 
-    // シェーダーバインディングテーブルを構築する.
     CreateShaderBindingTable();
 
-    // ディスクリプタの準備・書き込み.
     CreateDescriptorSets();
 
-    using namespace CoordTf;
+    //↓仮で入れてる
     m_sceneParam.dLightColor = { 1,1,1,1 };
     m_sceneParam.dDirection = { -0.2f, -1.0f, -1.0f, 0.0f };
-    m_sceneParam.GlobalAmbientColor = { 0.25f,0.25f,0.25f,0.25 };
+    m_sceneParam.GlobalAmbientColor = { 0.25f,0.25f,0.25f,0 };
+    m_sceneParam.dLightst.x = 1.0f;
+    m_sceneParam.TMin_TMax.as(0.1f, 100.0f, 0.0f, 0.0f);
+    m_sceneParam.maxRecursion = 5;
 }
 
 void VulkanRendererRt::destroy() {
@@ -109,6 +128,7 @@ void VulkanRendererRt::destroy() {
     vkDeviceWaitIdle(VulkanDevice::GetInstance()->getDevice());
 
     m_sceneUBO.buf.destroy();
+    materialUBO.destroy();
     m_instancesBuffer.destroy();
     m_topLevelAS.destroy();
 
@@ -134,6 +154,18 @@ void VulkanRendererRt::Update() {
     MatrixMultiply(&VP, &dev->getCameraView(), &dev->getProjection());
     MatrixTranspose(&VP);
     MatrixInverse(&m_sceneParam.projectionToWorld, &VP);
+
+    int emissiveCnt = 0;
+    for (int i = 0; i < rt.size(); i++) {
+        for (int j = 0; j < rt[i]->instance.size(); j++) {
+            if (rt[i]->mat.MaterialType.x == (float)EMISSIVE) {
+                memcpy(&m_sceneParam.emissivePosition[emissiveCnt], &rt[i]->pos, sizeof(CoordTf::VECTOR4));
+                m_sceneParam.emissiveNo[emissiveCnt].x = (float)i;
+                emissiveCnt++;
+            }
+        }
+    }
+    m_sceneParam.numEmissive.x = (float)emissiveCnt;
 }
 
 void VulkanRendererRt::Render() {
@@ -147,6 +179,7 @@ void VulkanRendererRt::Render() {
 
     memcpy(&m_sceneUBO.uni, &m_sceneParam, sizeof(m_sceneParam));
     dev->updateUniform(m_sceneUBO);
+    materialUBO.memoryMap(materialArr.data());
 
     vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_raytracePipeline);
     vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_pipelineLayout, 0,
@@ -323,32 +356,88 @@ void VulkanRendererRt::CreateRaytracedBuffer() {
 
 void VulkanRendererRt::CreateRaytracePipeline() {
 
-    // レイトレーシングのシェーダーを読み込む.
     vkUtil::addChar ray[1];
-    vkUtil::addChar clo[4];
+    vkUtil::addChar miss0[1];
+    vkUtil::addChar miss1[1];
+    vkUtil::addChar clo0[6];
+    vkUtil::addChar clo1[3];
+    vkUtil::addChar emMiss0[1];
+    vkUtil::addChar emMiss1[1];
+    vkUtil::addChar emHit0[2];
+    vkUtil::addChar emHit1[2];
+    vkUtil::addChar aHit[1];
+
     ray[0].addStr(Shader_common, Shader_raygen);
-    clo[0].addStr(Shader_common, ShaderCalculateLighting);
-    clo[1].addStr(clo[0].str, ShaderNormalTangent);
-    clo[2].addStr(clo[1].str, Shader_hitCom);
-    clo[3].addStr(clo[2].str, Shader_closesthit);
-    auto rgsStage = VulkanDevice::GetInstance()->createShaderModule("raygen", ray[0].str, VK_SHADER_STAGE_RAYGEN_BIT_KHR);
-    auto missStage = VulkanDevice::GetInstance()->createShaderModule("miss", Shader_miss, VK_SHADER_STAGE_MISS_BIT_KHR);
-    auto chitStage = VulkanDevice::GetInstance()->createShaderModule("closesthit", clo[3].str, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR);
+
+    miss0[0].addStr(Shader_location_Index_In_0_Miss, Shader_miss);
+    miss1[0].addStr(Shader_location_Index_In_1_Miss, Shader_miss);
+
+    clo0[0].addStr(Shader_common, ShaderCalculateLighting);
+    clo0[1].addStr(clo0[0].str, ShaderNormalTangent);
+    clo0[2].addStr(clo0[1].str, Shader_hitCom);
+    clo0[3].addStr(clo0[2].str, Shader_location_Index_Clo_0);
+    clo0[4].addStr(clo0[3].str, Shader_traceRay);
+    clo0[5].addStr(clo0[4].str, Shader_closesthit);
+
+    clo1[0].addStr(clo0[2].str, Shader_location_Index_Clo_1);
+    clo1[1].addStr(clo1[0].str, Shader_traceRay);
+    clo1[2].addStr(clo1[1].str, Shader_closesthit);
+
+    emMiss0[0].addStr(Shader_location_Index_In_1_Miss, Shader_emissiveMiss);
+    emMiss1[0].addStr(Shader_location_Index_In_0_Miss, Shader_emissiveMiss);
+
+    emHit0[0].addStr(clo0[2].str, Shader_location_Index_In_1);
+    emHit0[1].addStr(emHit0[0].str, Shader_emissiveHit);
+
+    emHit1[0].addStr(clo0[2].str, Shader_location_Index_In_0);
+    emHit1[1].addStr(emHit1[0].str, Shader_emissiveHit);
+
+    aHit[0].addStr(clo0[2].str, Shader_anyHit);
+
+    VulkanDevice* dev = VulkanDevice::GetInstance();
+    auto rgsStage = dev->createShaderModule("raygen", ray[0].str, VK_SHADER_STAGE_RAYGEN_BIT_KHR);
+    auto miss0Stage = dev->createShaderModule("miss0", miss0[0].str, VK_SHADER_STAGE_MISS_BIT_KHR);
+    auto miss1Stage = dev->createShaderModule("miss1", miss1[0].str, VK_SHADER_STAGE_MISS_BIT_KHR);
+    auto chit0Stage = dev->createShaderModule("closesthit0", clo0[5].str, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR);
+    auto chit1Stage = dev->createShaderModule("closesthit1", clo1[2].str, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR);
+    auto emMiss0Stage = dev->createShaderModule("emMiss0", emMiss0[0].str, VK_SHADER_STAGE_MISS_BIT_KHR);
+    auto emMiss1Stage = dev->createShaderModule("emMiss1", emMiss1[0].str, VK_SHADER_STAGE_MISS_BIT_KHR);
+    auto emHit0Stage = dev->createShaderModule("emhit0", emHit0[1].str, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR);
+    auto emHit1Stage = dev->createShaderModule("emhit1", emHit1[1].str, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR);
+    auto aHitStage = dev->createShaderModule("ahit", aHit[0].str, VK_SHADER_STAGE_ANY_HIT_BIT_KHR);
 
     std::vector<VkPipelineShaderStageCreateInfo> stages = {
-        rgsStage, missStage, chitStage
+        rgsStage,
+        miss0Stage, miss1Stage,
+        emMiss0Stage, emMiss1Stage,
+        chit0Stage, chit1Stage,
+        emHit0Stage, emHit1Stage,
+        aHitStage
     };
 
     // stages 配列内での各シェーダーのインデックス.
     const int indexRaygen = 0;
-    const int indexMiss = 1;
-    const int indexClosestHit = 2;
+    const int indexMiss0 = 1;
+    const int indexMiss1 = 2;
+    const int indexEmMiss0 = 3;
+    const int indexEmMiss1 = 4;
+    const int indexClosestHit0 = 5;
+    const int indexClosestHit1 = 6;
+    const int indexEmHit0 = 7;
+    const int indexEmHit1 = 8;
+    const int indexAHit = 9;
 
     // シェーダーグループの生成.
     m_shaderGroups.resize(MaxShaderGroup);
-    m_shaderGroups[GroupRayGenShader] = CreateShaderGroupRayGeneration(indexRaygen);
-    m_shaderGroups[GroupMissShader] = CreateShaderGroupMiss(indexMiss);
-    m_shaderGroups[GroupHitShader] = CreateShaderGroupHit(indexClosestHit);
+    m_shaderGroups[GroupRayGenShader] = createShaderGroupRayGeneration(indexRaygen);
+    m_shaderGroups[GroupMissShader0] = createShaderGroupMiss(indexMiss0);
+    m_shaderGroups[GroupMissShader1] = createShaderGroupMiss(indexMiss1);
+    m_shaderGroups[GroupEmMissShader0] = createShaderGroupMiss(indexEmMiss0);
+    m_shaderGroups[GroupEmMissShader1] = createShaderGroupMiss(indexEmMiss1);
+    m_shaderGroups[GroupHitShader0] = createShaderGroupHit(indexClosestHit0, indexAHit);
+    m_shaderGroups[GroupHitShader1] = createShaderGroupHit(indexClosestHit1, indexAHit);
+    m_shaderGroups[GroupEmHitShader0] = createShaderGroupHit(indexEmHit0, indexAHit);
+    m_shaderGroups[GroupEmHitShader1] = createShaderGroupHit(indexEmHit1, indexAHit);
 
     // レイトレーシングパイプラインの生成.
     VkRayTracingPipelineCreateInfoKHR rtPipelineCI{};
@@ -358,13 +447,13 @@ void VulkanRendererRt::CreateRaytracePipeline() {
     rtPipelineCI.pStages = stages.data();
     rtPipelineCI.groupCount = uint32_t(m_shaderGroups.size());
     rtPipelineCI.pGroups = m_shaderGroups.data();
-    rtPipelineCI.maxPipelineRayRecursionDepth = 1;
+    rtPipelineCI.maxPipelineRayRecursionDepth = 10;//後で変える
     rtPipelineCI.layout = m_pipelineLayout;
     vkCreateRayTracingPipelinesKHR(
         m_device->GetDevice(), VK_NULL_HANDLE, VK_NULL_HANDLE,
         1, &rtPipelineCI, nullptr, &m_raytracePipeline);
 
-    // 作り終えたのでシェーダーモジュールは解放してしまう.
+    //シェーダーモジュール解放
     for (auto& v : stages) {
         vkDestroyShaderModule(
             m_device->GetDevice(), v.module, nullptr);
@@ -385,14 +474,14 @@ void VulkanRendererRt::CreateShaderBindingTable() {
     auto hitShaderEntrySize = Align(handleSize, handleAlignment);
 
     const auto raygenShaderCount = 1;
-    const auto missShaderCount = 1;
-    const auto hitShaderCount = 1;
+    const auto missShaderCount = 4;
+    const auto hitShaderCount = 4;
 
     //各グループのサイズ
     const auto baseAlign = rtPipelineProps.shaderGroupBaseAlignment;
-    auto regionRaygen = Align(raygenShaderEntrySize * raygenShaderCount, baseAlign);
-    auto regionMiss = Align(missShaderEntrySize * missShaderCount, baseAlign);
-    auto regionHit = Align(hitShaderEntrySize * hitShaderCount, baseAlign);
+    auto RaygenGroupSize = Align(raygenShaderEntrySize * raygenShaderCount, baseAlign);
+    auto MissGroupSize = Align(missShaderEntrySize * missShaderCount, baseAlign);
+    auto HitGroupSize = Align(hitShaderEntrySize * hitShaderCount, baseAlign);
 
     VkMemoryAllocateFlagsInfo memoryAllocateFlagsInfo{
   VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO,
@@ -401,7 +490,7 @@ void VulkanRendererRt::CreateShaderBindingTable() {
     memoryAllocateFlagsInfo.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR;
     void* pNext = &memoryAllocateFlagsInfo;
 
-    m_shaderBindingTable.createUploadBuffer(regionRaygen + regionMiss + regionHit,
+    m_shaderBindingTable.createUploadBuffer(RaygenGroupSize + MissGroupSize + HitGroupSize,
         usage, pNext);
 
     //パイプラインのShaderGroupハンドルを取得
@@ -419,28 +508,48 @@ void VulkanRendererRt::CreateShaderBindingTable() {
     void* p = m_shaderBindingTable.Map();
     auto dst = static_cast<uint8_t*>(p);
 
-    // RayGenerationシェーダーのエントリを書き込む.
+    //RayGeneration
     auto raygen = shaderHandleStorage.data() + handleSizeAligned * GroupRayGenShader;
     memcpy(dst, raygen, handleSize);
-    dst += regionRaygen;
+    dst += RaygenGroupSize;
     m_sbtInfo.rgen.deviceAddress = deviceAddress;
-    // Raygen は size=strideが必要.
+    //Raygen は size=strideが必要.
     m_sbtInfo.rgen.stride = raygenShaderEntrySize;
     m_sbtInfo.rgen.size = m_sbtInfo.rgen.stride;
 
-    // Missシェーダーのエントリを書き込む.
-    auto miss = shaderHandleStorage.data() + handleSizeAligned * GroupMissShader;
-    memcpy(dst, miss, handleSize);
-    dst += regionMiss;
-    m_sbtInfo.miss.deviceAddress = deviceAddress + regionRaygen;
-    m_sbtInfo.miss.size = regionMiss;
+    //Miss
+    auto miss = shaderHandleStorage.data() + handleSizeAligned * GroupMissShader0;
+    auto dstM = dst;
+    memcpy(dstM, miss, handleSize);//miss0
+    dstM += missShaderEntrySize;
+    miss += handleSizeAligned;
+    memcpy(dstM, miss, handleSize);//miss1
+    dstM += missShaderEntrySize;
+    miss += handleSizeAligned;
+    memcpy(dstM, miss, handleSize);//emMiss0
+    dstM += missShaderEntrySize;
+    miss += handleSizeAligned;
+    memcpy(dstM, miss, handleSize);//emMiss1
+    dst += MissGroupSize;
+    m_sbtInfo.miss.deviceAddress = deviceAddress + RaygenGroupSize;
+    m_sbtInfo.miss.size = MissGroupSize;
     m_sbtInfo.miss.stride = missShaderEntrySize;
 
-    //Hitシェーダーのエントリを書き込む.
-    auto hit = shaderHandleStorage.data() + handleSizeAligned * GroupHitShader;
-    memcpy(dst, hit, handleSize);
-    m_sbtInfo.hit.deviceAddress = deviceAddress + regionRaygen + regionMiss;
-    m_sbtInfo.hit.size = regionHit;
+    //Hit
+    auto hit = shaderHandleStorage.data() + handleSizeAligned * GroupHitShader0;
+    auto dstH = dst;
+    memcpy(dstH, hit, handleSize);//hit0
+    dstH += hitShaderEntrySize;
+    hit += handleSizeAligned;
+    memcpy(dstH, hit, handleSize);//hit1
+    dstH += hitShaderEntrySize;
+    hit += handleSizeAligned;
+    memcpy(dstH, hit, handleSize);//emHit0
+    dstH += hitShaderEntrySize;
+    hit += handleSizeAligned;
+    memcpy(dstH, hit, handleSize);//emHit1
+    m_sbtInfo.hit.deviceAddress = deviceAddress + RaygenGroupSize + MissGroupSize;
+    m_sbtInfo.hit.size = HitGroupSize;
     m_sbtInfo.hit.stride = hitShaderEntrySize;
 
     m_shaderBindingTable.UnMap();
@@ -452,7 +561,7 @@ void VulkanRendererRt::CreateLayouts() {
     layoutAS.binding = 0;
     layoutAS.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
     layoutAS.descriptorCount = 1;
-    layoutAS.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+    layoutAS.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
 
     VkDescriptorSetLayoutBinding layoutRtImage{};
     layoutRtImage.binding = 1;
@@ -499,7 +608,7 @@ void VulkanRendererRt::CreateLayouts() {
     VkDescriptorSetLayoutBinding layoutMaterialCB{};
     layoutMaterialCB.binding = 8;
     layoutMaterialCB.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutMaterialCB.descriptorCount = (uint32_t)materialArr.size();
+    layoutMaterialCB.descriptorCount = 1;
     layoutMaterialCB.stageFlags = VK_SHADER_STAGE_ALL;
 
     std::vector<VkDescriptorSetLayoutBinding> bindings({
@@ -617,9 +726,9 @@ void VulkanRendererRt::CreateDescriptorSets() {
     };
     materialWrite.dstSet = m_descriptorSet;
     materialWrite.dstBinding = 8;
-    materialWrite.descriptorCount = (uint32_t)materialArr.size();
+    materialWrite.descriptorCount = 1;
     materialWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    materialWrite.pBufferInfo = materialArr.data();
+    materialWrite.pBufferInfo = &materialUBO.info;
 
     std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
         asWrite, imageWrite, sceneUboWrite,difTexImageWrite,norTexImageWrite,speTexImageWrite,vertexWrite,indexWrite,materialWrite
