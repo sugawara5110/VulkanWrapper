@@ -25,6 +25,7 @@ public:
 		VkAccelerationStructureInstanceKHR vkInstance = {};
 		CoordTf::MATRIX world = {};
 		VkTransformMatrixKHR vkWorld = {};
+		float lightOn = 0.0f;
 	};
 	struct RtMaterial {
 		CoordTf::VECTOR4 vDiffuse = { 0.8f,0.8f,0.8f,1.0f };//ディフューズ色
@@ -42,8 +43,6 @@ public:
 		uint32_t vertexCount = 0;
 		uint32_t indexCount = 0;
 		uint32_t vertexStride = 0;
-
-		CoordTf::VECTOR4 pos = { 0.0f,0.0f,0.0f,1.0f };//w:on, off
 
 		VulkanDevice::textureIdSet texId = {};
 
@@ -82,7 +81,7 @@ public:
 
 	void setMaterialType(vkMaterialType type, uint32_t matIndex);
 
-	void LightOn(bool on, uint32_t matIndex);
+	void LightOn(bool on, uint32_t InstanceIndex, uint32_t matIndex, float range = 100.0f, float att1 = 0.1f, float att2 = 0.001f, float att3 = 0.001f);
 
 	void create(uint32_t comIndex, bool useAlpha,
 		VulkanDevice::Vertex3D* ver, uint32_t num, uint32_t* ind, uint32_t indNum,

@@ -23,9 +23,12 @@ void VulkanBasicPolygonRt::setMaterialType(vkMaterialType type, uint32_t matInde
     Rdata[matIndex].mat.MaterialType.x = (float)type;
 }
 
-void VulkanBasicPolygonRt::LightOn(bool on, uint32_t matIndex) {
-    Rdata[matIndex].pos.w = 0.0f;
-    if (on)Rdata[matIndex].pos.w = 1.0f;
+void VulkanBasicPolygonRt::LightOn(bool on, uint32_t InstanceIndex, uint32_t matIndex,
+    float range, float att1, float att2, float att3) {
+
+    Rdata[matIndex].mat.lightst.as(range, att1, att2, att3);
+    Rdata[matIndex].instance[InstanceIndex].lightOn = 0.0f;
+    if (on)Rdata[matIndex].instance[InstanceIndex].lightOn = 1.0f;
 }
 
 void VulkanBasicPolygonRt::createVertexBuffer(RtData& rdata, uint32_t comIndex, Vertex3D_t* ver, uint32_t num, uint32_t* ind, uint32_t indNum) {
@@ -186,16 +189,17 @@ void VulkanBasicPolygonRt::setMaterialParameter(
 void VulkanBasicPolygonRt::instancing(CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale) {
     using namespace CoordTf;
     MATRIX w = {};
+    MATRIX w2 = {};
     VkTransformMatrixKHR vw = {};
     vkUtil::calculationMatrixWorld(w, pos, theta, scale);
+    memcpy(&w2, &w, sizeof(MATRIX));
     MatrixTranspose(&w);
     memcpy(&vw.matrix[0], &w.m[0], sizeof(float) * 4);
     memcpy(&vw.matrix[1], &w.m[1], sizeof(float) * 4);
     memcpy(&vw.matrix[2], &w.m[2], sizeof(float) * 4);
 
     for (auto i = 0; i < Rdata.size(); i++) {
-        memcpy(&Rdata[i].pos, &pos, sizeof(VECTOR3));
-        Rdata[i].instance[InstanceCnt].world = w;
+        Rdata[i].instance[InstanceCnt].world = w2;
         Rdata[i].instance[InstanceCnt].vkWorld = vw;
         if (InstanceCnt > Rdata[i].instance.size()) {
             throw std::runtime_error("InstanceCnt exceeded rdata.instance.size! Check the number of executions of instancing()");

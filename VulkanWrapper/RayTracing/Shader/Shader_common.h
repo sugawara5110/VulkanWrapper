@@ -35,6 +35,7 @@ char* Shader_common =
 "    vec4 RefractiveIndex;\n"//x:屈折率
 "    vec4 AlphaBlend;\n"//x:
 "    vec4 materialNo;\n"//x:
+"    mat4 world;\n"
 "};\n"
 
 "layout(binding = 8, set = 0) uniform Materials {\n"

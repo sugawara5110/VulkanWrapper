@@ -85,7 +85,19 @@ private:
 
     SceneParam m_sceneParam;
     VulkanDevice::Uniform<SceneParam> m_sceneUBO;
-    std::vector<VulkanBasicPolygonRt::RtMaterial> materialArr;
+
+    struct Material {
+        CoordTf::VECTOR4 vDiffuse;
+        CoordTf::VECTOR4 vSpeculer;
+        CoordTf::VECTOR4 vAmbient;
+        CoordTf::VECTOR4 lightst;
+        CoordTf::VECTOR4 shininess;
+        CoordTf::VECTOR4 RefractiveIndex;
+        CoordTf::VECTOR4 useAlpha;
+        CoordTf::VECTOR4 MaterialType;
+        CoordTf::MATRIX world;
+    };
+    std::vector<Material> materialArr;
     BufferSetRt materialUBO;
 
 public:

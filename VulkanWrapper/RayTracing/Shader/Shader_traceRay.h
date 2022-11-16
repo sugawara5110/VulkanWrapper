@@ -71,8 +71,7 @@ char* Shader_traceRay =
 "              }\n"
 "          }\n"
 //ïΩçsåıåπåvéZ
-//"          if(sceneParams.dLightst.x == 1.0f){\n"
-"          if(false){\n"
+"          if(sceneParams.dLightst.x == 1.0f){\n"
 "             payload.hitPosition = hitPosition;\n"
 "             vec3 direction = -sceneParams.dDirection.xyz;\n"
 "             bool loop = true;\n"
@@ -118,20 +117,7 @@ char* Shader_traceRay =
 "{\n"
 "    int mNo = int(matCB[gl_InstanceID].materialNo.x);\n"
 "    vec3 ret = difTexColor;\n"
-/*
-"    if(mNo == 0)ret = vec3(1,0,0);\n"
-"    if(mNo == 8)ret = vec3(0,1,0);\n"
-"    if(mNo == 4)ret = vec3(0,0,1);\n"
-"    if(mNo == 2)ret = vec3(0.5,0.5,0.5);\n"
-"    if(mNo == 1)ret = vec3(0.8,0.8,0.8);\n"
-*/
-/*
-"    if(gl_InstanceID == 0) ret = vec3(1,0,0);\n"
-"    if(gl_InstanceID == 1) ret = vec3(0,1,0);\n"
-"    if(gl_InstanceID == 2) ret = vec3(0,0,1);\n"
-"    if(gl_InstanceID == 3) ret = vec3(0.5,0.5,0.5);\n"
-"    if(gl_InstanceID == 4) ret = vec3(0.8,0.8,0.8);\n"
-*/
+
 "    if(materialIdent(mNo, METALLIC)) {\n"//METALLIC
 
 "       RecursionCnt++;\n"

@@ -11,10 +11,8 @@ char* Shader_closesthit =
 "    payloadIn.hitPosition = HitWorldPosition();\n"
 //テクスチャ取得
 "    vec4 difTex = getDifPixel();\n"
-//"    vec3 normalMap = getNorPixel();\n"   計算結果がおかしい？gl_ObjectToWorldEXTが思ってるのと違う値かも？
+"    vec3 normalMap = getNorPixel();\n"
 "    vec3 speTex = getSpePixel();\n"
-
-"    vec3 normalMap = getNormal();\n"
 
 "    payloadIn.reTry = false;\n"
 
@@ -27,7 +25,7 @@ char* Shader_closesthit =
 //反射方向への光線
 "    difTex.xyz = MetallicPayloadCalculate(payloadIn.RecursionCnt, payloadIn.hitPosition, difTex.xyz, normalMap);\n"
 //半透明
-"    difTex.xyz = Translucent(payloadIn.RecursionCnt, payloadIn.hitPosition, difTex, normalMap);\n"
+"    difTex.xyz = Translucent(payloadIn.RecursionCnt, payloadIn.hitPosition, difTex, normalMap); \n"
 //アルファブレンド
 "    difTex.xyz = AlphaBlend(payloadIn.RecursionCnt, payloadIn.hitPosition, difTex);\n"
 

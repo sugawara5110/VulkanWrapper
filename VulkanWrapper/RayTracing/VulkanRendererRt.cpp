@@ -81,10 +81,23 @@ void VulkanRendererRt::Init(std::vector<VulkanBasicPolygonRt::RtData*> r) {
             textureDifArr.push_back(rt[i]->texId.difTex.image.info);
             textureNorArr.push_back(rt[i]->texId.norTex.image.info);
             textureSpeArr.push_back(rt[i]->texId.speTex.image.info);
+            Material m = {};
+            memcpy(&m, &rt[i]->mat, sizeof(VulkanBasicPolygonRt::RtMaterial));
+            memcpy(&m.world, &rt[i]->instance[j].world, sizeof(CoordTf::MATRIX));
+            materialArr.push_back(m);
 
-            materialArr.push_back(rt[i]->mat);
             if (rt[i]->mat.MaterialType.x == (float)EMISSIVE) {
-                memcpy(&m_sceneParam.emissivePosition[emissiveCnt], &rt[i]->pos, sizeof(CoordTf::VECTOR4));
+
+                CoordTf::VECTOR4 v4{
+                rt[i]->instance[j].world._41,
+                rt[i]->instance[j].world._42,
+                rt[i]->instance[j].world._43,
+                rt[i]->instance[j].lightOn
+                };
+
+                memcpy(&m_sceneParam.emissivePosition[emissiveCnt],
+                    &v4,
+                    sizeof(CoordTf::VECTOR4));
                 m_sceneParam.emissiveNo[emissiveCnt].x = (float)i;
                 emissiveCnt++;
             }
@@ -98,7 +111,7 @@ void VulkanRendererRt::Init(std::vector<VulkanBasicPolygonRt::RtData*> r) {
     };
     memoryAllocateFlagsInfo.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR;
     void* pNext = &memoryAllocateFlagsInfo;
-    materialUBO.createUploadBuffer(materialArr.size() * sizeof(VulkanBasicPolygonRt::RtMaterial),
+    materialUBO.createUploadBuffer(materialArr.size() * sizeof(Material),
         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, pNext);
     materialUBO.memoryMap(materialArr.data());
 
@@ -117,7 +130,7 @@ void VulkanRendererRt::Init(std::vector<VulkanBasicPolygonRt::RtData*> r) {
     //Å´âºÇ≈ì¸ÇÍÇƒÇÈ
     m_sceneParam.dLightColor = { 1,1,1,1 };
     m_sceneParam.dDirection = { -0.2f, -1.0f, -1.0f, 0.0f };
-    m_sceneParam.GlobalAmbientColor = { 0.25f,0.25f,0.25f,0 };
+    m_sceneParam.GlobalAmbientColor = { 0.01f,0.01f,0.01f,0 };
     m_sceneParam.dLightst.x = 1.0f;
     m_sceneParam.TMin_TMax.as(0.1f, 100.0f, 0.0f, 0.0f);
     m_sceneParam.maxRecursion = 5;
@@ -156,10 +169,28 @@ void VulkanRendererRt::Update() {
     MatrixInverse(&m_sceneParam.projectionToWorld, &VP);
 
     int emissiveCnt = 0;
+    int matCnt = 0;
     for (int i = 0; i < rt.size(); i++) {
         for (int j = 0; j < rt[i]->instance.size(); j++) {
+
+            Material m = {};
+            memcpy(&m, &rt[i]->mat, sizeof(VulkanBasicPolygonRt::RtMaterial));
+            memcpy(&m.world, &rt[i]->instance[j].world, sizeof(CoordTf::MATRIX));
+            memcpy(&materialArr[matCnt], &m, sizeof(Material));
+            matCnt++;
+
             if (rt[i]->mat.MaterialType.x == (float)EMISSIVE) {
-                memcpy(&m_sceneParam.emissivePosition[emissiveCnt], &rt[i]->pos, sizeof(CoordTf::VECTOR4));
+
+                CoordTf::VECTOR4 v4{
+                rt[i]->instance[j].world._41,
+                rt[i]->instance[j].world._42,
+                rt[i]->instance[j].world._43,
+                rt[i]->instance[j].lightOn
+                };
+
+                memcpy(&m_sceneParam.emissivePosition[emissiveCnt],
+                    &v4,
+                    sizeof(CoordTf::VECTOR4));
                 m_sceneParam.emissiveNo[emissiveCnt].x = (float)i;
                 emissiveCnt++;
             }
