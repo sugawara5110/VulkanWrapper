@@ -8,56 +8,45 @@
 #include "VulkanInstance.h"
 #define COUNTOF(array) (sizeof(array) / sizeof(array[0]))
 
-static CoordTf::VECTOR3 CalcTangent(CoordTf::VECTOR3 v0, CoordTf::VECTOR3 v1, CoordTf::VECTOR3 v2,
-    CoordTf::VECTOR2 uv0, CoordTf::VECTOR2 uv1, CoordTf::VECTOR2 uv2) {
+static CoordTf::VECTOR3 CalcTangent(CoordTf::VECTOR3 normal, CoordTf::VECTOR3 upVec) {
+    using namespace CoordTf;
 
-    CoordTf::VECTOR3 cp0[3] = {
-        {v0.x, uv0.x, uv0.y},
-        {v0.y, uv0.x, uv0.y},
-        {v0.z, uv0.x, uv0.y}
+    //upVecは固定とする
+
+    const int arrNum = 6;
+
+    const VECTOR3 upNor[arrNum] = {
+        {0.0f, 0.0f, -1.0f},
+        {0.0f, 0.0f, 1.0f},
+        {0.0f, 1.0f, 0.0f},
+        {0.0f, -1.0f, 0.0f},
+        {-1.0f, 0.0f, 0.0f},
+        {1.0f, 0.0f, 0.0f}
     };
-    CoordTf::VECTOR3 cp1[3] = {
-        {v1.x, uv1.x, uv1.y},
-        {v1.y, uv1.x, uv1.y},
-        {v1.z, uv1.x, uv1.y}
-    };
-    CoordTf::VECTOR3 cp2[3] = {
-        {v2.x, uv2.x, uv2.y},
-        {v2.y, uv2.x, uv2.y},
-        {v2.z, uv2.x, uv2.y}
+    const VECTOR3 upTan[arrNum] = {
+        {1.0f, 0.0f, 0.0f},
+        {-1.0f, 0.0f, 0.0f},
+        {1.0f, 0.0f, 0.0f},
+        {-1.0f, 0.0f, 0.0f},
+        {0.0f, 0.0f, -1.0f},
+        {0.0f, 0.0f, 1.0f}
     };
 
-    CoordTf::VECTOR3 tangent = {};
-    float tan[3] = {};
+    VECTOR3 tangent = {};
+    VectorCross(&tangent, &normal, &upVec);
 
-    for (int i = 0; i < 3; i++) {
-        CoordTf::VECTOR3 v1 = {};
-        v1.as(cp1[i].x - cp0[i].x,
-            cp1[i].y - cp0[i].y,
-            cp1[i].z - cp0[i].z);
-        CoordTf::VECTOR3 v2 = {};
-        v2.as(cp2[i].x - cp1[i].x,
-            cp2[i].y - cp1[i].y,
-            cp2[i].z - cp1[i].z);
-        CoordTf::VECTOR3 t = {};
-        CoordTf::VectorCross(&t, &v1, &v2);
+    for (int i = 0; i < arrNum; i++) {
+        if (normal.x == upNor[i].x &&
+            normal.y == upNor[i].y &&
+            normal.z == upNor[i].z) {
 
-        if (t.x == 0.0f) {
-            tan[0] = 0.0f;
-            tan[1] = 0.0f;
-            tan[2] = 0.0f;
+            tangent = upTan[i];
             break;
-        }
-        else {
-            tan[i] = -t.y / t.x;
         }
     }
 
-    tangent.x = tan[0];
-    tangent.y = tan[1];
-    tangent.z = tan[2];
-    CoordTf::VECTOR3 ret = {};
-    CoordTf::VectorNormalize(&ret, &tangent);
+    VECTOR3 ret = {};
+    VectorNormalize(&ret, &tangent);
     return ret;
 }
 
@@ -107,30 +96,25 @@ void vkUtil::addChar::addStr(char* str1, char* str2) {
 
 void vkUtil::createTangent(int numMaterial, unsigned int* indexCntArr,
     void* vertexArr, unsigned int** indexArr, int structByteStride,
-    int posBytePos, int texBytePos, int tangentBytePos) {
+    int norBytePos, int tangentBytePos, CoordTf::VECTOR3 upVec) {
 
-    unsigned char* b_posSt = (unsigned char*)vertexArr + posBytePos;
-    unsigned char* b_texSt = (unsigned char*)vertexArr + texBytePos;
+    unsigned char* b_norSt = (unsigned char*)vertexArr + norBytePos;
     unsigned char* b_tanSt = (unsigned char*)vertexArr + tangentBytePos;
     for (int i = 0; i < numMaterial; i++) {
         unsigned int cnt = 0;
         while (indexCntArr[i] > cnt) {
-            CoordTf::VECTOR3* posVec[3] = {};
-            CoordTf::VECTOR2* texVec[3] = {};
+            CoordTf::VECTOR3* norVec[3] = {};
             CoordTf::VECTOR3* tanVec[3] = {};
 
             for (int ind = 0; ind < 3; ind++) {
                 unsigned int index = indexArr[i][cnt++] * structByteStride;
-                unsigned char* b_pos = b_posSt + index;
-                unsigned char* b_tex = b_texSt + index;
+                unsigned char* b_nor = b_norSt + index;
                 unsigned char* b_tan = b_tanSt + index;
-                posVec[ind] = (CoordTf::VECTOR3*)b_pos;
-                texVec[ind] = (CoordTf::VECTOR2*)b_tex;
+                norVec[ind] = (CoordTf::VECTOR3*)b_nor;
                 tanVec[ind] = (CoordTf::VECTOR3*)b_tan;
+
+                *(tanVec[ind]) = CalcTangent(*(norVec[ind]), upVec);
             }
-            CoordTf::VECTOR3 tangent = CalcTangent(*(posVec[0]), *(posVec[1]), *(posVec[2]),
-                *(texVec[0]), *(texVec[1]), *(texVec[2]));
-            *(tanVec[0]) = *(tanVec[1]) = *(tanVec[2]) = tangent;
         }
     }
 }
@@ -1730,8 +1714,8 @@ void VulkanDevice::updateProjection(float AngleView, float Near, float Far) {
     MatrixPerspectiveFovLH(&proj, AngleView, (float)swBuf.getSize().width / (float)swBuf.getSize().height, Near, Far);
 }
 
-void VulkanDevice::updateView(CoordTf::VECTOR3 vi, CoordTf::VECTOR3 gaze, CoordTf::VECTOR3 up) {
-    MatrixLookAtLH(&view, vi, gaze, up);
+void VulkanDevice::updateView(CoordTf::VECTOR3 vi, CoordTf::VECTOR3 gaze) {
+    MatrixLookAtLH(&view, vi, gaze, upVec);
     viewPos.as(vi.x, vi.y, vi.z, 0.0f);
 }
 
@@ -1786,7 +1770,9 @@ void VulkanDevice::DeviceWaitIdle() {
     vkDeviceWaitIdle(device);
 }
 
-void VulkanDevice::InstanceCreate(VkPhysicalDevice pd, uint32_t numCommandBuffer, bool V_SYNC) {
+void VulkanDevice::InstanceCreate(VkPhysicalDevice pd, uint32_t numCommandBuffer,
+    bool V_SYNC) {
+
     if (DevicePointer == nullptr)DevicePointer = new VulkanDevice(pd, numCommandBuffer, V_SYNC);
 }
 

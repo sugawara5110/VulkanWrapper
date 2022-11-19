@@ -131,7 +131,7 @@ void VulkanRendererRt::Init(std::vector<VulkanBasicPolygonRt::RtData*> r) {
     m_sceneParam.dLightColor = { 1,1,1,1 };
     m_sceneParam.dDirection = { -0.2f, -1.0f, -1.0f, 0.0f };
     m_sceneParam.GlobalAmbientColor = { 0.01f,0.01f,0.01f,0 };
-    m_sceneParam.dLightst.x = 1.0f;
+    m_sceneParam.dLightst.x = 0.0f;
     m_sceneParam.TMin_TMax.as(0.1f, 100.0f, 0.0f, 0.0f);
     m_sceneParam.maxRecursion = 5;
 }

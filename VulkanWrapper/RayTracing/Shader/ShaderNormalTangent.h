@@ -6,8 +6,8 @@ char* ShaderNormalTangent =
 
 "struct NormalTangent\n"
 "{\n"
-"    vec3 normal;\n"
-"    vec3 tangent;\n"
+"   vec3 normal;\n"
+"   vec3 tangent;\n"
 "};\n"
 
 "NormalTangent GetTangent(vec3 normal, mat3 world, vec3 tangent)\n"
@@ -25,11 +25,11 @@ char* ShaderNormalTangent =
 "vec3 normalTexConvert(vec3 norT, vec3 normal, vec3 tangent)\n"
 "{\n"
 "   vec3 N = normal;\n"
-"   vec3 T = normalize(tangent - dot(tangent, N) * N);\n"
-"   vec3 B = cross(N, T);\n"
-"   mat3 TBN = mat3(T, B, N);\n"
+"   vec3 T = tangent;\n"
+"   vec3 B = cross(T, N);\n"
 
-"   return norT * TBN;\n"
+"   vec3 ret = (T * norT.x) + (B * norT.y) + (N * norT.z);\n"
+"   return ret;\n"
 "}\n"
 
 "vec3 GetNormal(vec3 norTex, vec3 normal, vec3 tangent)\n"

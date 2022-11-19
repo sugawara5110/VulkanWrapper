@@ -132,7 +132,7 @@ void VulkanBasicPolygonRt::createMultipleMaterials(uint32_t comIndex, bool useAl
     VulkanDevice::textureIdSet* texid, uint32_t InstanceSize) {
 
     vkUtil::createTangent(numMat, indNum,
-        ver, ind, sizeof(Vertex3D_t), 0, 9 * 4, 6 * 4);
+        ver, ind, sizeof(Vertex3D_t), 3 * 4, 6 * 4, VulkanDevice::GetInstance()->getUpVec());
 
     Rdata.resize(numMat);
     for (auto i = 0; i < Rdata.size(); i++) {

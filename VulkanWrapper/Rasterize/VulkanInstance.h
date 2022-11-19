@@ -52,7 +52,7 @@ namespace vkUtil {
 
     void createTangent(int numMaterial, unsigned int* indexCntArr,
         void* vertexArr, unsigned int** indexArr, int structByteStride,
-        int posBytePos, int texBytePos, int tangentBytePos);
+        int norBytePos, int tangentBytePos, CoordTf::VECTOR3 upVec);
 }
 
 class Vulkan2D;
@@ -276,6 +276,7 @@ private:
 
     CoordTf::MATRIX proj, view;
     CoordTf::VECTOR4 viewPos;
+    const CoordTf::VECTOR3 upVec = { 0.0f,1.0f,0.0f };
     CoordTf::VECTOR4 lightPos[numLightMax];
     CoordTf::VECTOR4 lightColor[numLightMax];
     uint32_t numLight = 1;
@@ -488,7 +489,7 @@ public:
 
     void updateProjection(float AngleView = 45.0f, float Near = 1.0f, float Far = 100.0f);
 
-    void updateView(CoordTf::VECTOR3 view, CoordTf::VECTOR3 gaze, CoordTf::VECTOR3 up);
+    void updateView(CoordTf::VECTOR3 view, CoordTf::VECTOR3 gaze);
 
     void setNumLight(uint32_t num);
 
@@ -523,5 +524,6 @@ public:
     CoordTf::MATRIX getProjection() { return proj; }
     CoordTf::MATRIX getCameraView() { return view; }
     CoordTf::VECTOR4 getCameraViewPos() { return viewPos; }
+    const CoordTf::VECTOR3 getUpVec() { return upVec; }
 };
 #endif

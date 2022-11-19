@@ -29,8 +29,8 @@ public:
 	};
 	struct RtMaterial {
 		CoordTf::VECTOR4 vDiffuse = { 0.8f,0.8f,0.8f,1.0f };//ディフューズ色
-		CoordTf::VECTOR4 vSpeculer = { 0.6f,0.6f,0.6f,1.0f };//スぺキュラ色
-		CoordTf::VECTOR4 vAmbient = { 0.1f,0.1f,0.1f,0.0f };//アンビエント
+		CoordTf::VECTOR4 vSpeculer = { 0.2f,0.2f,0.2f,1.0f };//スぺキュラ色
+		CoordTf::VECTOR4 vAmbient = { 0.0f,0.0f,0.0f,0.0f };//アンビエント
 		CoordTf::VECTOR4 lightst = { 100.0f,0.1f, 0.001f, 0.001f };//レンジ, 減衰1, 減衰2, 減衰3
 		CoordTf::VECTOR4 shininess = { 4.0f,0.0f,0.0f,0.0f };//x:スペキュラ強さ
 		CoordTf::VECTOR4 RefractiveIndex = { 0.0f,0.0f,0.0f,0.0f };//x:屈折率

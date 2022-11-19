@@ -132,7 +132,7 @@ char* Shader_hitCom =
 "{\n"
 "    NormalTangent tan;\n"
 //接ベクトル計算
-"    tan = GetTangent(normal, mat3(matCB[gl_InstanceID].world), tangent);\n"
+"    tan = GetTangent(normal, mat3(gl_ObjectToWorld3x4EXT), tangent);\n"
 //法線テクスチャ
 "    vec4 Tnor = texture(texturesNor[gl_InstanceID], uv);\n"
 //ノーマルマップでの法線出力

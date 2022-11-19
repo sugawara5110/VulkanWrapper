@@ -24,7 +24,7 @@ char* Shader_miss =
 
 "void main()\n"
 "{\n"
-"    payloadIn.color = vec3(0.0, 0.8, 0.0);\n"
+"    payloadIn.color = vec3(0.0, 0.0, 0.0);\n"
 "    payloadIn.hit = false;\n"
 "    payloadIn.reTry = false;\n"
 "}\n";

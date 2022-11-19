@@ -24,6 +24,6 @@ char* Shader_emissiveMiss =
 
 "void main()\n"
 "{\n"
-"    payloadIn.color = vec3(0.5, 0.5, 0.5);\n"
+"    payloadIn.color = vec3(0.0, 0.0, 0.0);\n"
 "    payloadIn.reTry = false;\n"
 "}\n";

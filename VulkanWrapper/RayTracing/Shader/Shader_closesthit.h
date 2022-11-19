@@ -14,6 +14,9 @@ char* Shader_closesthit =
 "    vec3 normalMap = getNorPixel();\n"
 "    vec3 speTex = getSpePixel();\n"
 
+//"    vec3 normalMap = getNormal() * mat3(matCB[gl_InstanceID].world);\n"
+//"    vec3 normalMap = getNormal() * mat3(gl_ObjectToWorld3x4EXT);\n"
+
 "    payloadIn.reTry = false;\n"
 
 //深度取得
@@ -30,6 +33,7 @@ char* Shader_closesthit =
 "    difTex.xyz = AlphaBlend(payloadIn.RecursionCnt, payloadIn.hitPosition, difTex);\n"
 
 "    payloadIn.color = difTex.xyz;\n"
+//"    payloadIn.color = normalMap;\n"
 "    payloadIn.hit = true;\n"
 "    payloadIn.Alpha = difTex.w;\n"
 "}\n";
