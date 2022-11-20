@@ -29,7 +29,9 @@ char* Shader_traceRay =
 "       vec3 Ambient = mcb.Ambient.xyz;\n"
 "       float shininess = mcb.shininess.x;\n"
 
-"       if(RecursionCnt <= sceneParams.maxRecursion) {\n"
+"       if(RecursionCnt <= sceneParams.maxRecursion.x) {\n"
+
+"          const uint RayFlags = gl_RayFlagsCullFrontFacingTrianglesEXT;\n"
 //“_ŒõŒ¹ŒvŽZ
 "          for(int i = 0; i < sceneParams.numEmissive.x; i++) {\n"
 
@@ -48,7 +50,7 @@ char* Shader_traceRay =
 
 "                    traceRayEXT(\n"
 "                        topLevelAS,\n"
-"                        gl_RayFlagsCullBackFacingTrianglesEXT,\n"
+"                        RayFlags,\n"
 "                        0xff,\n"
 "                        em_Index,\n"//sbtRecordOffset
 "                        0,\n"//sbtRecordStride
@@ -81,7 +83,7 @@ char* Shader_traceRay =
 
 "                traceRayEXT(\n"
 "                    topLevelAS,\n"
-"                    gl_RayFlagsCullBackFacingTrianglesEXT,\n"
+"                    RayFlags,\n"
 "                    0xff,\n"
 "                    em_Index,\n"//sbtRecordOffset
 "                    0,\n"//sbtRecordStride
@@ -131,13 +133,13 @@ char* Shader_traceRay =
 "       float tmin = sceneParams.TMin_TMax.x;\n"
 "       float tmax = sceneParams.TMin_TMax.y;\n"
 
-"       if (RecursionCnt <= sceneParams.maxRecursion) {\n"
+"       if (RecursionCnt <= sceneParams.maxRecursion.x) {\n"
 "           payload.hitPosition = hitPosition;\n"
 "           vec3 origin = payload.hitPosition;\n"
 
 "           traceRayEXT(\n"
 "               topLevelAS,\n"
-"               gl_RayFlagsOpaqueEXT,\n"
+"               gl_RayFlagsCullBackFacingTrianglesEXT,\n"
 "               0xff,\n"
 "               clo_Index,\n"//sbtRecordOffset
 "               0,\n"//sbtRecordStride
@@ -182,7 +184,7 @@ char* Shader_traceRay =
 "       vec3 eyeVec = gl_WorldRayDirectionEXT;\n"
 "       vec3 direction = normalize(eyeVec + -normal * mcb.RefractiveIndex.x);\n"
 
-"       if (RecursionCnt <= sceneParams.maxRecursion) {\n"
+"       if (RecursionCnt <= sceneParams.maxRecursion.x) {\n"
 "           payload.hitPosition = hitPosition;\n"
 "           vec3 origin = payload.hitPosition;\n"
 
@@ -224,7 +226,7 @@ char* Shader_traceRay =
 "       float tmax = sceneParams.TMin_TMax.y;\n"
 "       vec3 direction = gl_WorldRayDirectionEXT;\n"
 
-"       if (RecursionCnt <= sceneParams.maxRecursion) {\n"
+"       if (RecursionCnt <= sceneParams.maxRecursion.x) {\n"
 "           payload.hitPosition = hitPosition;\n"
 "           vec3 origin = payload.hitPosition;\n"
 

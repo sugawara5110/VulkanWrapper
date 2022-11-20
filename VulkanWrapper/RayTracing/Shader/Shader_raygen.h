@@ -34,7 +34,7 @@ char* Shader_raygen =
 
 "       traceRayEXT(\n"
 "           topLevelAS,\n"
-"           gl_RayFlagsOpaqueEXT,\n"
+"           gl_RayFlagsCullBackFacingTrianglesEXT,\n"
 "           0xff,\n"
 "           0,\n"//sbtRecordOffset
 "           0,\n"//sbtRecordStride

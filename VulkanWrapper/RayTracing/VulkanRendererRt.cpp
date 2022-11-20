@@ -98,7 +98,7 @@ void VulkanRendererRt::Init(std::vector<VulkanBasicPolygonRt::RtData*> r) {
                 memcpy(&m_sceneParam.emissivePosition[emissiveCnt],
                     &v4,
                     sizeof(CoordTf::VECTOR4));
-                m_sceneParam.emissiveNo[emissiveCnt].x = (float)i;
+                m_sceneParam.emissiveNo[emissiveCnt].x = (float)emissiveCnt;
                 emissiveCnt++;
             }
         }
@@ -127,13 +127,12 @@ void VulkanRendererRt::Init(std::vector<VulkanBasicPolygonRt::RtData*> r) {
 
     CreateDescriptorSets();
 
-    //«‰¼‚Å“ü‚ê‚Ä‚é
-    m_sceneParam.dLightColor = { 1,1,1,1 };
+    m_sceneParam.dLightColor = { 1.0f,1.0f,1.0f,0.0f };
     m_sceneParam.dDirection = { -0.2f, -1.0f, -1.0f, 0.0f };
-    m_sceneParam.GlobalAmbientColor = { 0.01f,0.01f,0.01f,0 };
-    m_sceneParam.dLightst.x = 0.0f;
+    m_sceneParam.GlobalAmbientColor = { 0.01f,0.01f,0.01f,0.0f };
+    m_sceneParam.dLightst.x = 0.0f;//off
     m_sceneParam.TMin_TMax.as(0.1f, 100.0f, 0.0f, 0.0f);
-    m_sceneParam.maxRecursion = 5;
+    m_sceneParam.maxRecursion.x = 1;
 }
 
 void VulkanRendererRt::destroy() {
@@ -158,10 +157,27 @@ void VulkanRendererRt::destroy() {
     m_device.reset();
 }
 
-void VulkanRendererRt::Update() {
+void VulkanRendererRt::setDirectionLight(bool on, CoordTf::VECTOR3 Color, CoordTf::VECTOR3 Direction) {
+    m_sceneParam.dLightColor = { Color.x,Color.y,Color.z,0.0f };
+    m_sceneParam.dDirection = { Direction.x, Direction.y, Direction.z, 0.0f };
+    m_sceneParam.dLightst.x = 0.0f;
+    if (on)m_sceneParam.dLightst.x = 1.0f;
+}
+
+void VulkanRendererRt::setTMin_TMax(float min, float max) {
+    m_sceneParam.TMin_TMax.x = min;
+    m_sceneParam.TMin_TMax.y = max;
+}
+
+void VulkanRendererRt::setGlobalAmbientColor(CoordTf::VECTOR3 Color) {
+    m_sceneParam.GlobalAmbientColor = { Color.x,Color.y,Color.z,0.0f };
+}
+
+void VulkanRendererRt::Update(int maxRecursion) {
     using namespace CoordTf;
     VulkanDevice* dev = VulkanDevice::GetInstance();
     m_sceneParam.cameraPosition = dev->getCameraViewPos();
+    m_sceneParam.maxRecursion.x = (float)maxRecursion;
 
     MATRIX VP;
     MatrixMultiply(&VP, &dev->getCameraView(), &dev->getProjection());
@@ -191,7 +207,7 @@ void VulkanRendererRt::Update() {
                 memcpy(&m_sceneParam.emissivePosition[emissiveCnt],
                     &v4,
                     sizeof(CoordTf::VECTOR4));
-                m_sceneParam.emissiveNo[emissiveCnt].x = (float)i;
+                m_sceneParam.emissiveNo[emissiveCnt].x = (float)emissiveCnt;
                 emissiveCnt++;
             }
         }
@@ -478,7 +494,7 @@ void VulkanRendererRt::CreateRaytracePipeline() {
     rtPipelineCI.pStages = stages.data();
     rtPipelineCI.groupCount = uint32_t(m_shaderGroups.size());
     rtPipelineCI.pGroups = m_shaderGroups.data();
-    rtPipelineCI.maxPipelineRayRecursionDepth = 10;//Œã‚Å•Ï‚¦‚é
+    rtPipelineCI.maxPipelineRayRecursionDepth = m_device->GetRayTracingPipelineProperties().maxRayRecursionDepth;
     rtPipelineCI.layout = m_pipelineLayout;
     vkCreateRayTracingPipelinesKHR(
         m_device->GetDevice(), VK_NULL_HANDLE, VK_NULL_HANDLE,

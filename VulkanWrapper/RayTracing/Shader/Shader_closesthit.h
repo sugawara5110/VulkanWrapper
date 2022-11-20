@@ -14,7 +14,6 @@ char* Shader_closesthit =
 "    vec3 normalMap = getNorPixel();\n"
 "    vec3 speTex = getSpePixel();\n"
 
-//"    vec3 normalMap = getNormal() * mat3(matCB[gl_InstanceID].world);\n"
 //"    vec3 normalMap = getNormal() * mat3(gl_ObjectToWorld3x4EXT);\n"
 
 "    payloadIn.reTry = false;\n"

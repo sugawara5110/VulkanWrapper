@@ -47,7 +47,7 @@ private:
         CoordTf::VECTOR4 dLightColor = {};
         CoordTf::VECTOR4 dLightst = {};//x:オンオフ
         CoordTf::VECTOR4 TMin_TMax = {};//x, y
-        uint32_t maxRecursion = 0;
+        CoordTf::VECTOR4 maxRecursion = {};//x:
     };
 
     // ジオメトリ情報.
@@ -106,7 +106,11 @@ public:
     void Init(std::vector<VulkanBasicPolygonRt::RtData*> rt);
     void destroy();
 
-    void Update();
+    void setDirectionLight(bool on, CoordTf::VECTOR3 Color = { 1.0f,1.0f,1.0f }, CoordTf::VECTOR3 Direction = { -0.2f, -1.0f, -1.0f });
+    void setTMin_TMax(float min, float max);
+    void setGlobalAmbientColor(CoordTf::VECTOR3 Color);
+
+    void Update(int maxRecursion);
     void Render();
 };
 

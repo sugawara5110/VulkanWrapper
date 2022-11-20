@@ -23,7 +23,7 @@ char* Shader_common =
 "    vec4 dLightColor;\n"
 "    vec4 dLightst;\n"//.x:オンオフ
 "    vec4 TMin_TMax;\n"//.x, .y
-"    int maxRecursion;\n"
+"    vec4 maxRecursion;\n"//x:
 "} sceneParams;\n"
 
 "struct MaterialCB {\n"
@@ -35,11 +35,11 @@ char* Shader_common =
 "    vec4 RefractiveIndex;\n"//x:屈折率
 "    vec4 AlphaBlend;\n"//x:
 "    vec4 materialNo;\n"//x:
-"    mat4 world;\n"
+"    mat4 world;\n"//使用してない, 後で消す
 "};\n"
 
 "layout(binding = 8, set = 0) uniform Materials {\n"
-"    MaterialCB matCB[256];\n"
+"    MaterialCB matCB[256];\n"//後で書き変えれるようにする
 "};\n"
 
 "struct vkRayPayload\n"
