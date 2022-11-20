@@ -9,8 +9,7 @@
 
 #include <cstdint>
 #include <vector>
-#include "NVIDIA_Library/extensions_vk.hpp"
-#include "../Rasterize/VulkanInstance.h"
+#include "../CommonDevice/VulkanDevice.h"
 
 class VulkanDeviceRt;
 
@@ -51,7 +50,7 @@ private:
 public:
     static VulkanDeviceRt* getVulkanDeviceRt() { return pDeviceRt; };
 
-    bool createDevice(VkInstance ins, VkPhysicalDevice phDev);
+    bool createDevice(VkInstance ins, VkPhysicalDevice phDev, uint32_t ApiVersion);
     void destroy();
 
     bool CreateSwapchain(VkSurfaceKHR surface, uint32_t width, uint32_t height);

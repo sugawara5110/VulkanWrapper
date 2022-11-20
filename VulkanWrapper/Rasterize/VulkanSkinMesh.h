@@ -7,7 +7,6 @@
 #ifndef VulkanSkinMesh_Header
 #define VulkanSkinMesh_Header
 
-#include "VulkanInstance.h"
 #include "VulkanBasicPolygon.h"
 #include "../../FbxLoader/FbxLoader.h"
 

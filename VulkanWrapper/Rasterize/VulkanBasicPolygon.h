@@ -7,7 +7,7 @@
 #ifndef VulkanBasicPolygon_Header
 #define VulkanBasicPolygon_Header
 
-#include "VulkanInstance.h"
+#include "RasterizeDescriptor.h"
 
 class VulkanSkinMesh;
 
@@ -29,8 +29,8 @@ private:
 	VkPipelineLayout pipelineLayout;
 	VkPipelineCache pipelineCache;
 	VkPipeline pipeline;
-	VulkanDevice::Uniform<VulkanDevice::MatrixSet> uniform[numSwap];
-	VulkanDevice::Uniform<VulkanDevice::Material>* material[numSwap];
+	VulkanDevice::Uniform<RasterizeDescriptor::MatrixSet> uniform[numSwap];
+	VulkanDevice::Uniform<RasterizeDescriptor::Material>* material[numSwap];
 	uint32_t numMaterial = 1;
 	char* vs = nullptr;
 	char* fs = nullptr;
@@ -57,14 +57,15 @@ private:
 		for (uint32_t i = 0; i < numSwap; i++) {
 			descPool[i] = std::make_unique<VkDescriptorPool[]>(numMaterial);
 			descSet[i] = std::make_unique<VkDescriptorSet[]>(numMaterial);
-			material[i] = new VulkanDevice::Uniform<VulkanDevice::Material>[numMaterial];
+			material[i] = new VulkanDevice::Uniform<RasterizeDescriptor::Material>[numMaterial];
 		}
 
 		VkPipelineShaderStageCreateInfo vsInfo = device->createShaderModule("BPvs", vs, VK_SHADER_STAGE_VERTEX_BIT);
 		VkPipelineShaderStageCreateInfo fsInfo = device->createShaderModule("BPfs", fs, VK_SHADER_STAGE_FRAGMENT_BIT);
 
 		vertices = device->createVertexBuffer<T>(comIndex, ver, num, false, nullptr, nullptr);
-		device->descriptorAndPipelineLayouts(true, pipelineLayout, descSetLayout);
+		RasterizeDescriptor* rd = RasterizeDescriptor::GetInstance();
+		rd->descriptorAndPipelineLayouts(true, pipelineLayout, descSetLayout);
 
 		for (uint32_t i = 0; i < numSwap; i++) {
 			device->createUniform(uniform[i]);
@@ -76,21 +77,21 @@ private:
 				if (i == 0)index[m] = device->createVertexBuffer<uint32_t>(comIndex, ind[m], indNum[m],
 					true, nullptr, nullptr);
 
-				device->createDescriptorPool(true, descPool[i][m]);
+				rd->createDescriptorPool(true, descPool[i][m]);
 
 				if (i == 0)device->createTextureSet(comIndex, texId[m]);
 
-				descSetCnt = device->upDescriptorSet(true, texId[m].difTex, texId[m].norTex, texId[m].speTex,
+				descSetCnt = rd->upDescriptorSet(true, texId[m].difTex, texId[m].norTex, texId[m].speTex,
 					uniform[i], material[i][m],
 					descSet[i][m], descPool[i][m], descSetLayout);
 			}
 		}
 
-		pipelineCache = device->createPipelineCache();
-		pipeline = device->createGraphicsPipelineVF(useAlpha, vsInfo, fsInfo, bindDesc, attrDescs, numAttr,
-			pipelineLayout, device->swBuf.getRenderPass(), pipelineCache);
-		vkDestroyShaderModule(device->device, vsInfo.module, nullptr);
-		vkDestroyShaderModule(device->device, fsInfo.module, nullptr);
+		pipelineCache = rd->createPipelineCache();
+		pipeline = rd->createGraphicsPipelineVF(useAlpha, vsInfo, fsInfo, bindDesc, attrDescs, numAttr,
+			pipelineLayout, device->getSwapchainObj()->getRenderPass(), pipelineCache);
+		vkDestroyShaderModule(device->getDevice(), vsInfo.module, nullptr);
+		vkDestroyShaderModule(device->getDevice(), fsInfo.module, nullptr);
 	}
 
 	void update0(uint32_t swapIndex, CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale,

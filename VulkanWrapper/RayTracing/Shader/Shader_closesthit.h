@@ -14,7 +14,7 @@ char* Shader_closesthit =
 "    vec3 normalMap = getNorPixel();\n"
 "    vec3 speTex = getSpePixel();\n"
 
-//"    vec3 normalMap = getNormal() * mat3(gl_ObjectToWorld3x4EXT);\n"
+"    vec3 normal = getNormal() * mat3(gl_ObjectToWorld3x4EXT);\n"
 
 "    payloadIn.reTry = false;\n"
 
@@ -23,7 +23,7 @@ char* Shader_closesthit =
 //"       payloadIn.depth = getDepth(attr, v3);\n"
 //"    }\n"
 //光源への光線
-"    difTex.xyz = EmissivePayloadCalculate(payloadIn.RecursionCnt, payloadIn.hitPosition, difTex.xyz, speTex, normalMap);\n"
+"    difTex.xyz = EmissivePayloadCalculate(payloadIn.RecursionCnt, payloadIn.hitPosition, difTex.xyz, speTex, normalMap, normal);\n"
 //反射方向への光線
 "    difTex.xyz = MetallicPayloadCalculate(payloadIn.RecursionCnt, payloadIn.hitPosition, difTex.xyz, normalMap);\n"
 //半透明
@@ -32,7 +32,6 @@ char* Shader_closesthit =
 "    difTex.xyz = AlphaBlend(payloadIn.RecursionCnt, payloadIn.hitPosition, difTex);\n"
 
 "    payloadIn.color = difTex.xyz;\n"
-//"    payloadIn.color = normalMap;\n"
 "    payloadIn.hit = true;\n"
 "    payloadIn.Alpha = difTex.w;\n"
 "}\n";

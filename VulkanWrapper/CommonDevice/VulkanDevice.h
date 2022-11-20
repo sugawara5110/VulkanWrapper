@@ -1,102 +1,13 @@
-Ôªø//*****************************************************************************************//
+//*****************************************************************************************//
 //**                                                                                     **//
-//**                              VulkanInstance.h                                       **//
+//**                              VulkanDevice.h                                         **//
 //**                                                                                     **//
 //*****************************************************************************************//
 
-#ifndef VulkanInstance_Header
-#define VulkanInstance_Header
+#ifndef VulkanDevice_Header
+#define VulkanDevice_Header
 
-#ifdef __ANDROID__
-#include <android/log.h>
-#include <android/native_window.h>
-#else
-#define VK_USE_PLATFORM_WIN32_KHR
-#include <windows.h>
-#endif
-#include "VulkanPFN.h"
-#include <vector>
-#include <memory>
-#include <string>
-#include <stdexcept>
-#include <tuple>
-#include <functional>
-#include <shaderc/shaderc.hpp>
-#include "../../CoordTf/CoordTf.h"
-#pragma comment(lib, "vulkan-1")
-#pragma comment(lib, "shaderc_shared.lib")
-
-namespace vkUtil {
-    template<typename TYPE>
-    void S_DELETE(TYPE p) { if (p) { delete p;    p = nullptr; } }
-    template<typename TYPE>
-    void ARR_DELETE(TYPE p) { if (p) { delete[] p;    p = nullptr; } }
-    void checkError(VkResult res);
-
-    VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT, uint64_t object,
-        size_t location, int32_t messageCode, const char* pLayerPrefix, const char* pMessage, void* pUserData);
-
-    void calculationMatrixWorld(CoordTf::MATRIX& World, CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale);
-
-    class addChar {
-    public:
-        char* str = nullptr;
-        size_t size = 0;
-
-        void addStr(char* str1, char* str2);
-
-        ~addChar() {
-            S_DELETE(str);
-        }
-    };
-
-    void createTangent(int numMaterial, unsigned int* indexCntArr,
-        void* vertexArr, unsigned int** indexArr, int structByteStride,
-        int norBytePos, int tangentBytePos, CoordTf::VECTOR3 upVec);
-}
-
-class Vulkan2D;
-class VulkanBasicPolygon;
-class VulkanSkinMesh;
-
-class VulkanInstance final {
-
-private:
-    //Debug Layer Extensions
-    PFN_vkCreateDebugReportCallbackEXT _vkCreateDebugReportCallbackEXT;
-    PFN_vkDebugReportMessageEXT _vkDebugReportMessageEXT;
-    PFN_vkDestroyDebugReportCallbackEXT _vkDestroyDebugReportCallbackEXT;
-    VkDebugReportCallbackEXT debugReportCallback;
-    VkInstance instance = nullptr;
-    VkSurfaceKHR surface;//ÁîªÈù¢„ÇíÂÆöÁæ©„Åô„Çã„Ç™„Éñ„Ç∏„Çß„ÇØ„Éà,windows,android
-    bool surfaceAlive = false;
-    std::unique_ptr<VkPhysicalDevice[]> adapters = nullptr;
-    uint32_t adapterCount = 0;
-
-    void createinstance(char* appName, uint32_t apiVersion, uint32_t applicationVersion, uint32_t engineVersion);
-
-    void createDebugReportCallback();
-
-    void createPhysicalDevice();
-
-public:
-    ~VulkanInstance();
-
-    void createInstance(char* appName, uint32_t apiVersion = VK_API_VERSION_1_0, uint32_t applicationVersion = VK_MAKE_VERSION(0, 0, 1), uint32_t engineVersion = 1);
-
-#ifdef __ANDROID__
-    void createSurfaceAndroid(ANativeWindow* Window);
-#else
-    void createSurfaceHwnd(HWND hWnd);
-#endif
-    void destroySurface();
-
-    VkPhysicalDevice getPhysicalDevice(int index = 0);
-
-    VkSurfaceKHR getSurface();
-
-    VkInstance getInstance();
-};
+#include "VulkanInstance.h"
 
 class VulkanDevice final {
 
@@ -211,7 +122,7 @@ public:
         std::unique_ptr<VkSurfaceFormatKHR[]> BackBufferFormat;
         uint32_t imageCount = 0;
         uint32_t currentFrameIndex = 0;
-        std::unique_ptr<VkImage[]> images = nullptr;//„Çπ„ÉØ„ÉÉ„Éó„ÉÅ„Çß„Éº„É≥„ÅÆÁîªÂÉèË°®Á§∫„Å´‰Ωø„ÅÜ
+        std::unique_ptr<VkImage[]> images = nullptr;//ÉXÉèÉbÉvÉ`ÉFÅ[ÉìÇÃâÊëúï\é¶Ç…égÇ§
         std::unique_ptr<VkImageView[]> views = nullptr;
         std::unique_ptr<VkFramebuffer[]> frameBuffer = nullptr;
         VkFence swFence = nullptr;
@@ -253,13 +164,9 @@ public:
     };
 
 private:
-    friend Vulkan2D;
-    friend VulkanBasicPolygon;
-    friend VulkanSkinMesh;
-
     static VulkanDevice* DevicePointer;
 
-    VkPhysicalDevice pDev = VK_NULL_HANDLE;//VulkanInstance„Åã„Çâ„Éù„Ç§„É≥„Çø„ÇíÂèó„ÅëÂèñ„Çã
+    VkPhysicalDevice pDev = VK_NULL_HANDLE;//VulkanInstanceÇ©ÇÁÉ|ÉCÉìÉ^ÇéÛÇØéÊÇÈ
     VkDevice device = VK_NULL_HANDLE;
     VkQueue devQueue = VK_NULL_HANDLE;
     uint32_t queueFamilyIndex = 0xffffffff;
@@ -277,33 +184,6 @@ private:
     CoordTf::MATRIX proj, view;
     CoordTf::VECTOR4 viewPos;
     const CoordTf::VECTOR3 upVec = { 0.0f,1.0f,0.0f };
-    CoordTf::VECTOR4 lightPos[numLightMax];
-    CoordTf::VECTOR4 lightColor[numLightMax];
-    uint32_t numLight = 1;
-    float attenuation1 = 1.0f;
-    float attenuation2 = 0.001f;
-    float attenuation3 = 0.001f;
-
-    struct MatrixSet {
-        CoordTf::MATRIX world;
-        CoordTf::MATRIX mvp;
-        CoordTf::MATRIX bone[numBoneMax];
-    };
-
-    struct Material {
-        CoordTf::VECTOR4 diffuse = { 1.0f, 1.0f, 1.0f, 1.0f };
-        CoordTf::VECTOR4 specular = { 0.0f, 0.0f, 0.0f, 0.0f };
-        CoordTf::VECTOR4 ambient = { 0.0f, 0.0f, 0.0f, 0.0f };
-        CoordTf::VECTOR4 viewPos;
-        CoordTf::VECTOR4 lightPos[numLightMax];
-        CoordTf::VECTOR4 lightColor[numLightMax];
-        CoordTf::VECTOR4 numLight;//„É©„Ç§„ÉàÊï∞,Ê∏õË°∞1,Ê∏õË°∞2,Ê∏õË°∞3
-        CoordTf::VECTOR4 UvSwitch = {};//.x==0:„Åù„ÅÆ„Åæ„Åæ, 1:Âàá„ÇäÊõø„Åà
-    };
-
-    struct MatrixSet2D {
-        CoordTf::VECTOR2 world;
-    };
 
     struct Texture {
         unsigned char* byte = nullptr;
@@ -325,8 +205,8 @@ private:
     uint32_t numTexture = 0;
 
     VulkanDevice() {}
-    VulkanDevice(const VulkanDevice& obj) {}   // „Ç≥„Éî„Éº„Ç≥„É≥„Çπ„Éà„É©„ÇØ„ÇøÁ¶ÅÊ≠¢
-    void operator=(const VulkanDevice& obj) {}// ‰ª£ÂÖ•ÊºîÁÆóÂ≠êÁ¶ÅÊ≠¢
+    VulkanDevice(const VulkanDevice& obj) {}   // ÉRÉsÅ[ÉRÉìÉXÉgÉâÉNÉ^ã÷é~
+    void operator=(const VulkanDevice& obj) {}// ë„ì¸ââéZéqã÷é~
 
     VulkanDevice(VkPhysicalDevice pd, uint32_t numCommandBuffer, bool V_SYNC);
 
@@ -364,36 +244,14 @@ private:
 
     void destroyTexture();
 
-    char* getNameFromPass(char* pass);
-
     void copyBuffer(uint32_t comBufindex, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 
     uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 
-    void descriptorAndPipelineLayouts(bool useTexture, VkPipelineLayout& pipelineLayout,
-        VkDescriptorSetLayout& descSetLayout);
-
-    void descriptorAndPipelineLayouts2D(bool useTexture, VkPipelineLayout& pipelineLayout,
-        VkDescriptorSetLayout& descSetLayout);
-
-    void createDescriptorPool(bool useTexture, VkDescriptorPool& descPool);
-
-    void createDescriptorPool2D(bool useTexture, VkDescriptorPool& descPool);
-
-    VkPipelineCache createPipelineCache();
-
-    VkPipeline createGraphicsPipelineVF(bool useAlpha,
-        const VkPipelineShaderStageCreateInfo& vshader,
-        const VkPipelineShaderStageCreateInfo& fshader,
-        const VkVertexInputBindingDescription& bindDesc,
-        const VkVertexInputAttributeDescription* attrDescs,
-        uint32_t numAttr,
-        const VkPipelineLayout& pLayout,
-        const VkRenderPass renderPass,
-        const VkPipelineCache& pCache);
-
 public:
-    static void InstanceCreate(VkPhysicalDevice pd, uint32_t numCommandBuffer = 1,
+    static void InstanceCreate(VkPhysicalDevice pd,
+        uint32_t ApiVersion,
+        uint32_t numCommandBuffer = 1,
         bool V_SYNC = true);
 
     static VulkanDevice* GetInstance();
@@ -426,15 +284,6 @@ public:
         BufferSet buf = {};
         UNI uni;
     };
-
-    uint32_t upDescriptorSet(bool useTexture, VkTexture& difTexture, VkTexture& norTexture, VkTexture& speTexture,
-        Uniform<MatrixSet>& uni, Uniform<Material>& material,
-        VkDescriptorSet& descriptorSet, VkDescriptorPool& descPool,
-        VkDescriptorSetLayout& descSetLayout);
-
-    uint32_t upDescriptorSet2D(bool useTexture, VkTexture& texture, Uniform<MatrixSet2D>& uni,
-        VkDescriptorSet& descriptorSet, VkDescriptorPool& descPool,
-        VkDescriptorSetLayout& descSetLayout);
 
     void createUploadBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
         VkBuffer& buffer, VkDeviceMemory& bufferMemory, void* allocateMemory_add_pNext);
@@ -491,12 +340,6 @@ public:
 
     void updateView(CoordTf::VECTOR3 view, CoordTf::VECTOR3 gaze);
 
-    void setNumLight(uint32_t num);
-
-    void setLightAttenuation(float att1, float att2, float att3);
-
-    void setLight(uint32_t index, CoordTf::VECTOR3 pos, CoordTf::VECTOR3 color);
-
     void beginCommandNextImage(uint32_t comBufindex);
 
     void barrierResource(uint32_t comBufindex, VkImage image, VkImageLayout srcImageLayout, VkImageLayout dstImageLayout);
@@ -521,9 +364,12 @@ public:
 
     void DeviceWaitIdle();
 
+    char* getNameFromPass(char* pass);
     CoordTf::MATRIX getProjection() { return proj; }
     CoordTf::MATRIX getCameraView() { return view; }
     CoordTf::VECTOR4 getCameraViewPos() { return viewPos; }
     const CoordTf::VECTOR3 getUpVec() { return upVec; }
+    Texture getTexture(uint32_t index) { return texture[index]; }
 };
+
 #endif

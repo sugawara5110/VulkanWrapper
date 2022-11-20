@@ -8,7 +8,7 @@ char* Shader_traceRay =
 
 ///////////////////////光源へ光線を飛ばす, ヒットした場合明るさが加算//////////////////////////
 "vec3 EmissivePayloadCalculate(in int RecursionCnt, in vec3 hitPosition, \n"
-"                                in vec3 difTexColor, in vec3 speTexColor, in vec3 normal)\n"
+"                                in vec3 difTexColor, in vec3 speTexColor, in vec3 normalMap, in vec3 normal)\n"
 "{\n"
 "    MaterialCB mcb = matCB[gl_InstanceID];\n"
 "    int mNo = int(mcb.materialNo.x);\n"
@@ -31,7 +31,7 @@ char* Shader_traceRay =
 
 "       if(RecursionCnt <= sceneParams.maxRecursion.x) {\n"
 
-"          const uint RayFlags = gl_RayFlagsCullFrontFacingTrianglesEXT;\n"
+"          const uint RayFlags = gl_RayFlagsCullBackFacingTrianglesEXT;\n"
 //点光源計算
 "          for(int i = 0; i < sceneParams.numEmissive.x; i++) {\n"
 
@@ -47,6 +47,12 @@ char* Shader_traceRay =
 "                 while(loop){\n"
 "                    payload.mNo = EMISSIVE;\n"//処理分岐用
 "                    vec3 origin = payload.hitPosition;\n"
+
+"                    if(dot(normal, direction) <= 0){\n"//法線に対して光源に向かうレイの方向が90°以上ならレイを飛ばさない
+"                        payload.reTry = false;\n"
+"                        payload.color = sceneParams.GlobalAmbientColor.xyz;\n"
+"                        break;\n"
+"                    }\n"
 
 "                    traceRayEXT(\n"
 "                        topLevelAS,\n"
@@ -65,7 +71,7 @@ char* Shader_traceRay =
 "                    loop = payload.reTry;\n"
 "                 }\n"
 
-"                 Out = PointLightCom(SpeculerCol, Diffuse, Ambient, normal, emissivePosition, \n"
+"                 Out = PointLightCom(SpeculerCol, Diffuse, Ambient, normalMap, emissivePosition, \n"
 "                                     hitPosition, payload.lightst, payload.color, sceneParams.cameraPosition.xyz, shininess);\n"
 
 "                 emissiveColor.Diffuse += Out.Diffuse;\n"
@@ -98,7 +104,7 @@ char* Shader_traceRay =
 "                loop = payload.reTry;\n"
 "             }\n"
 
-"             Out = DirectionalLightCom(SpeculerCol, Diffuse, Ambient, normal, sceneParams.dLightst, sceneParams.dDirection.xyz, \n"
+"             Out = DirectionalLightCom(SpeculerCol, Diffuse, Ambient, normalMap, sceneParams.dLightst, sceneParams.dDirection.xyz, \n"
 "                                       payload.color, hitPosition, sceneParams.cameraPosition.xyz, shininess);\n"
 
 "             emissiveColor.Diffuse += Out.Diffuse;\n"

@@ -18,7 +18,7 @@ void BufferSetRt::createDefaultBuffer(VkDeviceSize size, VkBufferUsageFlags usag
     deviceAddress = VulkanDeviceRt::getVulkanDeviceRt()->GetDeviceAddress(buffer);
 }
 
-bool VulkanDeviceRt::createDevice(VkInstance ins, VkPhysicalDevice phDev) {
+bool VulkanDeviceRt::createDevice(VkInstance ins, VkPhysicalDevice phDev, uint32_t ApiVersion) {
     pDeviceRt = this;
     physicalDevice = phDev;
     std::vector<const char*> requiredExtensions = {
@@ -66,7 +66,7 @@ bool VulkanDeviceRt::createDevice(VkInstance ins, VkPhysicalDevice phDev) {
     physicalDeviceFeatures2.pNext = &enabledDescriptorIndexingFeatures;
     physicalDeviceFeatures2.features = features;
 
-    VulkanDevice::InstanceCreate(phDev, 2, false);
+    VulkanDevice::InstanceCreate(phDev, ApiVersion, 2, false);
     VulkanDevice* vkDev = VulkanDevice::GetInstance();
 
     const void* pNext = &physicalDeviceFeatures2;

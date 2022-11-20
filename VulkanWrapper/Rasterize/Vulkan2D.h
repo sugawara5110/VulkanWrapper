@@ -7,7 +7,7 @@
 #ifndef Vulkan2D_Header
 #define Vulkan2D_Header
 
-#include "VulkanInstance.h"
+#include "RasterizeDescriptor.h"
 
 class Vulkan2D {
 
@@ -35,7 +35,7 @@ private:
 	VkPipelineLayout pipelineLayout;
 	VkPipelineCache pipelineCache;
 	VkPipeline pipeline;
-	VulkanDevice::Uniform<VulkanDevice::MatrixSet2D> uniform[numSwap];
+	VulkanDevice::Uniform<RasterizeDescriptor::MatrixSet2D> uniform[numSwap];
 
 	template<typename T>
 	void create(uint32_t comIndex, T* ver, uint32_t num, uint32_t* ind, uint32_t indNum,
@@ -51,6 +51,7 @@ private:
 		};
 
 		VulkanDevice* device = VulkanDevice::GetInstance();
+		RasterizeDescriptor* rd = RasterizeDescriptor::GetInstance();
 
 		VkPipelineShaderStageCreateInfo vsInfo = device->createShaderModule("2Dvs", vs, VK_SHADER_STAGE_VERTEX_BIT);
 		VkPipelineShaderStageCreateInfo fsInfo = device->createShaderModule("2Dfs", fs, VK_SHADER_STAGE_FRAGMENT_BIT);
@@ -59,27 +60,27 @@ private:
 		index = device->createVertexBuffer<uint32_t>(comIndex, ind, sizeof(uint32_t) * indNum,
 			true, nullptr, nullptr);
 
-		device->descriptorAndPipelineLayouts2D(useTexture, pipelineLayout, descSetLayout);
+		rd->descriptorAndPipelineLayouts2D(useTexture, pipelineLayout, descSetLayout);
 
 		for (uint32_t i = 0; i < numSwap; i++) {
 			device->createUniform(uniform[i]);
-			device->createDescriptorPool2D(useTexture, descPool[i]);
+			rd->createDescriptorPool2D(useTexture, descPool[i]);
 			if (textureId < 0) {
-				if (i == 0)device->createVkTexture(texture, comIndex, device->texture[device->numTextureMax]);
+				if (i == 0)device->createVkTexture(texture, comIndex, device->getTexture(device->numTextureMax));
 				//-1の場合テクスチャー無いので, ダミーを入れる
 			}
 			else {
-				if (i == 0)device->createVkTexture(texture, comIndex, device->texture[textureId]);
+				if (i == 0)device->createVkTexture(texture, comIndex, device->getTexture(textureId));
 			}
-			descSetCnt = device->upDescriptorSet2D(useTexture, texture, uniform[i], descSet[i],
+			descSetCnt = rd->upDescriptorSet2D(useTexture, texture, uniform[i], descSet[i],
 				descPool[i], descSetLayout);
 		}
 
-		pipelineCache = device->createPipelineCache();
-		pipeline = device->createGraphicsPipelineVF(false, vsInfo, fsInfo,
-			bindDesc, attrDescs, 2, pipelineLayout, device->swBuf.getRenderPass(), pipelineCache);
-		vkDestroyShaderModule(device->device, vsInfo.module, nullptr);
-		vkDestroyShaderModule(device->device, fsInfo.module, nullptr);
+		pipelineCache = rd->createPipelineCache();
+		pipeline = rd->createGraphicsPipelineVF(false, vsInfo, fsInfo,
+			bindDesc, attrDescs, 2, pipelineLayout, device->getSwapchainObj()->getRenderPass(), pipelineCache);
+		vkDestroyShaderModule(device->getDevice(), vsInfo.module, nullptr);
+		vkDestroyShaderModule(device->getDevice(), fsInfo.module, nullptr);
 	}
 
 public:
