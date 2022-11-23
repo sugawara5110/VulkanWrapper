@@ -1032,8 +1032,9 @@ void VulkanDevice::updateProjection(float AngleView, float Near, float Far) {
     MatrixPerspectiveFovLH(&proj, AngleView, (float)swBuf.getSize().width / (float)swBuf.getSize().height, Near, Far);
 }
 
-void VulkanDevice::updateView(CoordTf::VECTOR3 vi, CoordTf::VECTOR3 gaze) {
-    MatrixLookAtLH(&view, vi, gaze, upVec);
+void VulkanDevice::updateView(CoordTf::VECTOR3 vi, CoordTf::VECTOR3 gaze, CoordTf::VECTOR3 up) {
+    MatrixLookAtLH(&view, vi, gaze, up);
+    upVec = up;
     viewPos.as(vi.x, vi.y, vi.z, 0.0f);
 }
 

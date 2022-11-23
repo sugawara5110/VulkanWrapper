@@ -55,7 +55,7 @@ namespace vkUtil {
 
     void createTangent(int numMaterial, unsigned int* indexCntArr,
         void* vertexArr, unsigned int** indexArr, int structByteStride,
-        int norBytePos, int tangentBytePos, CoordTf::VECTOR3 upVec);
+        int posBytePos, int norBytePos, int texBytePos, int tangentBytePos);
 }
 
 #endif

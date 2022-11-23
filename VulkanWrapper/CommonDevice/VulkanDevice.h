@@ -183,7 +183,7 @@ private:
 
     CoordTf::MATRIX proj, view;
     CoordTf::VECTOR4 viewPos;
-    const CoordTf::VECTOR3 upVec = { 0.0f,1.0f,0.0f };
+    CoordTf::VECTOR3 upVec = {};
 
     struct Texture {
         unsigned char* byte = nullptr;
@@ -338,7 +338,7 @@ public:
 
     void updateProjection(float AngleView = 45.0f, float Near = 1.0f, float Far = 100.0f);
 
-    void updateView(CoordTf::VECTOR3 view, CoordTf::VECTOR3 gaze);
+    void updateView(CoordTf::VECTOR3 view, CoordTf::VECTOR3 gaze, CoordTf::VECTOR3 up = { 0.0f,1.0f,0.0f });
 
     void beginCommandNextImage(uint32_t comBufindex);
 
@@ -368,7 +368,7 @@ public:
     CoordTf::MATRIX getProjection() { return proj; }
     CoordTf::MATRIX getCameraView() { return view; }
     CoordTf::VECTOR4 getCameraViewPos() { return viewPos; }
-    const CoordTf::VECTOR3 getUpVec() { return upVec; }
+    CoordTf::VECTOR3 getUpVec() { return upVec; }
     Texture getTexture(uint32_t index) { return texture[index]; }
 };
 

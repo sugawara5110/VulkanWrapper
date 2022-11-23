@@ -7,46 +7,47 @@
 #define _CRT_SECURE_NO_WARNINGS
 #include "vkUtil.h"
 
-static CoordTf::VECTOR3 CalcTangent(CoordTf::VECTOR3 normal, CoordTf::VECTOR3 upVec) {
-    using namespace CoordTf;
-
-    //upVec‚ÍŒÅ’è‚Æ‚·‚é
-
-    const int arrNum = 6;
-
-    const VECTOR3 upNor[arrNum] = {
-        {0.0f, 0.0f, -1.0f},
-        {0.0f, 0.0f, 1.0f},
-        {0.0f, 1.0f, 0.0f},
-        {0.0f, -1.0f, 0.0f},
-        {-1.0f, 0.0f, 0.0f},
-        {1.0f, 0.0f, 0.0f}
-    };
-    const VECTOR3 upTan[arrNum] = {
-        {1.0f, 0.0f, 0.0f},
-        {-1.0f, 0.0f, 0.0f},
-        {1.0f, 0.0f, 0.0f},
-        {-1.0f, 0.0f, 0.0f},
-        {0.0f, 0.0f, -1.0f},
-        {0.0f, 0.0f, 1.0f}
-    };
-
-    VECTOR3 tangent = {};
-    VectorCross(&tangent, &normal, &upVec);
-
-    for (int i = 0; i < arrNum; i++) {
-        if (normal.x == upNor[i].x &&
-            normal.y == upNor[i].y &&
-            normal.z == upNor[i].z) {
-
-            tangent = upTan[i];
-            break;
-        }
+namespace {
+    CoordTf::VECTOR3 subtraction3(CoordTf::VECTOR3 v0, CoordTf::VECTOR3 v1) {
+        return { v0.x - v1.x,v0.y - v1.y, v0.z - v1.z };
     }
 
-    VECTOR3 ret = {};
-    VectorNormalize(&ret, &tangent);
-    return ret;
+    CoordTf::VECTOR2 subtraction2(CoordTf::VECTOR2 v0, CoordTf::VECTOR2 v1) {
+        return { v0.x - v1.x,v0.y - v1.y };
+    }
+
+    CoordTf::VECTOR3 CalcTangent(CoordTf::VECTOR3 v0, CoordTf::VECTOR3 v1, CoordTf::VECTOR3 v2,
+        CoordTf::VECTOR2 uv0, CoordTf::VECTOR2 uv1, CoordTf::VECTOR2 uv2, CoordTf::VECTOR3 normal) {
+
+        using namespace CoordTf;
+
+        VECTOR3 deltaPos1 = subtraction3(v1, v0);
+        VECTOR3 deltaPos2 = subtraction3(v2, v0);
+
+        VECTOR2 deltaUV1 = subtraction2(uv1, uv0);
+        VECTOR2 deltaUV2 = subtraction2(uv2, uv0);
+
+        float r = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV1.y * deltaUV2.x);
+
+        VectorMultiply(&deltaPos1, deltaUV2.y);
+        VectorMultiply(&deltaPos2, deltaUV1.y);
+        VECTOR3 tangent = subtraction3(deltaPos1, deltaPos2);
+
+        VectorMultiply(&deltaPos2, deltaUV1.x);
+        VectorMultiply(&deltaPos1, deltaUV2.x);
+        VECTOR3 bitangent = subtraction3(deltaPos2, deltaPos1);
+
+        VECTOR3 out = {};
+        VectorCross(&out, &normal, &tangent);
+
+        if (VectorDot(&out, &bitangent) < 0.0f) {
+            tangent.x *= -1.0f;
+            tangent.y *= -1.0f;
+            tangent.z *= -1.0f;
+        }
+
+        return tangent;
+    }
 }
 
 void vkUtil::checkError(VkResult res) {
@@ -95,25 +96,35 @@ void vkUtil::addChar::addStr(char* str1, char* str2) {
 
 void vkUtil::createTangent(int numMaterial, unsigned int* indexCntArr,
     void* vertexArr, unsigned int** indexArr, int structByteStride,
-    int norBytePos, int tangentBytePos, CoordTf::VECTOR3 upVec) {
+    int posBytePos, int norBytePos, int texBytePos, int tangentBytePos) {
 
+    unsigned char* b_posSt = (unsigned char*)vertexArr + posBytePos;
     unsigned char* b_norSt = (unsigned char*)vertexArr + norBytePos;
+    unsigned char* b_texSt = (unsigned char*)vertexArr + texBytePos;
     unsigned char* b_tanSt = (unsigned char*)vertexArr + tangentBytePos;
     for (int i = 0; i < numMaterial; i++) {
         unsigned int cnt = 0;
         while (indexCntArr[i] > cnt) {
+            CoordTf::VECTOR3* posVec[3] = {};
             CoordTf::VECTOR3* norVec[3] = {};
+            CoordTf::VECTOR2* texVec[3] = {};
             CoordTf::VECTOR3* tanVec[3] = {};
 
             for (int ind = 0; ind < 3; ind++) {
                 unsigned int index = indexArr[i][cnt++] * structByteStride;
+                unsigned char* b_pos = b_posSt + index;
                 unsigned char* b_nor = b_norSt + index;
+                unsigned char* b_tex = b_texSt + index;
                 unsigned char* b_tan = b_tanSt + index;
+                posVec[ind] = (CoordTf::VECTOR3*)b_pos;
                 norVec[ind] = (CoordTf::VECTOR3*)b_nor;
+                texVec[ind] = (CoordTf::VECTOR2*)b_tex;
                 tanVec[ind] = (CoordTf::VECTOR3*)b_tan;
-
-                *(tanVec[ind]) = CalcTangent(*(norVec[ind]), upVec);
             }
+            CoordTf::VECTOR3 tangent = CalcTangent(*(posVec[0]), *(posVec[1]), *(posVec[2]),
+                *(texVec[0]), *(texVec[1]), *(texVec[2]), *(norVec[0]));
+
+            *(tanVec[0]) = *(tanVec[1]) = *(tanVec[2]) = tangent;
         }
     }
 }

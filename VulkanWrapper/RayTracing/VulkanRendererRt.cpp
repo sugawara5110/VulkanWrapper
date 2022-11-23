@@ -307,7 +307,7 @@ void VulkanRendererRt::CreateSceneTLAS() {
     VkAccelerationStructureGeometryKHR asGeometry{};
     asGeometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
     asGeometry.geometryType = VK_GEOMETRY_TYPE_INSTANCES_KHR;
-    asGeometry.flags = VK_GEOMETRY_OPAQUE_BIT_KHR;
+    asGeometry.flags = 0;//AnyHitÇégÇ§èÍçá0
     asGeometry.geometry.instances.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR;
     asGeometry.geometry.instances.arrayOfPointers = VK_FALSE;
     asGeometry.geometry.instances.data = instanceDataDeviceAddress;

@@ -74,7 +74,12 @@ void VulkanBasicPolygonRt::createBLAS(RtData& rdata) {
     VkAccelerationStructureGeometryKHR Geometry{
            VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR
     };
+
     Geometry.flags = VK_GEOMETRY_OPAQUE_BIT_KHR;
+    if (rdata.mat.useAlpha.x == 1.0f) {
+        Geometry.flags = 0;
+    }
+
     Geometry.geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR;
 
     auto& triangles = Geometry.geometry.triangles;
@@ -132,7 +137,7 @@ void VulkanBasicPolygonRt::createMultipleMaterials(uint32_t comIndex, bool useAl
     VulkanDevice::textureIdSet* texid, uint32_t InstanceSize) {
 
     vkUtil::createTangent(numMat, indNum,
-        ver, ind, sizeof(Vertex3D_t), 3 * 4, 6 * 4, VulkanDevice::GetInstance()->getUpVec());
+        ver, ind, sizeof(Vertex3D_t), 0, 3 * 4, 9 * 4, 6 * 4);
 
     Rdata.resize(numMat);
     for (auto i = 0; i < Rdata.size(); i++) {
