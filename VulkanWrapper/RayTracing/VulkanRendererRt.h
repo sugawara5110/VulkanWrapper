@@ -17,9 +17,9 @@ template<class T> T Align(T size, uint32_t align) {
 class VulkanRendererRt {
 
 private:
-    void CreateSceneTLAS();
+    void CreateTLAS(uint32_t comIndex);
 
-    void CreateRaytracedBuffer();
+    void CreateRaytracedBuffer(uint32_t comIndex);
 
     void CreateRaytracePipeline();
 
@@ -29,7 +29,7 @@ private:
 
     void CreateDescriptorSets();
 
-    void UpdateSceneTLAS(VkCommandBuffer Command);
+    void UpdateTLAS(uint32_t comIndex);
 
     struct ShaderBindingTableInfo {
         VkStridedDeviceAddressRegionKHR rgen = { };
@@ -103,7 +103,7 @@ private:
 public:
     std::unique_ptr<VulkanDeviceRt> m_device;
 
-    void Init(std::vector<VulkanBasicPolygonRt::RtData*> rt);
+    void Init(uint32_t comIndex, std::vector<VulkanBasicPolygonRt::RtData*> rt);
     void destroy();
 
     void setDirectionLight(bool on, CoordTf::VECTOR3 Color = { 1.0f,1.0f,1.0f }, CoordTf::VECTOR3 Direction = { -0.2f, -1.0f, -1.0f });
@@ -111,7 +111,7 @@ public:
     void setGlobalAmbientColor(CoordTf::VECTOR3 Color);
 
     void Update(int maxRecursion);
-    void Render();
+    void Render(uint32_t comIndex);
 };
 
 #endif

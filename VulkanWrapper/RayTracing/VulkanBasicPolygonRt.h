@@ -65,9 +65,10 @@ private:
 	uint32_t InstanceCnt = 0;
 
 	void createVertexBuffer(RtData& rdata, uint32_t comIndex, Vertex3D_t* ver, uint32_t num, uint32_t* ind, uint32_t indNum);
-	void createBLAS(RtData& rdata);
+	void createBLAS(RtData& rdata, uint32_t comIndex);
 	void updateInstance(RtData& rdata);
 	void createTexture(RtData& rdata, uint32_t comIndex, VulkanDevice::textureIdSet& texId);
+	void updateBLAS(RtData& rdata, uint32_t comIndex);
 
 public:
 	std::vector<RtData> Rdata;
@@ -91,8 +92,8 @@ public:
 		uint32_t materialIndex = 0, float shininess = 4.0f, float RefractiveIndex = 0.0f);
 
 	void instancing(CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale);
-	void instancingUpdate();
-	void update(CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale);
+	void instancingUpdate(uint32_t comIndex);
+	void update(uint32_t comIndex, CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale);
 };
 
 #endif

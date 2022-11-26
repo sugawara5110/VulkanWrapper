@@ -18,9 +18,14 @@ void AccelerationStructure::destroyScratchBuffer() {
 }
 
 void AccelerationStructure::buildAS(
+    uint32_t comIndex,
     VkAccelerationStructureTypeKHR type,
-    const Input& input,
+    VkAccelerationStructureGeometryKHR geometry,
+    VkAccelerationStructureBuildRangeInfoKHR buildRangeInfo,
     VkBuildAccelerationStructureFlagsKHR buildFlags) {
+
+    Geometry = geometry;
+    BuildRangeInfo = buildRangeInfo;
 
     auto device = VulkanDevice::GetInstance()->getDevice();
 
@@ -31,25 +36,21 @@ void AccelerationStructure::buildAS(
     asBuildGeometryInfo.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
     asBuildGeometryInfo.flags = buildFlags;
 
-    asBuildGeometryInfo.geometryCount = uint32_t(input.Geometry.size());
-    asBuildGeometryInfo.pGeometries = input.Geometry.data();
+    asBuildGeometryInfo.geometryCount = 1;
+    asBuildGeometryInfo.pGeometries = &Geometry;
 
     VkAccelerationStructureBuildSizesInfoKHR asBuildSizesInfo{
         VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR
     };
-    std::vector<uint32_t> numPrimitives;
-    numPrimitives.reserve(input.BuildRangeInfo.size());
-    for (int i = 0; i < input.BuildRangeInfo.size(); i++) {
-        numPrimitives.push_back(input.BuildRangeInfo[i].primitiveCount);
-    }
+
+    uint32_t numPrimitives[1] = { BuildRangeInfo.primitiveCount };
 
     vkGetAccelerationStructureBuildSizesKHR(
         device,
         VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
         &asBuildGeometryInfo,
-        numPrimitives.data(),
-        &asBuildSizesInfo
-    );
+        numPrimitives,
+        &asBuildSizesInfo);
 
     VkBufferUsageFlags asUsage = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 
@@ -89,12 +90,11 @@ void AccelerationStructure::buildAS(
 
     asBuildGeometryInfo.dstAccelerationStructure = accelerationStructure.handle;
     asBuildGeometryInfo.scratchData.deviceAddress = scratchBuffer.getDeviceAddress();
-    build(asBuildGeometryInfo, input.BuildRangeInfo);
+    build(comIndex, asBuildGeometryInfo, BuildRangeInfo);
 }
 
-void AccelerationStructure::update(VkCommandBuffer command,
+void AccelerationStructure::update(uint32_t comIndex,
     VkAccelerationStructureTypeKHR type,
-    const Input& input,
     VkBuildAccelerationStructureFlagsKHR buildFlags) {
 
     VkAccelerationStructureBuildGeometryInfoKHR accelerationStructureBuildGeometryInfo{
@@ -104,20 +104,20 @@ void AccelerationStructure::update(VkCommandBuffer command,
     accelerationStructureBuildGeometryInfo.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR;
     accelerationStructureBuildGeometryInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR | buildFlags;
 
-    accelerationStructureBuildGeometryInfo.geometryCount = uint32_t(input.Geometry.size());
-    accelerationStructureBuildGeometryInfo.pGeometries = input.Geometry.data();
+    accelerationStructureBuildGeometryInfo.geometryCount = 1;
+    accelerationStructureBuildGeometryInfo.pGeometries = &Geometry;
 
     accelerationStructureBuildGeometryInfo.dstAccelerationStructure = accelerationStructure.handle;
     accelerationStructureBuildGeometryInfo.srcAccelerationStructure = accelerationStructure.handle;
     accelerationStructureBuildGeometryInfo.scratchData.deviceAddress = updateBuffer.getDeviceAddress();
 
-    std::vector<const VkAccelerationStructureBuildRangeInfoKHR*> asBuildRangeInfoPtrs;
-    for (auto& v : input.BuildRangeInfo) {
-        asBuildRangeInfoPtrs.push_back(&v);
-    }
+    VulkanDevice* dev = VulkanDevice::GetInstance();
+    auto command = dev->getCommandBuffer(comIndex);
+
+    VkAccelerationStructureBuildRangeInfoKHR* BuildRangeInfoArr[1] = { &BuildRangeInfo };
+
     vkCmdBuildAccelerationStructuresKHR(
-        command, 1, &accelerationStructureBuildGeometryInfo, asBuildRangeInfoPtrs.data()
-    );
+        command, 1, &accelerationStructureBuildGeometryInfo, BuildRangeInfoArr);
 
     VkMemoryBarrier barrier{
         VK_STRUCTURE_TYPE_MEMORY_BARRIER,
@@ -130,24 +130,21 @@ void AccelerationStructure::update(VkCommandBuffer command,
         VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
         0, 1, &barrier,
         0, nullptr,
-        0, nullptr
-    );
+        0, nullptr);
 }
 
-void AccelerationStructure::build(const VkAccelerationStructureBuildGeometryInfoKHR& asBuildGeometryInfo,
-    const std::vector<VkAccelerationStructureBuildRangeInfoKHR>& asBuildRangeInfo) {
+void AccelerationStructure::build(uint32_t comIndex,
+    VkAccelerationStructureBuildGeometryInfoKHR BuildGeometryInfo,
+    VkAccelerationStructureBuildRangeInfoKHR BuildRangeInfo) {
 
-    std::vector<const VkAccelerationStructureBuildRangeInfoKHR*> asBuildRangeInfoPtrs;
-    for (auto& v : asBuildRangeInfo) {
-        asBuildRangeInfoPtrs.push_back(&v);
-    }
+    VkAccelerationStructureBuildRangeInfoKHR* asBuildRangeInfoPtrs[1] = { &BuildRangeInfo };
 
     VulkanDevice* dev = VulkanDevice::GetInstance();
-    auto command = dev->getCommandBuffer(0);
-    dev->beginCommand(0);
+    auto command = dev->getCommandBuffer(comIndex);
+    dev->beginCommand(comIndex);
 
     vkCmdBuildAccelerationStructuresKHR(
-        command, 1, &asBuildGeometryInfo, asBuildRangeInfoPtrs.data()
+        command, 1, &BuildGeometryInfo, asBuildRangeInfoPtrs
     );
 
     VkMemoryBarrier barrier{
@@ -163,7 +160,7 @@ void AccelerationStructure::build(const VkAccelerationStructureBuildGeometryInfo
         0, nullptr,
         0, nullptr
     );
-    dev->endCommand(0);
-    dev->submitCommandsDoNotRender(0);
+    dev->endCommand(comIndex);
+    dev->submitCommandsDoNotRender(comIndex);
 }
 

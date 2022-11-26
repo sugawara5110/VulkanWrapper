@@ -67,7 +67,7 @@ namespace {
     }
 }
 
-void VulkanRendererRt::Init(std::vector<VulkanBasicPolygonRt::RtData*> r) {
+void VulkanRendererRt::Init(uint32_t comIndex, std::vector<VulkanBasicPolygonRt::RtData*> r) {
 
     VulkanDevice::GetInstance()->createUniform(m_sceneUBO);
 
@@ -115,9 +115,9 @@ void VulkanRendererRt::Init(std::vector<VulkanBasicPolygonRt::RtData*> r) {
         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, pNext);
     materialUBO.memoryMap(materialArr.data());
 
-    CreateSceneTLAS();
+    CreateTLAS(comIndex);
 
-    CreateRaytracedBuffer();
+    CreateRaytracedBuffer(comIndex);
 
     CreateLayouts();
 
@@ -215,14 +215,12 @@ void VulkanRendererRt::Update(int maxRecursion) {
     m_sceneParam.numEmissive.x = (float)emissiveCnt;
 }
 
-void VulkanRendererRt::Render() {
+void VulkanRendererRt::Render(uint32_t comIndex) {
 
     VulkanDevice* dev = VulkanDevice::GetInstance();
-    dev->beginCommandNextImage(0);
+    auto command = dev->getCommandBuffer(comIndex);
 
-    auto command = dev->getCommandBuffer(0);
-
-    UpdateSceneTLAS(command);
+    UpdateTLAS(comIndex);
 
     memcpy(&m_sceneUBO.uni, &m_sceneParam, sizeof(m_sceneParam));
     dev->updateUniform(m_sceneUBO);
@@ -242,8 +240,7 @@ void VulkanRendererRt::Render() {
         &m_sbtInfo.miss,
         &m_sbtInfo.hit,
         &callable_shader_sbt_entry,
-        width, height, 1
-    );
+        width, height, 1);
 
     // レイトレーシング結果画像をバックバッファへコピー.
     VkImageCopy region{};
@@ -251,9 +248,9 @@ void VulkanRendererRt::Render() {
     region.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
     region.dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
 
-    m_raytracedImage.barrierResource(0, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+    m_raytracedImage.barrierResource(comIndex, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 
-    dev->barrierResource(0,
+    dev->barrierResource(comIndex,
         dev->getSwapchainObj()->getCurrentImage(),
         VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -263,20 +260,10 @@ void VulkanRendererRt::Render() {
         dev->getSwapchainObj()->getCurrentImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
         1, &region);
 
-    m_raytracedImage.barrierResource(0, VK_IMAGE_LAYOUT_GENERAL);
-
-    dev->beginDraw(0);
-
-    //通常のレンダリングする場合ここで処理/////////////////////
-
-     // レンダーパスが終了するとバックバッファは
-     // TRANSFER_DST_OPTIMAL->PRESENT_SRC_KHR へレイアウト変更が適用される.
-    dev->endDraw(0);
-    dev->endCommand(0);
-    dev->Present(0);
+    m_raytracedImage.barrierResource(comIndex, VK_IMAGE_LAYOUT_GENERAL);
 }
 
-void VulkanRendererRt::CreateSceneTLAS() {
+void VulkanRendererRt::CreateTLAS(uint32_t comIndex) {
 
     std::vector<VkAccelerationStructureInstanceKHR> asInstances;
 
@@ -318,16 +305,16 @@ void VulkanRendererRt::CreateSceneTLAS() {
     asBuildRangeInfo.firstVertex = 0;
     asBuildRangeInfo.transformOffset = 0;
 
-    AccelerationStructure::Input tlasInput{};
-    tlasInput.Geometry = { asGeometry };
-    tlasInput.BuildRangeInfo = { asBuildRangeInfo };
     VkBuildAccelerationStructureFlagsKHR buildFlags = VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR;
-    m_topLevelAS.buildAS(VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR, tlasInput, buildFlags);
+    m_topLevelAS.buildAS(comIndex, VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
+        asGeometry,
+        asBuildRangeInfo,
+        buildFlags);
 
     m_topLevelAS.destroyScratchBuffer();
 }
 
-void VulkanRendererRt::UpdateSceneTLAS(VkCommandBuffer command) {
+void VulkanRendererRt::UpdateTLAS(uint32_t comIndex) {
 
     std::vector<VkAccelerationStructureInstanceKHR> asInstances;
 
@@ -339,38 +326,15 @@ void VulkanRendererRt::UpdateSceneTLAS(VkCommandBuffer command) {
 
     m_instancesBuffer.memoryMap(asInstances.data());
 
-    VkDeviceOrHostAddressConstKHR instanceDataDeviceAddress{};
-    instanceDataDeviceAddress.deviceAddress = m_instancesBuffer.getDeviceAddress();
-
-    VkAccelerationStructureGeometryKHR asGeometry{};
-    asGeometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
-    asGeometry.geometryType = VK_GEOMETRY_TYPE_INSTANCES_KHR;
-    asGeometry.flags = 0;
-    asGeometry.geometry.instances.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR;
-    asGeometry.geometry.instances.arrayOfPointers = VK_FALSE;
-    asGeometry.geometry.instances.data = instanceDataDeviceAddress;
-
-    VkAccelerationStructureBuildRangeInfoKHR asBuildRangeInfo{};
-    asBuildRangeInfo.primitiveCount = uint32_t(asInstances.size());
-    asBuildRangeInfo.primitiveOffset = 0;
-    asBuildRangeInfo.firstVertex = 0;
-    asBuildRangeInfo.transformOffset = 0;
-
-    AccelerationStructure::Input tlasInput{};
-    tlasInput.Geometry = { asGeometry };
-    tlasInput.BuildRangeInfo = { asBuildRangeInfo };
-
     VkBuildAccelerationStructureFlagsKHR buildFlags = 0;
     buildFlags |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR;
     m_topLevelAS.update(
-        command,
+        comIndex,
         VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
-        tlasInput,
-        buildFlags
-    );
+        buildFlags);
 }
 
-void VulkanRendererRt::CreateRaytracedBuffer() {
+void VulkanRendererRt::CreateRaytracedBuffer(uint32_t comIndex) {
 
     VulkanDevice* dev = VulkanDevice::GetInstance();
     // バックバッファと同じフォーマットで作成する.
@@ -392,13 +356,13 @@ void VulkanRendererRt::CreateRaytracedBuffer() {
         VK_IMAGE_ASPECT_COLOR_BIT);
 
     // バッファの状態を変更しておく.
-    auto command = dev->getCommandBuffer(0);
-    dev->beginCommand(0);
+    auto command = dev->getCommandBuffer(comIndex);
+    dev->beginCommand(comIndex);
 
-    m_raytracedImage.barrierResource(0, VK_IMAGE_LAYOUT_GENERAL);
+    m_raytracedImage.barrierResource(comIndex, VK_IMAGE_LAYOUT_GENERAL);
 
-    dev->endCommand(0);
-    dev->submitCommandsDoNotRender(0);
+    dev->endCommand(comIndex);
+    dev->submitCommandsDoNotRender(comIndex);
 }
 
 void VulkanRendererRt::CreateRaytracePipeline() {

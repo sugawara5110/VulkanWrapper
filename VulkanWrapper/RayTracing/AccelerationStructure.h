@@ -24,27 +24,26 @@ private:
     BufferSetRt scratchBuffer;//構築用
     BufferSetRt updateBuffer;//更新用
 
-    void build(const VkAccelerationStructureBuildGeometryInfoKHR& BuildGeometryInfo,
-        const std::vector<VkAccelerationStructureBuildRangeInfoKHR>& BuildRangeInfo);
+    VkAccelerationStructureGeometryKHR Geometry;
+    VkAccelerationStructureBuildRangeInfoKHR BuildRangeInfo;
+
+    void build(uint32_t comIndex,
+        VkAccelerationStructureBuildGeometryInfoKHR BuildGeometryInfo,
+        VkAccelerationStructureBuildRangeInfoKHR BuildRangeInfo);
 
 public:
     void destroy();
     void destroyScratchBuffer();
 
-    struct Input {
-        std::vector<VkAccelerationStructureGeometryKHR> Geometry;
-        std::vector<VkAccelerationStructureBuildRangeInfoKHR> BuildRangeInfo;
-    };
-
-    void buildAS(VkAccelerationStructureTypeKHR type,
-        const Input& input,
+    void buildAS(uint32_t comIndex,
+        VkAccelerationStructureTypeKHR type,
+        VkAccelerationStructureGeometryKHR geometry,
+        VkAccelerationStructureBuildRangeInfoKHR buildRangeInfo,
         VkBuildAccelerationStructureFlagsKHR buildFlags);
 
-    void update(
-        VkCommandBuffer command,
+    void update(uint32_t comIndex,
         VkAccelerationStructureTypeKHR type,
-        const Input& input,
-        VkBuildAccelerationStructureFlagsKHR buildFlags = 0);
+        VkBuildAccelerationStructureFlagsKHR buildFlags);
 
     VkAccelerationStructureKHR getHandle() const { return accelerationStructure.handle; }
     VkDeviceAddress getDeviceAddress() const { return accelerationStructure.deviceAddress; }

@@ -98,6 +98,8 @@ void vkUtil::createTangent(int numMaterial, unsigned int* indexCntArr,
     void* vertexArr, unsigned int** indexArr, int structByteStride,
     int posBytePos, int norBytePos, int texBytePos, int tangentBytePos) {
 
+    using namespace CoordTf;
+
     unsigned char* b_posSt = (unsigned char*)vertexArr + posBytePos;
     unsigned char* b_norSt = (unsigned char*)vertexArr + norBytePos;
     unsigned char* b_texSt = (unsigned char*)vertexArr + texBytePos;
@@ -105,10 +107,10 @@ void vkUtil::createTangent(int numMaterial, unsigned int* indexCntArr,
     for (int i = 0; i < numMaterial; i++) {
         unsigned int cnt = 0;
         while (indexCntArr[i] > cnt) {
-            CoordTf::VECTOR3* posVec[3] = {};
-            CoordTf::VECTOR3* norVec[3] = {};
-            CoordTf::VECTOR2* texVec[3] = {};
-            CoordTf::VECTOR3* tanVec[3] = {};
+            VECTOR3* posVec[3] = {};
+            VECTOR3* norVec[3] = {};
+            VECTOR2* texVec[3] = {};
+            VECTOR3* tanVec[3] = {};
 
             for (int ind = 0; ind < 3; ind++) {
                 unsigned int index = indexArr[i][cnt++] * structByteStride;
@@ -116,15 +118,18 @@ void vkUtil::createTangent(int numMaterial, unsigned int* indexCntArr,
                 unsigned char* b_nor = b_norSt + index;
                 unsigned char* b_tex = b_texSt + index;
                 unsigned char* b_tan = b_tanSt + index;
-                posVec[ind] = (CoordTf::VECTOR3*)b_pos;
-                norVec[ind] = (CoordTf::VECTOR3*)b_nor;
-                texVec[ind] = (CoordTf::VECTOR2*)b_tex;
-                tanVec[ind] = (CoordTf::VECTOR3*)b_tan;
+                posVec[ind] = (VECTOR3*)b_pos;
+                norVec[ind] = (VECTOR3*)b_nor;
+                texVec[ind] = (VECTOR2*)b_tex;
+                tanVec[ind] = (VECTOR3*)b_tan;
             }
-            CoordTf::VECTOR3 tangent = CalcTangent(*(posVec[0]), *(posVec[1]), *(posVec[2]),
+            VECTOR3 tangent = CalcTangent(*(posVec[0]), *(posVec[1]), *(posVec[2]),
                 *(texVec[0]), *(texVec[1]), *(texVec[2]), *(norVec[0]));
 
-            *(tanVec[0]) = *(tanVec[1]) = *(tanVec[2]) = tangent;
+            VECTOR3 outN = {};
+            VectorNormalize(&outN, &tangent);
+
+            *(tanVec[0]) = *(tanVec[1]) = *(tanVec[2]) = outN;
         }
     }
 }
