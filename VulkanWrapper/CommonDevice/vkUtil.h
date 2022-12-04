@@ -56,6 +56,10 @@ namespace vkUtil {
     void createTangent(int numMaterial, unsigned int* indexCntArr,
         void* vertexArr, unsigned int** indexArr, int structByteStride,
         int posBytePos, int norBytePos, int texBytePos, int tangentBytePos);
+
+    CoordTf::VECTOR3 normalRecalculation(CoordTf::VECTOR3 Nor[3]);
+
+    char* getNameFromPass(char* pass);
 }
 
 #endif

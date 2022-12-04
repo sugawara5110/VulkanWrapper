@@ -23,7 +23,7 @@ char* Shader_common =
 "    vec4 dLightColor;\n"
 "    vec4 dLightst;\n"//.x:オンオフ
 "    vec4 TMin_TMax;\n"//.x, .y
-"    vec4 maxRecursion;\n"//x:
+"    vec4 maxRecursion;\n"//x:, y:hitShaderOffSet
 "} sceneParams;\n"
 
 "struct MaterialCB {\n"
@@ -38,7 +38,7 @@ char* Shader_common =
 "    mat4 world;\n"//使用してない, 後で消す
 "};\n"
 
-"layout(binding = 8, set = 0) uniform Materials {\n"
+"layout(binding = 6, set = 0) uniform Materials {\n"
 "    MaterialCB matCB[256];\n"//後で書き変えれるようにする
 "};\n"
 

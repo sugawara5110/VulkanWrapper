@@ -107,6 +107,12 @@ public:
         }
     };
 
+    struct textureIdSetInput {
+        int diffuseId = -1;
+        int normalId = -1;
+        int specularId = -1;
+    };
+
     struct Depth {
         VkFormat format;
         VkImage image;
@@ -364,7 +370,6 @@ public:
 
     void DeviceWaitIdle();
 
-    char* getNameFromPass(char* pass);
     CoordTf::MATRIX getProjection() { return proj; }
     CoordTf::MATRIX getCameraView() { return view; }
     CoordTf::VECTOR4 getCameraViewPos() { return viewPos; }

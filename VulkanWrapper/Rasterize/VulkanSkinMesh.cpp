@@ -257,7 +257,7 @@ void VulkanSkinMesh::create(uint32_t comIndex, bool useAlpha) {
 				textureType type = mesh->getDiffuseTextureType(matInd, tNo);
 				if (type.DiffuseColor && !type.SpecularColor ||
 					mesh->getNumDiffuseTexture(matInd) == 1) {
-					auto diffName = device->getNameFromPass(
+					auto diffName = vkUtil::getNameFromPass(
 						mesh->getDiffuseTextureName(matInd, tNo));
 					texId[matInd].diffuseId = device->getTextureNo(diffName);
 					auto str = mesh->getDiffuseTextureUVName(matInd, tNo);
@@ -269,7 +269,7 @@ void VulkanSkinMesh::create(uint32_t comIndex, bool useAlpha) {
 			for (int tNo = 0; tNo < mesh->getNumDiffuseTexture(matInd); tNo++) {
 				textureType type = mesh->getDiffuseTextureType(matInd, tNo);
 				if (type.SpecularColor) {
-					auto speName = device->getNameFromPass(
+					auto speName = vkUtil::getNameFromPass(
 						mesh->getDiffuseTextureName(matInd, tNo));
 					texId[matInd].specularId = device->getTextureNo(speName);
 					auto str = mesh->getDiffuseTextureUVName(matInd, tNo);
@@ -283,7 +283,7 @@ void VulkanSkinMesh::create(uint32_t comIndex, bool useAlpha) {
 				//取得済みのディフェーズテクスチャUV名と同じUV名のノーマルマップを探す
 				if (!strcmp(texId[matInd].difUvName, mesh->getNormalTextureUVName(matInd, tNo)) ||
 					mesh->getNumNormalTexture(matInd) == 1) {
-					auto norName = device->getNameFromPass(mesh->getNormalTextureName(matInd, tNo));
+					auto norName = vkUtil::getNameFromPass(mesh->getNormalTextureName(matInd, tNo));
 					texId[matInd].normalId = device->getTextureNo(norName);
 					auto str = mesh->getNormalTextureUVName(matInd, tNo);
 					strcpy(texId[matInd].norUvName, str);

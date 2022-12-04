@@ -4,6 +4,9 @@
 
 char* Shader_hitCom =
 
+"#extension GL_EXT_buffer_reference : enable \n"
+"#extension GL_EXT_scalar_block_layout : enable \n"
+
 "hitAttributeEXT vec2 attribs;\n"
 
 "const int NONREFLECTION  = 0; \n"//0b0000
@@ -27,11 +30,16 @@ char* Shader_hitCom =
 "layout(binding = 3, set=0) uniform sampler2D texturesDif[];\n"
 "layout(binding = 4, set=0) uniform sampler2D texturesNor[];\n"
 "layout(binding = 5, set=0) uniform sampler2D texturesSpe[];\n"
-"layout(binding = 6, set=0) buffer VertexBuffer {\n"
+
+"layout(buffer_reference, scalar) buffer VertexBuffer {\n"
 "    Vertex v[];\n"
 "};\n"
-"layout(binding = 7, set=0) buffer IndexBuffer {\n"
+"layout(buffer_reference, scalar) buffer IndexBuffer {\n"
 "    int i[];\n"
+"};\n"
+"layout(shaderRecordEXT, std430) buffer SBTData {\n"
+"    IndexBuffer  indices;\n"//cpp側でのアドレス書き込み順に揃える
+"    VertexBuffer verts;\n"//cpp側でのアドレス書き込み順に揃える
 "};\n"
 
 ///////////////////////////////////////////Material識別////////////////////////////////////////////
@@ -51,13 +59,13 @@ char* Shader_hitCom =
 "Vertex3 getVertex3()\n"
 "{\n"
 //gl_PrimitiveID:ヒットした三角形のインデックス, BLASのprimitiveCountで設定した値
-"    const int ind0 = i[gl_PrimitiveID * 3];\n"
-"    const int ind1 = i[gl_PrimitiveID * 3 + 1];\n"
-"    const int ind2 = i[gl_PrimitiveID * 3 + 2];\n"
+"    const int ind0 = indices.i[gl_PrimitiveID * 3];\n"
+"    const int ind1 = indices.i[gl_PrimitiveID * 3 + 1];\n"
+"    const int ind2 = indices.i[gl_PrimitiveID * 3 + 2];\n"
 "    Vertex3 ret;\n"
-"    ret.pos[0] = v[ind0];\n"
-"    ret.pos[1] = v[ind1];\n"
-"    ret.pos[2] = v[ind2];\n"
+"    ret.pos[0] = verts.v[ind0];\n"
+"    ret.pos[1] = verts.v[ind1];\n"
+"    ret.pos[2] = verts.v[ind2];\n"
 "    return ret;\n"
 "}\n"
 

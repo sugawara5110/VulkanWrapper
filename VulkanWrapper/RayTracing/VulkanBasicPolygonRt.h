@@ -50,9 +50,8 @@ public:
 
 		AccelerationStructure BLAS = {};
 		std::vector<Instance> instance;
+		uint32_t hitShaderIndex = 0;
 	};
-
-private:
 	struct Vertex3D_t {
 		float pos[3] = {};
 		float normal[3] = {};
@@ -61,13 +60,14 @@ private:
 		float speUv[2] = {};
 	};
 
+private:
 	bool rdataCreateF = false;
 	uint32_t InstanceCnt = 0;
 
 	void createVertexBuffer(RtData& rdata, uint32_t comIndex, Vertex3D_t* ver, uint32_t num, uint32_t* ind, uint32_t indNum);
 	void createBLAS(RtData& rdata, uint32_t comIndex);
 	void updateInstance(RtData& rdata);
-	void createTexture(RtData& rdata, uint32_t comIndex, VulkanDevice::textureIdSet& texId);
+	void createTexture(RtData& rdata, uint32_t comIndex, VulkanDevice::textureIdSetInput& texId);
 	void updateBLAS(RtData& rdata, uint32_t comIndex);
 
 public:
@@ -78,18 +78,23 @@ public:
 
 	void createMultipleMaterials(uint32_t comIndex, bool useAlpha, uint32_t numMat,
 		Vertex3D_t* ver, uint32_t num, uint32_t** ind, uint32_t* indNum,
-		VulkanDevice::textureIdSet* texid, uint32_t InstanceSize);
+		VulkanDevice::textureIdSetInput* texid, uint32_t numInstance);
 
 	void setMaterialType(vkMaterialType type, uint32_t matIndex);
 
-	void LightOn(bool on, uint32_t InstanceIndex, uint32_t matIndex, float range = 100.0f, float att1 = 0.1f, float att2 = 0.001f, float att3 = 0.001f);
+	void LightOn(bool on, uint32_t InstanceIndex, uint32_t matIndex,
+		float range = 100.0f, float att1 = 0.1f, float att2 = 0.001f, float att3 = 0.001f);
 
 	void create(uint32_t comIndex, bool useAlpha,
 		VulkanDevice::Vertex3D* ver, uint32_t num, uint32_t* ind, uint32_t indNum,
-		int32_t difTexInd, int32_t norTexInd, int32_t speTexInd, uint32_t InstanceSize);
+		int32_t difTexInd, int32_t norTexInd, int32_t speTexInd, uint32_t numInstance);
 
-	void setMaterialParameter(CoordTf::VECTOR3 diffuse, CoordTf::VECTOR3 specular, CoordTf::VECTOR3 ambient,
-		uint32_t materialIndex = 0, float shininess = 4.0f, float RefractiveIndex = 0.0f);
+	void setMaterialColor(CoordTf::VECTOR3 diffuse, CoordTf::VECTOR3 specular, CoordTf::VECTOR3 ambient,
+		uint32_t materialIndex = 0);
+
+	void setMaterialShininess(float shininess, uint32_t materialIndex = 0);
+
+	void setMaterialRefractiveIndex(float RefractiveIndex, uint32_t materialIndex = 0);
 
 	void instancing(CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale);
 	void instancingUpdate(uint32_t comIndex);

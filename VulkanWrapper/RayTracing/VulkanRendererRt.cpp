@@ -17,6 +17,7 @@
 #include "Shader/Shader_emissiveMiss.h"
 #include "Shader/Shader_traceRay.h"
 #include "Shader/Shader_location_Index.h"
+#include "Shader/Shader_closesthit_NormalMapTest.h"
 
 namespace {
     VkRayTracingShaderGroupCreateInfoKHR createShaderGroupRayGeneration(uint32_t shaderIndex) {
@@ -73,10 +74,10 @@ void VulkanRendererRt::Init(uint32_t comIndex, std::vector<VulkanBasicPolygonRt:
 
     rt = r;
 
+    m_sceneParam.maxRecursion.y = (float)rt.size();
+
     int emissiveCnt = 0;
     for (int i = 0; i < rt.size(); i++) {
-        vertexArr.push_back(rt[i]->vertexBuf.info);
-        indexArr.push_back(rt[i]->indexBuf.info);
         for (int j = 0; j < rt[i]->instance.size(); j++) {
             textureDifArr.push_back(rt[i]->texId.difTex.image.info);
             textureNorArr.push_back(rt[i]->texId.norTex.image.info);
@@ -131,7 +132,7 @@ void VulkanRendererRt::Init(uint32_t comIndex, std::vector<VulkanBasicPolygonRt:
     m_sceneParam.dDirection = { -0.2f, -1.0f, -1.0f, 0.0f };
     m_sceneParam.GlobalAmbientColor = { 0.01f,0.01f,0.01f,0.0f };
     m_sceneParam.dLightst.x = 0.0f;//off
-    m_sceneParam.TMin_TMax.as(0.1f, 100.0f, 0.0f, 0.0f);
+    m_sceneParam.TMin_TMax.as(0.1f, 1000.0f, 0.0f, 0.0f);
     m_sceneParam.maxRecursion.x = 1;
 }
 
@@ -388,7 +389,12 @@ void VulkanRendererRt::CreateRaytracePipeline() {
     clo0[2].addStr(clo0[1].str, Shader_hitCom);
     clo0[3].addStr(clo0[2].str, Shader_location_Index_Clo_0);
     clo0[4].addStr(clo0[3].str, Shader_traceRay);
-    clo0[5].addStr(clo0[4].str, Shader_closesthit);
+    if (NormalMapTestMode) {
+        clo0[5].addStr(clo0[4].str, Shader_closesthit_NormalMapTest);
+    }
+    else {
+        clo0[5].addStr(clo0[4].str, Shader_closesthit);
+    }
 
     clo1[0].addStr(clo0[2].str, Shader_location_Index_Clo_1);
     clo1[1].addStr(clo1[0].str, Shader_traceRay);
@@ -482,11 +488,11 @@ void VulkanRendererRt::CreateShaderBindingTable() {
     const auto handleAlignment = rtPipelineProps.shaderGroupHandleAlignment;
     auto raygenShaderEntrySize = Align(handleSize, handleAlignment);
     auto missShaderEntrySize = Align(handleSize, handleAlignment);
-    auto hitShaderEntrySize = Align(handleSize, handleAlignment);
+    auto hitShaderEntrySize = Align(handleSize + sizeof(uint64_t) * 2, handleAlignment);//IndexBufferアドレスとVertexBufferアドレス込み
 
     const auto raygenShaderCount = 1;
     const auto missShaderCount = 4;
-    const auto hitShaderCount = 4;
+    const auto hitShaderCount = 4 * rt.size();
 
     //各グループのサイズ
     const auto baseAlign = rtPipelineProps.shaderGroupBaseAlignment;
@@ -547,23 +553,54 @@ void VulkanRendererRt::CreateShaderBindingTable() {
     m_sbtInfo.miss.stride = missShaderEntrySize;
 
     //Hit
+    //emHitでは頂点データ未使用だがstride揃える関係でとりあえず入れてる
     auto hit = shaderHandleStorage.data() + handleSizeAligned * GroupHitShader0;
     auto dstH = dst;
-    memcpy(dstH, hit, handleSize);//hit0
-    dstH += hitShaderEntrySize;
+    auto offset = hitShaderEntrySize * rt.size();
+    writeSBTDataAndHit(dstH, hit, handleSize, hitShaderEntrySize);//hit0
+    dstH += offset;
     hit += handleSizeAligned;
-    memcpy(dstH, hit, handleSize);//hit1
-    dstH += hitShaderEntrySize;
+    writeSBTDataAndHit(dstH, hit, handleSize, hitShaderEntrySize);//hit1
+    dstH += offset;
     hit += handleSizeAligned;
-    memcpy(dstH, hit, handleSize);//emHit0
-    dstH += hitShaderEntrySize;
+    writeSBTDataAndHit(dstH, hit, handleSize, hitShaderEntrySize);//emHit0
+    dstH += offset;
     hit += handleSizeAligned;
-    memcpy(dstH, hit, handleSize);//emHit1
+    writeSBTDataAndHit(dstH, hit, handleSize, hitShaderEntrySize);//emHit1
     m_sbtInfo.hit.deviceAddress = deviceAddress + RaygenGroupSize + MissGroupSize;
     m_sbtInfo.hit.size = HitGroupSize;
     m_sbtInfo.hit.stride = hitShaderEntrySize;
 
     m_shaderBindingTable.UnMap();
+}
+
+void VulkanRendererRt::writeSBTDataAndHit(void* dst, void* hit, uint32_t hitHandleSize, uint64_t hitShaderEntrySize) {
+
+    auto Dst = static_cast<uint8_t*>(dst);
+
+    for (size_t i = 0; i < rt.size(); i++) {
+
+        rt[i]->hitShaderIndex = (uint32_t)i;
+
+        auto p = static_cast<uint8_t*>(Dst);
+
+        //hitShader
+        memcpy(p, hit, hitHandleSize);
+        p += hitHandleSize;
+
+        //IndexBuffer
+        uint64_t deviceAddr = 0;
+        deviceAddr = rt[i]->indexBuf.getDeviceAddress();
+        memcpy(p, &deviceAddr, sizeof(deviceAddr));
+        p += sizeof(deviceAddr);
+
+        //VertexBuffer
+        deviceAddr = rt[i]->vertexBuf.getDeviceAddress();
+        memcpy(p, &deviceAddr, sizeof(deviceAddr));
+        p += sizeof(deviceAddr);
+
+        Dst += hitShaderEntrySize;
+    }
 }
 
 void VulkanRendererRt::CreateLayouts() {
@@ -604,26 +641,14 @@ void VulkanRendererRt::CreateLayouts() {
     layoutSpeTex.descriptorCount = (uint32_t)textureSpeArr.size();
     layoutSpeTex.stageFlags = VK_SHADER_STAGE_ALL;
 
-    VkDescriptorSetLayoutBinding layoutVertex{};
-    layoutVertex.binding = 6;
-    layoutVertex.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    layoutVertex.descriptorCount = (uint32_t)vertexArr.size();
-    layoutVertex.stageFlags = VK_SHADER_STAGE_ALL;
-
-    VkDescriptorSetLayoutBinding layoutIndex{};
-    layoutIndex.binding = 7;
-    layoutIndex.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    layoutIndex.descriptorCount = (uint32_t)indexArr.size();
-    layoutIndex.stageFlags = VK_SHADER_STAGE_ALL;
-
     VkDescriptorSetLayoutBinding layoutMaterialCB{};
-    layoutMaterialCB.binding = 8;
+    layoutMaterialCB.binding = 6;
     layoutMaterialCB.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     layoutMaterialCB.descriptorCount = 1;
     layoutMaterialCB.stageFlags = VK_SHADER_STAGE_ALL;
 
     std::vector<VkDescriptorSetLayoutBinding> bindings({
-        layoutAS, layoutRtImage, layoutSceneUBO,layoutDifTex,layoutNorTex,layoutSpeTex,layoutVertex,layoutIndex,layoutMaterialCB });
+        layoutAS, layoutRtImage, layoutSceneUBO,layoutDifTex,layoutNorTex,layoutSpeTex,layoutMaterialCB });
 
     VkDescriptorSetLayoutCreateInfo dsLayoutCI{
         VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO
@@ -714,35 +739,17 @@ void VulkanRendererRt::CreateDescriptorSets() {
     speTexImageWrite.descriptorCount = (uint32_t)textureSpeArr.size();
     speTexImageWrite.pImageInfo = textureSpeArr.data();
 
-    VkWriteDescriptorSet vertexWrite{
-        VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
-    };
-    vertexWrite.dstSet = m_descriptorSet;
-    vertexWrite.dstBinding = 6;
-    vertexWrite.descriptorCount = (uint32_t)vertexArr.size();
-    vertexWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    vertexWrite.pBufferInfo = vertexArr.data();
-
-    VkWriteDescriptorSet indexWrite{
-        VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
-    };
-    indexWrite.dstSet = m_descriptorSet;
-    indexWrite.dstBinding = 7;
-    indexWrite.descriptorCount = (uint32_t)indexArr.size();
-    indexWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    indexWrite.pBufferInfo = indexArr.data();
-
     VkWriteDescriptorSet materialWrite{
         VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
     };
     materialWrite.dstSet = m_descriptorSet;
-    materialWrite.dstBinding = 8;
+    materialWrite.dstBinding = 6;
     materialWrite.descriptorCount = 1;
     materialWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     materialWrite.pBufferInfo = &materialUBO.info;
 
     std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
-        asWrite, imageWrite, sceneUboWrite,difTexImageWrite,norTexImageWrite,speTexImageWrite,vertexWrite,indexWrite,materialWrite
+        asWrite, imageWrite, sceneUboWrite,difTexImageWrite,norTexImageWrite,speTexImageWrite,materialWrite
     };
     vkUpdateDescriptorSets(
         m_device->GetDevice(),

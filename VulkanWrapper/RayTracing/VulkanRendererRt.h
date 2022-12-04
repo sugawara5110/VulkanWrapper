@@ -17,20 +17,6 @@ template<class T> T Align(T size, uint32_t align) {
 class VulkanRendererRt {
 
 private:
-    void CreateTLAS(uint32_t comIndex);
-
-    void CreateRaytracedBuffer(uint32_t comIndex);
-
-    void CreateRaytracePipeline();
-
-    void CreateShaderBindingTable();
-
-    void CreateLayouts();
-
-    void CreateDescriptorSets();
-
-    void UpdateTLAS(uint32_t comIndex);
-
     struct ShaderBindingTableInfo {
         VkStridedDeviceAddressRegionKHR rgen = { };
         VkStridedDeviceAddressRegionKHR miss = { };
@@ -47,7 +33,7 @@ private:
         CoordTf::VECTOR4 dLightColor = {};
         CoordTf::VECTOR4 dLightst = {};//x:オンオフ
         CoordTf::VECTOR4 TMin_TMax = {};//x, y
-        CoordTf::VECTOR4 maxRecursion = {};//x:
+        CoordTf::VECTOR4 maxRecursion = {};//x:, y:hitShaderOffSet
     };
 
     // ジオメトリ情報.
@@ -80,8 +66,6 @@ private:
     std::vector<VkDescriptorImageInfo> textureDifArr;
     std::vector<VkDescriptorImageInfo> textureNorArr;
     std::vector<VkDescriptorImageInfo> textureSpeArr;
-    std::vector<VkDescriptorBufferInfo> vertexArr;
-    std::vector<VkDescriptorBufferInfo> indexArr;
 
     SceneParam m_sceneParam;
     VulkanDevice::Uniform<SceneParam> m_sceneUBO;
@@ -100,8 +84,30 @@ private:
     std::vector<Material> materialArr;
     BufferSetRt materialUBO;
 
+    bool NormalMapTestMode = false;
+
+    void CreateTLAS(uint32_t comIndex);
+
+    void CreateRaytracedBuffer(uint32_t comIndex);
+
+    void CreateRaytracePipeline();
+
+    void CreateShaderBindingTable();
+
+    void CreateLayouts();
+
+    void CreateDescriptorSets();
+
+    void UpdateTLAS(uint32_t comIndex);
+
+    void writeSBTDataAndHit(void* dst, void* hit, uint32_t hitHandleSize, uint64_t hitShaderEntrySize);
+
 public:
     std::unique_ptr<VulkanDeviceRt> m_device;
+
+    void NormalMapTestModeOn() {
+        NormalMapTestMode = true;
+    }
 
     void Init(uint32_t comIndex, std::vector<VulkanBasicPolygonRt::RtData*> rt);
     void destroy();

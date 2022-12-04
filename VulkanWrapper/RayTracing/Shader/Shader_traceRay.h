@@ -14,6 +14,9 @@ char* Shader_traceRay =
 "    int mNo = int(mcb.materialNo.x);\n"
 "    vec3 ret = difTexColor;\n"
 
+"    int hitShaderOffSet = int(sceneParams.maxRecursion.y);\n"
+"    int em_Index = emMiss_Index * hitShaderOffSet;\n"
+
 "    bool mf = materialIdent(mNo, EMISSIVE);\n"
 "    if(!mf) {\n"//emissiveˆÈŠO
 
@@ -60,7 +63,7 @@ char* Shader_traceRay =
 "                        0xff,\n"
 "                        em_Index,\n"//sbtRecordOffset
 "                        0,\n"//sbtRecordStride
-"                        em_Index,\n"//missIndex
+"                        emMiss_Index,\n"//missIndex
 "                        origin,\n"
 "                        tmin,\n"
 "                        direction,\n"
@@ -93,7 +96,7 @@ char* Shader_traceRay =
 "                    0xff,\n"
 "                    em_Index,\n"//sbtRecordOffset
 "                    0,\n"//sbtRecordStride
-"                    em_Index,\n"//missIndex
+"                    emMiss_Index,\n"//missIndex
 "                    origin,\n"
 "                    tmin,\n"
 "                    direction,\n"
@@ -126,6 +129,9 @@ char* Shader_traceRay =
 "    int mNo = int(matCB[gl_InstanceID].materialNo.x);\n"
 "    vec3 ret = difTexColor;\n"
 
+"    int hitShaderOffSet = int(sceneParams.maxRecursion.y);\n"
+"    int clo_Index = cloMiss_Index * hitShaderOffSet;\n"
+
 "    if(materialIdent(mNo, METALLIC)) {\n"//METALLIC
 
 "       RecursionCnt++;\n"
@@ -149,7 +155,7 @@ char* Shader_traceRay =
 "               0xff,\n"
 "               clo_Index,\n"//sbtRecordOffset
 "               0,\n"//sbtRecordStride
-"               clo_Index,\n"//missIndex
+"               cloMiss_Index,\n"//missIndex
 "               origin,\n"
 "               tmin,\n"
 "               direction,\n"
@@ -179,6 +185,9 @@ char* Shader_traceRay =
 "    int mNo = int(mcb.materialNo.x);\n"
 "    vec3 ret = difTexColor.xyz;\n"
 
+"    int hitShaderOffSet = int(sceneParams.maxRecursion.y);\n"
+"    int clo_Index = cloMiss_Index * hitShaderOffSet;\n"
+
 "    if(materialIdent(mNo, TRANSLUCENCE)) {\n"
 
 "       float Alpha = difTexColor.w;\n"
@@ -200,7 +209,7 @@ char* Shader_traceRay =
 "               0xff,\n"
 "               clo_Index,\n"//sbtRecordOffset
 "               0,\n"//sbtRecordStride
-"               clo_Index,\n"//missIndex
+"               cloMiss_Index,\n"//missIndex
 "               origin,\n"
 "               tmin,\n"
 "               direction,\n"
@@ -223,6 +232,9 @@ char* Shader_traceRay =
 "    float blend = mcb.AlphaBlend.x;\n"
 "    float Alpha = difTexColor.w;\n"
 
+"    int hitShaderOffSet = int(sceneParams.maxRecursion.y);\n"
+"    int clo_Index = cloMiss_Index * hitShaderOffSet;\n"
+
 "    bool mf = materialIdent(mNo, TRANSLUCENCE);\n"
 "    if(blend == 1.0f && !mf && Alpha < 1.0f) {\n"
 
@@ -242,7 +254,7 @@ char* Shader_traceRay =
 "               0xff,\n"
 "               clo_Index,\n"//sbtRecordOffset
 "               0,\n"//sbtRecordStride
-"               clo_Index,\n"//missIndex
+"               cloMiss_Index,\n"//missIndex
 "               origin,\n"
 "               tmin,\n"
 "               direction,\n"

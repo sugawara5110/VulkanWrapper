@@ -731,21 +731,6 @@ void VulkanDevice::destroyTexture() {
     texture[numTextureMax + 1].destroy();
 }
 
-char* VulkanDevice::getNameFromPass(char* pass) {
-
-    uint32_t len = (uint32_t)strlen(pass);
-    pass += len;//終端文字を指している
-
-    for (uint32_t i = 0; i < len; i++) {
-        pass--;
-        if (*pass == '\\' || *pass == '/') {
-            pass++;
-            break;
-        }
-    }
-    return pass;//ポインタ操作してるので返り値を使用させる
-}
-
 void VulkanDevice::AllocateMemory(VkBufferUsageFlags usage, VkMemoryRequirements memRequirements, VkMemoryPropertyFlags properties,
     VkDeviceMemory& bufferMemory, void* add_pNext) {
 
@@ -1004,7 +989,7 @@ void VulkanDevice::createTextureSet(uint32_t comIndex, textureIdSet& texSet) {
 
 void VulkanDevice::GetTexture(uint32_t comBufindex, char* fileName, unsigned char* byteArr, uint32_t width, uint32_t height) {
     //ファイル名登録
-    char* filename = getNameFromPass(fileName);
+    char* filename = vkUtil::getNameFromPass(fileName);
     if (strlen(filename) >= (size_t)numTexFileNamelenMax)
         throw std::runtime_error("The file name limit has been.");
     strcpy(textureNameList[numTexture], filename);

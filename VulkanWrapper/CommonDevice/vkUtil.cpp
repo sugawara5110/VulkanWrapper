@@ -133,3 +133,29 @@ void vkUtil::createTangent(int numMaterial, unsigned int* indexCntArr,
         }
     }
 }
+
+CoordTf::VECTOR3 vkUtil::normalRecalculation(CoordTf::VECTOR3 N[3]) {
+    using namespace CoordTf;
+    VECTOR3 vecX = {};
+    VECTOR3 vecY = {};
+    vecX.as(N[0].x - N[1].x, N[0].y - N[1].y, N[0].z - N[1].z);
+    vecY.as(N[0].x - N[2].x, N[0].y - N[2].y, N[0].z - N[2].z);
+    VECTOR3 vec = {};
+    VectorCross(&vec, &vecX, &vecY);
+    return vec;
+}
+
+char* vkUtil::getNameFromPass(char* pass) {
+
+    uint32_t len = (uint32_t)strlen(pass);
+    pass += len;//終端文字を指している
+
+    for (uint32_t i = 0; i < len; i++) {
+        pass--;
+        if (*pass == '\\' || *pass == '/') {
+            pass++;
+            break;
+        }
+    }
+    return pass;//ポインタ操作してるので返り値を使用させる
+}

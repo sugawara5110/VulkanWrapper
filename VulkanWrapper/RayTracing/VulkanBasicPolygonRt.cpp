@@ -31,7 +31,8 @@ void VulkanBasicPolygonRt::LightOn(bool on, uint32_t InstanceIndex, uint32_t mat
     if (on)Rdata[matIndex].instance[InstanceIndex].lightOn = 1.0f;
 }
 
-void VulkanBasicPolygonRt::createVertexBuffer(RtData& rdata, uint32_t comIndex, Vertex3D_t* ver, uint32_t num, uint32_t* ind, uint32_t indNum) {
+void VulkanBasicPolygonRt::createVertexBuffer(RtData& rdata, uint32_t comIndex,
+    Vertex3D_t* ver, uint32_t num, uint32_t* ind, uint32_t indNum) {
 
     struct Vertex3Dvec4 {
         float pos[4] = {};
@@ -128,7 +129,7 @@ void VulkanBasicPolygonRt::updateInstance(RtData& rdata) {
         if (InstanceCnt > i) instance.mask = 0xFF;
         instance.flags = 0;
         instance.accelerationStructureReference = rdata.BLAS.getDeviceAddress();
-        instance.instanceShaderBindingTableRecordOffset = 0;//hit Shader Index
+        instance.instanceShaderBindingTableRecordOffset = rdata.hitShaderIndex;
         if (rdataCreateF)
             instance.transform = rdata.instance[i].vkWorld;
         else
@@ -137,7 +138,7 @@ void VulkanBasicPolygonRt::updateInstance(RtData& rdata) {
     }
 }
 
-void VulkanBasicPolygonRt::createTexture(RtData& rdata, uint32_t comIndex, VulkanDevice::textureIdSet& tId) {
+void VulkanBasicPolygonRt::createTexture(RtData& rdata, uint32_t comIndex, VulkanDevice::textureIdSetInput& tId) {
     rdata.texId.diffuseId = tId.diffuseId;
     rdata.texId.normalId = tId.normalId;
     rdata.texId.specularId = tId.specularId;
@@ -148,14 +149,14 @@ void VulkanBasicPolygonRt::createTexture(RtData& rdata, uint32_t comIndex, Vulka
 
 void VulkanBasicPolygonRt::createMultipleMaterials(uint32_t comIndex, bool useAlpha, uint32_t numMat,
     Vertex3D_t* ver, uint32_t num, uint32_t** ind, uint32_t* indNum,
-    VulkanDevice::textureIdSet* texid, uint32_t InstanceSize) {
+    VulkanDevice::textureIdSetInput* texid, uint32_t numInstance) {
 
     vkUtil::createTangent(numMat, indNum,
         ver, ind, sizeof(Vertex3D_t), 0, 3 * 4, 9 * 4, 6 * 4);
 
     Rdata.resize(numMat);
     for (auto i = 0; i < Rdata.size(); i++) {
-        Rdata[i].instance.resize((size_t)InstanceSize);
+        Rdata[i].instance.resize((size_t)numInstance);
         createVertexBuffer(Rdata[i], comIndex, ver, num, ind[i], indNum[i]);
         createBLAS(Rdata[i], comIndex);
         updateInstance(Rdata[i]);
@@ -169,7 +170,7 @@ void VulkanBasicPolygonRt::createMultipleMaterials(uint32_t comIndex, bool useAl
 
 void VulkanBasicPolygonRt::create(uint32_t comIndex, bool useAlpha,
     VulkanDevice::Vertex3D* ver, uint32_t num, uint32_t* ind, uint32_t indNum,
-    int32_t difTexInd, int32_t norTexInd, int32_t speTexInd, uint32_t InstanceSize) {
+    int32_t difTexInd, int32_t norTexInd, int32_t speTexInd, uint32_t numInstance) {
 
     Vertex3D_t* v3 = new Vertex3D_t[num];
 
@@ -181,27 +182,37 @@ void VulkanBasicPolygonRt::create(uint32_t comIndex, bool useAlpha,
     }
 
     const uint32_t numMaterial = 1;
-    VulkanDevice::textureIdSet tex[numMaterial];
+    VulkanDevice::textureIdSetInput tex[numMaterial];
     tex[0].diffuseId = difTexInd;
     tex[0].normalId = norTexInd;
     tex[0].specularId = speTexInd;
 
     createMultipleMaterials(comIndex, useAlpha, 1,
         v3, num, &ind, &indNum,
-        tex, InstanceSize);
+        tex, numInstance);
 
     vkUtil::ARR_DELETE(v3);
 }
 
-void VulkanBasicPolygonRt::setMaterialParameter(
+void VulkanBasicPolygonRt::setMaterialColor(
     CoordTf::VECTOR3 diffuse, CoordTf::VECTOR3 specular, CoordTf::VECTOR3 ambient,
-    uint32_t materialIndex, float shininess, float RefractiveIndex) {
+    uint32_t materialIndex) {
 
     VulkanBasicPolygonRt::RtMaterial& m = Rdata[materialIndex].mat;
     m.vDiffuse.as(diffuse.x, diffuse.y, diffuse.z, 1.0f);
     m.vSpeculer.as(specular.x, specular.y, specular.z, 1.0f);
     m.vAmbient.as(ambient.x, ambient.y, ambient.z, 1.0f);
+}
+
+void VulkanBasicPolygonRt::setMaterialShininess(float shininess, uint32_t materialIndex) {
+
+    VulkanBasicPolygonRt::RtMaterial& m = Rdata[materialIndex].mat;
     m.shininess.x = shininess;
+}
+
+void VulkanBasicPolygonRt::setMaterialRefractiveIndex(float RefractiveIndex, uint32_t materialIndex) {
+
+    VulkanBasicPolygonRt::RtMaterial& m = Rdata[materialIndex].mat;
     m.RefractiveIndex.x = RefractiveIndex;
 }
 
