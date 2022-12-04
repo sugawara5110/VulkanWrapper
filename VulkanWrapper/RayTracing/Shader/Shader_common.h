@@ -38,7 +38,7 @@ char* Shader_common =
 "    mat4 world;\n"//使用してない, 後で消す
 "};\n"
 
-"layout(binding = 6, set = 0) uniform Materials {\n"
+"layout(binding = 0, set = 4) uniform Materials {\n"
 "    MaterialCB matCB[256];\n"//後で書き変えれるようにする
 "};\n"
 

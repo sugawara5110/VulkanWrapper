@@ -36,16 +36,15 @@ private:
         CoordTf::VECTOR4 maxRecursion = {};//x:, y:hitShaderOffSet
     };
 
-    // ÉWÉIÉÅÉgÉäèÓïÒ.
     std::vector<VulkanBasicPolygonRt::RtData*> rt;
     BufferSetRt  m_instancesBuffer;
     AccelerationStructure m_topLevelAS;
-    VkDescriptorSetLayout m_dsLayout = VK_NULL_HANDLE;
+    const static int numDescriptorSet = 5;
+    VkDescriptorSetLayout m_dsLayout[numDescriptorSet] = {};
+    VkDescriptorSet m_descriptorSet[numDescriptorSet] = {};
     VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
     VulkanDevice::ImageSet   m_raytracedImage;
-
     VkPipeline m_raytracePipeline;
-    VkDescriptorSet m_descriptorSet;
 
     enum ShaderGroups {
         GroupRayGenShader = 0,

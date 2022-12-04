@@ -27,9 +27,9 @@ char* Shader_hitCom =
 "    Vertex pos[3];\n"
 "};\n"
 
-"layout(binding = 3, set=0) uniform sampler2D texturesDif[];\n"
-"layout(binding = 4, set=0) uniform sampler2D texturesNor[];\n"
-"layout(binding = 5, set=0) uniform sampler2D texturesSpe[];\n"
+"layout(binding = 0, set = 1) uniform sampler2D texturesDif[];\n"
+"layout(binding = 0, set = 2) uniform sampler2D texturesNor[];\n"
+"layout(binding = 0, set = 3) uniform sampler2D texturesSpe[];\n"
 
 "layout(buffer_reference, scalar) buffer VertexBuffer {\n"
 "    Vertex v[];\n"

@@ -151,8 +151,11 @@ void VulkanRendererRt::destroy() {
     auto device = VulkanDevice::GetInstance()->getDevice();
     vkDestroyPipeline(device, m_raytracePipeline, nullptr);
     vkDestroyPipelineLayout(device, m_pipelineLayout, nullptr);
-    vkDestroyDescriptorSetLayout(device, m_dsLayout, nullptr);
-    vkFreeDescriptorSets(device, m_device->GetDescriptorPool(), 1, &m_descriptorSet);
+
+    for (int i = 0; i < numDescriptorSet; i++) {
+        vkDestroyDescriptorSetLayout(device, m_dsLayout[i], nullptr);
+        vkFreeDescriptorSets(device, m_device->GetDescriptorPool(), 1, &m_descriptorSet[i]);
+    }
 
     m_device->destroy();
     m_device.reset();
@@ -229,7 +232,7 @@ void VulkanRendererRt::Render(uint32_t comIndex) {
 
     vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_raytracePipeline);
     vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_pipelineLayout, 0,
-        1, &m_descriptorSet, 0, nullptr);
+        numDescriptorSet, m_descriptorSet, 0, nullptr);
 
     uint32_t width = dev->getSwapchainObj()->getSize().width;
     uint32_t height = dev->getSwapchainObj()->getSize().height;
@@ -605,11 +608,15 @@ void VulkanRendererRt::writeSBTDataAndHit(void* dst, void* hit, uint32_t hitHand
 
 void VulkanRendererRt::CreateLayouts() {
 
+    std::vector<VkDescriptorSetLayoutBinding> set[numDescriptorSet];
+
     VkDescriptorSetLayoutBinding layoutAS{};
     layoutAS.binding = 0;
     layoutAS.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
     layoutAS.descriptorCount = 1;
     layoutAS.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
+
+    set[0].push_back(layoutAS);
 
     VkDescriptorSetLayoutBinding layoutRtImage{};
     layoutRtImage.binding = 1;
@@ -617,60 +624,71 @@ void VulkanRendererRt::CreateLayouts() {
     layoutRtImage.descriptorCount = 1;
     layoutRtImage.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
 
+    set[0].push_back(layoutRtImage);
+
     VkDescriptorSetLayoutBinding layoutSceneUBO{};
     layoutSceneUBO.binding = 2;
     layoutSceneUBO.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     layoutSceneUBO.descriptorCount = 1;
     layoutSceneUBO.stageFlags = VK_SHADER_STAGE_ALL;
 
+    set[0].push_back(layoutSceneUBO);
+
     VkDescriptorSetLayoutBinding layoutDifTex{};
-    layoutDifTex.binding = 3;
+    layoutDifTex.binding = 0;
     layoutDifTex.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     layoutDifTex.descriptorCount = (uint32_t)textureDifArr.size();
     layoutDifTex.stageFlags = VK_SHADER_STAGE_ALL;
 
+    set[1].push_back(layoutDifTex);
+
     VkDescriptorSetLayoutBinding layoutNorTex{};
-    layoutNorTex.binding = 4;
+    layoutNorTex.binding = 0;
     layoutNorTex.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     layoutNorTex.descriptorCount = (uint32_t)textureNorArr.size();
     layoutNorTex.stageFlags = VK_SHADER_STAGE_ALL;
 
+    set[2].push_back(layoutNorTex);
+
     VkDescriptorSetLayoutBinding layoutSpeTex{};
-    layoutSpeTex.binding = 5;
+    layoutSpeTex.binding = 0;
     layoutSpeTex.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     layoutSpeTex.descriptorCount = (uint32_t)textureSpeArr.size();
     layoutSpeTex.stageFlags = VK_SHADER_STAGE_ALL;
 
+    set[3].push_back(layoutSpeTex);
+
     VkDescriptorSetLayoutBinding layoutMaterialCB{};
-    layoutMaterialCB.binding = 6;
+    layoutMaterialCB.binding = 0;
     layoutMaterialCB.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     layoutMaterialCB.descriptorCount = 1;
     layoutMaterialCB.stageFlags = VK_SHADER_STAGE_ALL;
 
-    std::vector<VkDescriptorSetLayoutBinding> bindings({
-        layoutAS, layoutRtImage, layoutSceneUBO,layoutDifTex,layoutNorTex,layoutSpeTex,layoutMaterialCB });
+    set[4].push_back(layoutMaterialCB);
 
-    VkDescriptorSetLayoutCreateInfo dsLayoutCI{
-        VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO
-    };
-    dsLayoutCI.bindingCount = static_cast<uint32_t>(bindings.size());
-    dsLayoutCI.pBindings = bindings.data();
-    vkCreateDescriptorSetLayout(
-        m_device->GetDevice(), &dsLayoutCI, nullptr, &m_dsLayout);
+    VkDescriptorSetLayoutCreateInfo dsLayout[numDescriptorSet] = {};
 
-    // Pipeline Layout
+    for (int i = 0; i < numDescriptorSet; i++) {
+        dsLayout[i].sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        dsLayout[i].bindingCount = static_cast<uint32_t>(set[i].size());
+        dsLayout[i].pBindings = set[i].data();
+
+        vkCreateDescriptorSetLayout(
+            m_device->GetDevice(), &dsLayout[i], nullptr, &m_dsLayout[i]);
+
+        m_descriptorSet[i] = m_device->AllocateDescriptorSet(m_dsLayout[i]);
+    }
+
     VkPipelineLayoutCreateInfo pipelineLayoutCI{
         VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO
     };
-    pipelineLayoutCI.setLayoutCount = 1;
-    pipelineLayoutCI.pSetLayouts = &m_dsLayout;
+    pipelineLayoutCI.setLayoutCount = numDescriptorSet;
+    pipelineLayoutCI.pSetLayouts = m_dsLayout;
     vkCreatePipelineLayout(m_device->GetDevice(),
         &pipelineLayoutCI, nullptr, &m_pipelineLayout);
 }
 
 void VulkanRendererRt::CreateDescriptorSets() {
-
-    m_descriptorSet = m_device->AllocateDescriptorSet(m_dsLayout);
 
     std::vector<VkAccelerationStructureKHR> asHandles = {
         m_topLevelAS.getHandle()
@@ -686,7 +704,7 @@ void VulkanRendererRt::CreateDescriptorSets() {
         VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
     };
     asWrite.pNext = &asDescriptor;
-    asWrite.dstSet = m_descriptorSet;
+    asWrite.dstSet = m_descriptorSet[0];
     asWrite.dstBinding = 0;
     asWrite.descriptorCount = 1;
     asWrite.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
@@ -694,7 +712,7 @@ void VulkanRendererRt::CreateDescriptorSets() {
     VkWriteDescriptorSet imageWrite{
         VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
     };
-    imageWrite.dstSet = m_descriptorSet;
+    imageWrite.dstSet = m_descriptorSet[0];
     imageWrite.dstBinding = 1;
     imageWrite.descriptorCount = 1;
     imageWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
@@ -706,7 +724,7 @@ void VulkanRendererRt::CreateDescriptorSets() {
     VkWriteDescriptorSet sceneUboWrite{
         VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
     };
-    sceneUboWrite.dstSet = m_descriptorSet;
+    sceneUboWrite.dstSet = m_descriptorSet[0];
     sceneUboWrite.dstBinding = 2;
     sceneUboWrite.descriptorCount = 1;
     sceneUboWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -715,8 +733,8 @@ void VulkanRendererRt::CreateDescriptorSets() {
     VkWriteDescriptorSet difTexImageWrite{
         VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
     };
-    difTexImageWrite.dstSet = m_descriptorSet;
-    difTexImageWrite.dstBinding = 3;
+    difTexImageWrite.dstSet = m_descriptorSet[1];
+    difTexImageWrite.dstBinding = 0;
     difTexImageWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     difTexImageWrite.descriptorCount = (uint32_t)textureDifArr.size();
     difTexImageWrite.pImageInfo = textureDifArr.data();
@@ -724,8 +742,8 @@ void VulkanRendererRt::CreateDescriptorSets() {
     VkWriteDescriptorSet norTexImageWrite{
         VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
     };
-    norTexImageWrite.dstSet = m_descriptorSet;
-    norTexImageWrite.dstBinding = 4;
+    norTexImageWrite.dstSet = m_descriptorSet[2];
+    norTexImageWrite.dstBinding = 0;
     norTexImageWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     norTexImageWrite.descriptorCount = (uint32_t)textureNorArr.size();
     norTexImageWrite.pImageInfo = textureNorArr.data();
@@ -733,8 +751,8 @@ void VulkanRendererRt::CreateDescriptorSets() {
     VkWriteDescriptorSet speTexImageWrite{
         VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
     };
-    speTexImageWrite.dstSet = m_descriptorSet;
-    speTexImageWrite.dstBinding = 5;
+    speTexImageWrite.dstSet = m_descriptorSet[3];
+    speTexImageWrite.dstBinding = 0;
     speTexImageWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     speTexImageWrite.descriptorCount = (uint32_t)textureSpeArr.size();
     speTexImageWrite.pImageInfo = textureSpeArr.data();
@@ -742,8 +760,8 @@ void VulkanRendererRt::CreateDescriptorSets() {
     VkWriteDescriptorSet materialWrite{
         VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
     };
-    materialWrite.dstSet = m_descriptorSet;
-    materialWrite.dstBinding = 6;
+    materialWrite.dstSet = m_descriptorSet[4];
+    materialWrite.dstBinding = 0;
     materialWrite.descriptorCount = 1;
     materialWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     materialWrite.pBufferInfo = &materialUBO.info;
