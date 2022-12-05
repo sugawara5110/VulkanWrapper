@@ -33,7 +33,7 @@ private:
         CoordTf::VECTOR4 dLightColor = {};
         CoordTf::VECTOR4 dLightst = {};//x:ƒIƒ“ƒIƒt
         CoordTf::VECTOR4 TMin_TMax = {};//x, y
-        CoordTf::VECTOR4 maxRecursion = {};//x:, y:hitShaderOffSet
+        CoordTf::VECTOR4 maxRecursion = {};//x:
     };
 
     std::vector<VulkanBasicPolygonRt::RtData*> rt;
@@ -99,7 +99,9 @@ private:
 
     void UpdateTLAS(uint32_t comIndex);
 
-    void writeSBTDataAndHit(void* dst, void* hit, uint32_t hitHandleSize, uint64_t hitShaderEntrySize);
+    void writeSBTDataAndHit(VulkanBasicPolygonRt::RtData* rt,
+        void* dst, uint64_t hitShaderEntrySize,
+        void* hit, uint32_t handleSizeAligned, uint32_t hitHandleSize);
 
 public:
     std::unique_ptr<VulkanDeviceRt> m_device;

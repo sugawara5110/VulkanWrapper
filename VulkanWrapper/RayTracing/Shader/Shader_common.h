@@ -23,7 +23,7 @@ char* Shader_common =
 "    vec4 dLightColor;\n"
 "    vec4 dLightst;\n"//.x:オンオフ
 "    vec4 TMin_TMax;\n"//.x, .y
-"    vec4 maxRecursion;\n"//x:, y:hitShaderOffSet
+"    vec4 maxRecursion;\n"//x:
 "} sceneParams;\n"
 
 "struct MaterialCB {\n"

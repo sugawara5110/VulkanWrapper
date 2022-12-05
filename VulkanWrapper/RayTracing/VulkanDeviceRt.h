@@ -48,6 +48,8 @@ private:
     VkPhysicalDeviceProperties physicalDeviceProperties;
 
 public:
+    static const uint32_t numHitShader = 4;
+
     static VulkanDeviceRt* getVulkanDeviceRt() { return pDeviceRt; };
 
     bool createDevice(VkInstance ins, VkPhysicalDevice phDev, uint32_t ApiVersion);

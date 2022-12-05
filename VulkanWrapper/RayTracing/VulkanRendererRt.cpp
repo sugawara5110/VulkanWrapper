@@ -74,8 +74,6 @@ void VulkanRendererRt::Init(uint32_t comIndex, std::vector<VulkanBasicPolygonRt:
 
     rt = r;
 
-    m_sceneParam.maxRecursion.y = (float)rt.size();
-
     int emissiveCnt = 0;
     for (int i = 0; i < rt.size(); i++) {
         for (int j = 0; j < rt[i]->instance.size(); j++) {
@@ -493,9 +491,11 @@ void VulkanRendererRt::CreateShaderBindingTable() {
     auto missShaderEntrySize = Align(handleSize, handleAlignment);
     auto hitShaderEntrySize = Align(handleSize + sizeof(uint64_t) * 2, handleAlignment);//IndexBufferアドレスとVertexBufferアドレス込み
 
+    const uint32_t numHitShader = VulkanDeviceRt::numHitShader;
+
     const auto raygenShaderCount = 1;
-    const auto missShaderCount = 4;
-    const auto hitShaderCount = 4 * rt.size();
+    const auto missShaderCount = numHitShader;
+    const auto hitShaderCount = numHitShader * rt.size();
 
     //各グループのサイズ
     const auto baseAlign = rtPipelineProps.shaderGroupBaseAlignment;
@@ -559,17 +559,13 @@ void VulkanRendererRt::CreateShaderBindingTable() {
     //emHitでは頂点データ未使用だがstride揃える関係でとりあえず入れてる
     auto hit = shaderHandleStorage.data() + handleSizeAligned * GroupHitShader0;
     auto dstH = dst;
-    auto offset = hitShaderEntrySize * rt.size();
-    writeSBTDataAndHit(dstH, hit, handleSize, hitShaderEntrySize);//hit0
-    dstH += offset;
-    hit += handleSizeAligned;
-    writeSBTDataAndHit(dstH, hit, handleSize, hitShaderEntrySize);//hit1
-    dstH += offset;
-    hit += handleSizeAligned;
-    writeSBTDataAndHit(dstH, hit, handleSize, hitShaderEntrySize);//emHit0
-    dstH += offset;
-    hit += handleSizeAligned;
-    writeSBTDataAndHit(dstH, hit, handleSize, hitShaderEntrySize);//emHit1
+
+    for (size_t i = 0; i < rt.size(); i++) {
+        rt[i]->hitShaderIndex = numHitShader * (uint32_t)i;
+        writeSBTDataAndHit(rt[i], dstH, hitShaderEntrySize, hit, handleSizeAligned, handleSize);
+        dstH += (hitShaderEntrySize * numHitShader);
+    }
+
     m_sbtInfo.hit.deviceAddress = deviceAddress + RaygenGroupSize + MissGroupSize;
     m_sbtInfo.hit.size = HitGroupSize;
     m_sbtInfo.hit.stride = hitShaderEntrySize;
@@ -577,32 +573,34 @@ void VulkanRendererRt::CreateShaderBindingTable() {
     m_shaderBindingTable.UnMap();
 }
 
-void VulkanRendererRt::writeSBTDataAndHit(void* dst, void* hit, uint32_t hitHandleSize, uint64_t hitShaderEntrySize) {
+void VulkanRendererRt::writeSBTDataAndHit(VulkanBasicPolygonRt::RtData* rt,
+    void* dst, uint64_t hitShaderEntrySize,
+    void* hit, uint32_t handleSizeAligned, uint32_t hitHandleSize) {
 
     auto Dst = static_cast<uint8_t*>(dst);
+    auto Hit = static_cast<uint8_t*>(hit);
 
-    for (size_t i = 0; i < rt.size(); i++) {
-
-        rt[i]->hitShaderIndex = (uint32_t)i;
+    for (int i = 0; i < VulkanDeviceRt::numHitShader; i++) {
 
         auto p = static_cast<uint8_t*>(Dst);
 
         //hitShader
-        memcpy(p, hit, hitHandleSize);
+        memcpy(p, Hit, hitHandleSize);
         p += hitHandleSize;
 
         //IndexBuffer
         uint64_t deviceAddr = 0;
-        deviceAddr = rt[i]->indexBuf.getDeviceAddress();
+        deviceAddr = rt->indexBuf.getDeviceAddress();
         memcpy(p, &deviceAddr, sizeof(deviceAddr));
         p += sizeof(deviceAddr);
 
         //VertexBuffer
-        deviceAddr = rt[i]->vertexBuf.getDeviceAddress();
+        deviceAddr = rt->vertexBuf.getDeviceAddress();
         memcpy(p, &deviceAddr, sizeof(deviceAddr));
         p += sizeof(deviceAddr);
 
         Dst += hitShaderEntrySize;
+        Hit += handleSizeAligned;
     }
 }
 
