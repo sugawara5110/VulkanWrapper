@@ -595,7 +595,7 @@ void VulkanRendererRt::writeSBTDataAndHit(VulkanBasicPolygonRt::RtData* rt,
         p += sizeof(deviceAddr);
 
         //VertexBuffer
-        deviceAddr = rt->vertexBuf.getDeviceAddress();
+        deviceAddr = rt->vertexBuf->getDeviceAddress();
         memcpy(p, &deviceAddr, sizeof(deviceAddr));
         p += sizeof(deviceAddr);
 

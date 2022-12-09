@@ -8,6 +8,7 @@
 #define FBX_PCS 32
 #include "VulkanSkinMeshRt.h"
 #include <string.h>
+#include "Shader/Shader_Skinning.h"
 
 using namespace std;
 
@@ -35,6 +36,7 @@ VulkanSkinMeshRt::VulkanSkinMeshRt() {
 
 VulkanSkinMeshRt::~VulkanSkinMeshRt() {
 
+	vkUtil::ARR_DELETE(sk);
 	if (pvVB) {
 		for (int i = 0; i < numMesh; i++) {
 			vkUtil::ARR_DELETE(pvVB[i]);
@@ -217,6 +219,9 @@ void VulkanSkinMeshRt::GetBuffer(int num_end_frame, float* end_frame, bool singl
 	pvVB = new MY_VERTEX_S * [numMesh];
 	pvVBM = new VulkanBasicPolygonRt::Vertex3D_t * [numMesh];
 	mObj = new VulkanBasicPolygonRt[numMesh];
+	if (deformer) {
+		sk = new SkinningCom[numMesh];
+	}
 }
 
 static void createAxisSub(CoordTf::VECTOR3& v3, int axis, int sign) {
@@ -402,12 +407,8 @@ void VulkanSkinMeshRt::SetVertex(bool lclOn, bool axisOn) {
 		auto numMaterial = mesh->getNumMaterial();
 		int* uvSw = new int[numMaterial];
 		createMaterial(m, numMaterial, mesh, uv0Name, uv1Name, uvSw);
-		if (numBone[m] > 0) {
-			swapTex(vb, sizeof(MY_VERTEX_S), mesh, uvSw);
-		}
-		else {
-			swapTex(vbm, sizeof(VulkanBasicPolygonRt::Vertex3D_t), mesh, uvSw);
-		}
+		swapTex(vb, sizeof(MY_VERTEX_S), mesh, uvSw);
+		swapTex(vbm, sizeof(VulkanBasicPolygonRt::Vertex3D_t), mesh, uvSw);
 		vkUtil::ARR_DELETE(uvSw);
 		splitIndex(numMaterial, mesh, m);
 	}
@@ -606,6 +607,16 @@ bool VulkanSkinMeshRt::CreateFromFBX(uint32_t comIndex, bool useAlpha, uint32_t 
 		o.createMultipleMaterials(comIndex, useAlpha, (uint32_t)mesh->getNumMaterial(),
 			pvVBM[i], mesh->getNumPolygonVertices(), newIndex[i], NumNewIndex[i],
 			textureId[i], numInstance);
+
+		if (sk) {
+			vkUtil::createTangent((uint32_t)mesh->getNumMaterial(), NumNewIndex[i],
+				pvVB[i], newIndex[i], sizeof(MY_VERTEX_S), 0, 3 * 4, 9 * 4, 6 * 4);
+
+			sk[i].createVertexBuffer(comIndex, pvVB[i], mesh->getNumPolygonVertices());
+			sk[i].CreateLayouts();
+			sk[i].CreateComputePipeline();
+			sk[i].CreateDescriptorSets(&o.Rdata[0].vertexBuf->info, &mObject_BONES.buf.info);
+		}
 
 		if (pvVB_delete_f) {
 			vkUtil::ARR_DELETE(pvVBM[i]);
@@ -859,7 +870,6 @@ void VulkanSkinMeshRt::MatrixMap_Bone(SHADER_GLOBAL_BONES* sgb) {
 	for (int i = 0; i < maxNumBone; i++)
 	{
 		MATRIX mat = GetCurrentPoseMatrix(i);
-		MatrixTranspose(&mat);
 		sgb->mBone[i] = mat;
 	}
 }
@@ -879,9 +889,13 @@ bool VulkanSkinMeshRt::InstancingUpdate(uint32_t comIndex, int AnimationIndex, f
 	if (ti != -1.0f)frame_end = SetNewPoseMatrices(ti, AnimationIndex, InternalAnimationIndex);
 	MatrixMap_Bone(&sgb[0]);//å„Ç≈êÿÇËë÷Ç¶ÇÈÇÊÇ§Ç…ïœçX
 
+	if (sk)mObject_BONES.buf.memoryMap(&sgb[0]);
+
 	for (int i = 0; i < numMesh; i++) {
-		if (!noUseMesh[i])
+		if (!noUseMesh[i]) {
+			if (sk)sk[i].Skinned(comIndex);
 			mObj[i].instancingUpdate(comIndex);
+		}
 	}
 
 	return frame_end;
@@ -915,4 +929,181 @@ void VulkanSkinMeshRt::setMaterialRefractiveIndex(float RefractiveIndex,
 	uint32_t materialIndex) {
 
 	mObj[meshIndex].setMaterialRefractiveIndex(RefractiveIndex, materialIndex);
+}
+
+VulkanSkinMeshRt::SkinningCom::~SkinningCom() {
+	VulkanDevice* dev = VulkanDevice::GetInstance();
+	Buf.destroy();
+	vkDestroyPipeline(dev->getDevice(), computeSkiningPipeline, nullptr);
+	vkDestroyPipelineLayout(dev->getDevice(), pipelineLayoutSkinned, nullptr);
+	vkDestroyDescriptorSetLayout(dev->getDevice(), dsLayoutSkinned, nullptr);
+	VulkanDeviceRt* devRt = VulkanDeviceRt::getVulkanDeviceRt();
+	devRt->DeallocateDescriptorSet(descriptorSetCompute);
+}
+
+void VulkanSkinMeshRt::SkinningCom::createVertexBuffer(uint32_t comIndex, MY_VERTEX_S* ver, uint32_t num) {
+
+	struct MY_VERTEX_S_4 {
+		CoordTf::VECTOR4 vPos = {};
+		CoordTf::VECTOR4 vNorm = {};
+		CoordTf::VECTOR4 vTangent = {};
+		CoordTf::VECTOR4 vTex0 = {};
+		CoordTf::VECTOR4 vTex1 = {};
+		CoordTf::VECTOR4 bBoneIndex = {};
+		CoordTf::VECTOR4 bBoneWeight = {};
+	};
+
+	MY_VERTEX_S_4* v = new MY_VERTEX_S_4[num];
+	numVer = num;
+
+	for (uint32_t i = 0; i < num; i++) {
+		memcpy(&v[i].vPos, &ver[i].vPos, sizeof(float) * 3);
+		memcpy(&v[i].vNorm, &ver[i].vNorm, sizeof(float) * 3);
+		memcpy(&v[i].vTangent, &ver[i].vTangent, sizeof(float) * 3);
+		memcpy(&v[i].vTex0, &ver[i].vTex0, sizeof(float) * 2);
+		memcpy(&v[i].vTex1, &ver[i].vTex1, sizeof(float) * 2);
+		v[i].bBoneIndex.as(
+			(float)ver[i].bBoneIndex[0],
+			(float)ver[i].bBoneIndex[1],
+			(float)ver[i].bBoneIndex[2],
+			(float)ver[i].bBoneIndex[3]);
+		memcpy(&v[i].bBoneWeight, &ver[i].bBoneWeight, sizeof(float) * 4);
+	}
+
+	VkBufferUsageFlags usageForRT =
+		VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+		VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR |
+		VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+
+	VkMemoryAllocateFlagsInfo memoryAllocateFlagsInfo{
+  VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO, nullptr,
+	};
+	memoryAllocateFlagsInfo.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR;
+	void* pNext = &memoryAllocateFlagsInfo;
+
+	Buf.createVertexBuffer(comIndex, v, num, false, pNext, &usageForRT);
+	vkUtil::ARR_DELETE(v);
+}
+
+void VulkanSkinMeshRt::SkinningCom::CreateLayouts() {
+
+	VkDescriptorSetLayoutBinding layoutIn{};
+	layoutIn.binding = 0;
+	layoutIn.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	layoutIn.descriptorCount = 1;
+	layoutIn.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+	VkDescriptorSetLayoutBinding layoutUBO{};
+	layoutUBO.binding = 1;
+	layoutUBO.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	layoutUBO.descriptorCount = 1;
+	layoutUBO.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+	VkDescriptorSetLayoutBinding layoutOut{};
+	layoutOut.binding = 2;
+	layoutOut.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	layoutOut.descriptorCount = 1;
+	layoutOut.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+	std::vector<VkDescriptorSetLayoutBinding> bind = { layoutIn,layoutUBO,layoutOut };
+
+	VkDescriptorSetLayoutCreateInfo dsLayoutCI{
+	   VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO
+	};
+	dsLayoutCI.bindingCount = uint32_t(bind.size());
+	dsLayoutCI.pBindings = bind.data();
+
+	VulkanDevice* dev = VulkanDevice::GetInstance();
+
+	vkCreateDescriptorSetLayout(
+		dev->getDevice(), &dsLayoutCI, nullptr, &dsLayoutSkinned);
+
+	VkPipelineLayoutCreateInfo pipelineLayoutCI{
+		VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO
+	};
+	pipelineLayoutCI.setLayoutCount = 1;
+	pipelineLayoutCI.pSetLayouts = &dsLayoutSkinned;
+	vkCreatePipelineLayout(dev->getDevice(),
+		&pipelineLayoutCI, nullptr, &pipelineLayoutSkinned);
+}
+
+void VulkanSkinMeshRt::SkinningCom::CreateComputePipeline() {
+
+	VulkanDevice* dev = VulkanDevice::GetInstance();
+	auto shaderStage = dev->createShaderModule("SkinMesh", Shader_Skinning, VK_SHADER_STAGE_COMPUTE_BIT);
+
+	VkComputePipelineCreateInfo compPipelineCI{
+		VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO
+	};
+	compPipelineCI.layout = pipelineLayoutSkinned;
+	compPipelineCI.stage = shaderStage;
+
+	vkCreateComputePipelines(dev->getDevice(), VK_NULL_HANDLE, 1, &compPipelineCI, nullptr, &computeSkiningPipeline);
+	vkDestroyShaderModule(dev->getDevice(), shaderStage.module, nullptr);
+}
+
+void VulkanSkinMeshRt::SkinningCom::CreateDescriptorSets(VkDescriptorBufferInfo* output, VkDescriptorBufferInfo* bone) {
+
+	VulkanDeviceRt* dev = VulkanDeviceRt::getVulkanDeviceRt();
+	descriptorSetCompute = dev->AllocateDescriptorSet(dsLayoutSkinned);
+
+	VkWriteDescriptorSet writeIn{
+		VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
+	};
+	writeIn.dstSet = descriptorSetCompute;
+	writeIn.dstBinding = 0;
+	writeIn.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	writeIn.descriptorCount = 1;
+	writeIn.pBufferInfo = &Buf.info;
+
+	VkWriteDescriptorSet writeUBO{
+		VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
+	};
+	writeUBO.dstSet = descriptorSetCompute;
+	writeUBO.dstBinding = 1;
+	writeUBO.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	writeUBO.descriptorCount = 1;
+	writeUBO.pBufferInfo = bone;
+
+	VkWriteDescriptorSet writeOut{
+		VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
+	};
+	writeOut.dstSet = descriptorSetCompute;
+	writeOut.dstBinding = 2;
+	writeOut.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	writeOut.descriptorCount = 1;
+	writeOut.pBufferInfo = output;
+
+	std::vector<VkWriteDescriptorSet> writeSets = { writeIn, writeUBO, writeOut };
+
+	vkUpdateDescriptorSets(dev->GetDevice(), uint32_t(writeSets.size()), writeSets.data(), 0, nullptr);
+}
+
+void VulkanSkinMeshRt::SkinningCom::Skinned(uint32_t comIndex) {
+
+	VulkanDevice* dev = VulkanDevice::GetInstance();
+	auto command = dev->getCommandBuffer(comIndex);
+
+	vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_COMPUTE, computeSkiningPipeline);
+	vkCmdBindDescriptorSets(
+		command, VK_PIPELINE_BIND_POINT_COMPUTE,
+		pipelineLayoutSkinned, 0,
+		1, &descriptorSetCompute,
+		0,
+		nullptr);
+
+	vkCmdDispatch(command, numVer, 1, 1);
+
+	VkMemoryBarrier barrier{
+		VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+	};
+	barrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
+	barrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+	vkCmdPipelineBarrier(
+		command,
+		VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+		VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+		0, 1, &barrier,
+		0, nullptr,
+		0, nullptr);
 }

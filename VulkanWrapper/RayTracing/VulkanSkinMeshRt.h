@@ -16,7 +16,7 @@ public:
 	struct MY_VERTEX_S {
 		CoordTf::VECTOR3 vPos = {};//頂点
 		CoordTf::VECTOR3 vNorm = {};//法線
-		CoordTf::VECTOR3 vTangent;  //接ベクトル
+		CoordTf::VECTOR3 vTangent = {};//接ベクトル
 		CoordTf::VECTOR2 vTex0 = {};//UV座標0
 		CoordTf::VECTOR2 vTex1 = {};//UV座標1
 		uint32_t bBoneIndex[4] = {};//ボーン　番号
@@ -106,6 +106,25 @@ protected:
 	void normalRecalculation(bool lclOn, double** nor, FbxMeshNode* mesh);
 	void createAxis();
 	void LclTransformation(FbxMeshNode* mesh, CoordTf::VECTOR3* vec);
+
+	class SkinningCom {
+	private:
+		VkPipelineLayout pipelineLayoutSkinned = VK_NULL_HANDLE;
+		VkPipeline computeSkiningPipeline = VK_NULL_HANDLE;
+		VkDescriptorSetLayout dsLayoutSkinned = VK_NULL_HANDLE;
+		VkDescriptorSet descriptorSetCompute = VK_NULL_HANDLE;
+		BufferSetRt Buf;
+		int numVer = 0;
+
+	public:
+		~SkinningCom();
+		void createVertexBuffer(uint32_t comIndex, MY_VERTEX_S* ver, uint32_t num);
+		void CreateLayouts();
+		void CreateComputePipeline();
+		void CreateDescriptorSets(VkDescriptorBufferInfo* output, VkDescriptorBufferInfo* bone);
+		void Skinned(uint32_t comIndex);
+	};
+	SkinningCom* sk = nullptr;
 
 public:
 	VulkanSkinMeshRt();

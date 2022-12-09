@@ -11,8 +11,8 @@ VulkanBasicPolygonRt::VulkanBasicPolygonRt() {
 }
 
 VulkanBasicPolygonRt::~VulkanBasicPolygonRt() {
+    vertexBuf.destroy();
     for (auto i = 0; i < Rdata.size(); i++) {
-        Rdata[i].vertexBuf.destroy();
         Rdata[i].indexBuf.destroy();
         Rdata[i].BLAS.destroy();
         Rdata[i].texId.destroy();
@@ -31,8 +31,9 @@ void VulkanBasicPolygonRt::LightOn(bool on, uint32_t InstanceIndex, uint32_t mat
     if (on)Rdata[matIndex].instance[InstanceIndex].lightOn = 1.0f;
 }
 
-void VulkanBasicPolygonRt::createVertexBuffer(RtData& rdata, uint32_t comIndex,
-    Vertex3D_t* ver, uint32_t num, uint32_t* ind, uint32_t indNum) {
+void VulkanBasicPolygonRt::createVertexBuffer(
+    uint32_t comIndex,
+    Vertex3D_t* ver, uint32_t num) {
 
     struct Vertex3Dvec4 {
         float pos[4] = {};
@@ -63,10 +64,27 @@ void VulkanBasicPolygonRt::createVertexBuffer(RtData& rdata, uint32_t comIndex,
     memoryAllocateFlagsInfo.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR;
     void* pNext = &memoryAllocateFlagsInfo;
 
-    rdata.vertexBuf.createVertexBuffer(comIndex, v, num, false, pNext, &usageForRT);
+    vertexBuf.createVertexBuffer(comIndex, v, num, false, pNext, &usageForRT);
     vkUtil::ARR_DELETE(v);
-    rdata.vertexStride = sizeof(Vertex3Dvec4);
-    rdata.vertexCount = num;
+    vertexStride = sizeof(Vertex3Dvec4);
+    vertexCount = num;
+}
+
+void VulkanBasicPolygonRt::createIndexBuffer(
+    RtData& rdata, uint32_t comIndex,
+    uint32_t* ind, uint32_t indNum) {
+
+    VkBufferUsageFlags usageForRT =
+        VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+        VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR |
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+
+    VkMemoryAllocateFlagsInfo memoryAllocateFlagsInfo{
+  VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO, nullptr,
+    };
+    memoryAllocateFlagsInfo.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR;
+    void* pNext = &memoryAllocateFlagsInfo;
+
     rdata.indexBuf.createVertexBuffer(comIndex, ind, indNum, true, pNext, &usageForRT);
     rdata.indexCount = indNum;
 }
@@ -86,7 +104,7 @@ void VulkanBasicPolygonRt::createBLAS(RtData& rdata, uint32_t comIndex) {
     auto& triangles = Geometry.geometry.triangles;
     triangles.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR;
     triangles.vertexFormat = VK_FORMAT_R32G32B32_SFLOAT;
-    triangles.vertexData.deviceAddress = rdata.vertexBuf.getDeviceAddress();
+    triangles.vertexData.deviceAddress = rdata.vertexBuf->getDeviceAddress();
     triangles.maxVertex = rdata.vertexCount;
     triangles.vertexStride = rdata.vertexStride;
     triangles.indexType = VK_INDEX_TYPE_UINT32;
@@ -155,15 +173,20 @@ void VulkanBasicPolygonRt::createMultipleMaterials(uint32_t comIndex, bool useAl
         ver, ind, sizeof(Vertex3D_t), 0, 3 * 4, 9 * 4, 6 * 4);
 
     Rdata.resize(numMat);
+    createVertexBuffer(comIndex, ver, num);
     for (auto i = 0; i < Rdata.size(); i++) {
         Rdata[i].instance.resize((size_t)numInstance);
-        createVertexBuffer(Rdata[i], comIndex, ver, num, ind[i], indNum[i]);
+        Rdata[i].vertexBuf = &vertexBuf;
+        Rdata[i].vertexCount = vertexCount;
+        Rdata[i].vertexStride = vertexStride;
+        createIndexBuffer(Rdata[i], comIndex, ind[i], indNum[i]);
         createBLAS(Rdata[i], comIndex);
         updateInstance(Rdata[i]);
         createTexture(Rdata[i], comIndex, texid[i]);
         Rdata[i].mat.useAlpha.x = 0.0f;
-        if (useAlpha)
+        if (useAlpha) {
             Rdata[i].mat.useAlpha.x = 1.0f;
+        }
     }
     rdataCreateF = true;
 }

@@ -37,12 +37,17 @@ public:
 		CoordTf::VECTOR4 useAlpha = { 0.0f,0.0f,0.0f,0.0f };//x:
 		CoordTf::VECTOR4 MaterialType = { NONREFLECTION,0.0f,0.0f,0.0f };//x:
 	};
+
+	BufferSetRt vertexBuf = {};
+	uint32_t vertexCount = 0;
+	uint32_t vertexStride = 0;
+
 	struct RtData {
-		BufferSetRt vertexBuf = {};
-		BufferSetRt indexBuf = {};
+		BufferSetRt* vertexBuf = nullptr;//ƒ|ƒCƒ“ƒ^Žó‚¯Žæ‚é‚¾‚¯
 		uint32_t vertexCount = 0;
-		uint32_t indexCount = 0;
 		uint32_t vertexStride = 0;
+		BufferSetRt indexBuf = {};
+		uint32_t indexCount = 0;
 
 		VulkanDevice::textureIdSet texId = {};
 
@@ -64,7 +69,8 @@ private:
 	bool rdataCreateF = false;
 	uint32_t InstanceCnt = 0;
 
-	void createVertexBuffer(RtData& rdata, uint32_t comIndex, Vertex3D_t* ver, uint32_t num, uint32_t* ind, uint32_t indNum);
+	void createVertexBuffer(uint32_t comIndex, Vertex3D_t* ver, uint32_t num);
+	void createIndexBuffer(RtData& rdata, uint32_t comIndex, uint32_t* ind, uint32_t indNum);
 	void createBLAS(RtData& rdata, uint32_t comIndex);
 	void updateInstance(RtData& rdata);
 	void createTexture(RtData& rdata, uint32_t comIndex, VulkanDevice::textureIdSetInput& texId);
