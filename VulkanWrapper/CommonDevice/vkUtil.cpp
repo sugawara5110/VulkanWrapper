@@ -7,49 +7,6 @@
 #define _CRT_SECURE_NO_WARNINGS
 #include "vkUtil.h"
 
-namespace {
-    CoordTf::VECTOR3 subtraction3(CoordTf::VECTOR3 v0, CoordTf::VECTOR3 v1) {
-        return { v0.x - v1.x,v0.y - v1.y, v0.z - v1.z };
-    }
-
-    CoordTf::VECTOR2 subtraction2(CoordTf::VECTOR2 v0, CoordTf::VECTOR2 v1) {
-        return { v0.x - v1.x,v0.y - v1.y };
-    }
-
-    CoordTf::VECTOR3 CalcTangent(CoordTf::VECTOR3 v0, CoordTf::VECTOR3 v1, CoordTf::VECTOR3 v2,
-        CoordTf::VECTOR2 uv0, CoordTf::VECTOR2 uv1, CoordTf::VECTOR2 uv2, CoordTf::VECTOR3 normal) {
-
-        using namespace CoordTf;
-
-        VECTOR3 deltaPos1 = subtraction3(v1, v0);
-        VECTOR3 deltaPos2 = subtraction3(v2, v0);
-
-        VECTOR2 deltaUV1 = subtraction2(uv1, uv0);
-        VECTOR2 deltaUV2 = subtraction2(uv2, uv0);
-
-        float r = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV1.y * deltaUV2.x);
-
-        VectorMultiply(&deltaPos1, deltaUV2.y);
-        VectorMultiply(&deltaPos2, deltaUV1.y);
-        VECTOR3 tangent = subtraction3(deltaPos1, deltaPos2);
-
-        VectorMultiply(&deltaPos2, deltaUV1.x);
-        VectorMultiply(&deltaPos1, deltaUV2.x);
-        VECTOR3 bitangent = subtraction3(deltaPos2, deltaPos1);
-
-        VECTOR3 out = {};
-        VectorCross(&out, &normal, &tangent);
-
-        if (VectorDot(&out, &bitangent) < 0.0f) {
-            tangent.x *= -1.0f;
-            tangent.y *= -1.0f;
-            tangent.z *= -1.0f;
-        }
-
-        return tangent;
-    }
-}
-
 void vkUtil::checkError(VkResult res) {
     if (res != VK_SUCCESS)
 #ifdef __ANDROID__
@@ -71,18 +28,17 @@ VKAPI_ATTR VkBool32 VKAPI_CALL vkUtil::debugCallback(VkDebugReportFlagsEXT flags
 void vkUtil::calculationMatrixWorld(CoordTf::MATRIX& World, CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale) {
     using namespace CoordTf;
     MATRIX mov;
-    MATRIX rotZ, rotY, rotX, rotZY, rotZYX;
+    MATRIX rotZ, rotY, rotX;
     MATRIX sca;
-    MATRIX scro;
     MatrixScaling(&sca, scale.x, scale.y, scale.z);
     MatrixRotationZ(&rotZ, theta.z);
     MatrixRotationY(&rotY, theta.y);
     MatrixRotationX(&rotX, theta.x);
-    MatrixMultiply(&rotZY, &rotZ, &rotY);
-    MatrixMultiply(&rotZYX, &rotZY, &rotX);
+    MATRIX rotZY = rotZ * rotY;
+    MATRIX rotZYX = rotZY * rotX;
     MatrixTranslation(&mov, pos.x, pos.y, pos.z);
-    MatrixMultiply(&scro, &rotZYX, &sca);
-    MatrixMultiply(&World, &scro, &mov);
+    MATRIX scro = rotZYX * sca;
+    World = scro * mov;
 }
 
 void vkUtil::addChar::addStr(char* str1, char* str2) {

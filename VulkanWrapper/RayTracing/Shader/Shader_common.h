@@ -30,16 +30,16 @@ char* Shader_common =
 "    vec4 Diffuse;\n"
 "    vec4 Speculer; \n"
 "    vec4 Ambient;\n"
-"    vec4 lightst;\n"//レンジ, 減衰1, 減衰2, 減衰3
 "    vec4 shininess;\n"//x:
 "    vec4 RefractiveIndex;\n"//x:屈折率
 "    vec4 AlphaBlend;\n"//x:
 "    vec4 materialNo;\n"//x:
+"    vec4 lightst;\n"//レンジ, 減衰1, 減衰2, 減衰3
 "    mat4 world;\n"//使用してない, 後で消す
 "};\n"
 
 "layout(binding = 0, set = 4) uniform Materials {\n"
-"    MaterialCB matCB[256];\n"//後で書き変えれるようにする
+"    MaterialCB matCB[replace_NUM_MAT_CB];\n"//replace_NUM_MAT_CB:書き換え
 "};\n"
 
 "struct vkRayPayload\n"

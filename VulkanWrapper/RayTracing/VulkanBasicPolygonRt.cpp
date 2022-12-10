@@ -26,7 +26,7 @@ void VulkanBasicPolygonRt::setMaterialType(vkMaterialType type, uint32_t matInde
 void VulkanBasicPolygonRt::LightOn(bool on, uint32_t InstanceIndex, uint32_t matIndex,
     float range, float att1, float att2, float att3) {
 
-    Rdata[matIndex].mat.lightst.as(range, att1, att2, att3);
+    Rdata[matIndex].instance[InstanceIndex].lightst.as(range, att1, att2, att3);
     Rdata[matIndex].instance[InstanceIndex].lightOn = 0.0f;
     if (on)Rdata[matIndex].instance[InstanceIndex].lightOn = 1.0f;
 }

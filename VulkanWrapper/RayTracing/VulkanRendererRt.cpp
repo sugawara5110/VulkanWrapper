@@ -20,6 +20,29 @@
 #include "Shader/Shader_closesthit_NormalMapTest.h"
 
 namespace {
+    char* changeStr(char* srcStr, char* target, char* replacement) {
+        uint32_t ln = (uint32_t)strlen(srcStr);
+        uint32_t taln = (uint32_t)strlen(target);
+        uint32_t reln = (uint32_t)strlen(replacement);
+        uint32_t retln = ln - taln + reln;
+
+        char* ret = new char[retln + 1];
+        int retCnt = 0;
+        for (uint32_t i = 0; i < ln; i++) {
+            if (!strncmp(&srcStr[i], target, sizeof(char) * taln)) {
+                memcpy(&ret[retCnt], replacement, sizeof(char) * reln);
+                retCnt += reln;
+                i += (taln - 1);
+            }
+            else {
+                ret[retCnt] = srcStr[i];
+                retCnt++;
+            }
+        }
+        ret[retln] = '\0';
+        return ret;
+    }
+
     VkRayTracingShaderGroupCreateInfoKHR createShaderGroupRayGeneration(uint32_t shaderIndex) {
 
         VkRayTracingShaderGroupCreateInfoKHR shaderGroupCI{
@@ -75,6 +98,7 @@ void VulkanRendererRt::Init(uint32_t comIndex, std::vector<VulkanBasicPolygonRt:
     rt = r;
 
     int emissiveCnt = 0;
+    int instanceCnt = 0;
     for (int i = 0; i < rt.size(); i++) {
         for (int j = 0; j < rt[i]->instance.size(); j++) {
             textureDifArr.push_back(rt[i]->texId.difTex.image.info);
@@ -82,6 +106,7 @@ void VulkanRendererRt::Init(uint32_t comIndex, std::vector<VulkanBasicPolygonRt:
             textureSpeArr.push_back(rt[i]->texId.speTex.image.info);
             Material m = {};
             memcpy(&m, &rt[i]->mat, sizeof(VulkanBasicPolygonRt::RtMaterial));
+            memcpy(&m.lightst, &rt[i]->instance[j].lightst, sizeof(CoordTf::VECTOR4));
             memcpy(&m.world, &rt[i]->instance[j].world, sizeof(CoordTf::MATRIX));
             materialArr.push_back(m);
 
@@ -97,9 +122,10 @@ void VulkanRendererRt::Init(uint32_t comIndex, std::vector<VulkanBasicPolygonRt:
                 memcpy(&m_sceneParam.emissivePosition[emissiveCnt],
                     &v4,
                     sizeof(CoordTf::VECTOR4));
-                m_sceneParam.emissiveNo[emissiveCnt].x = (float)emissiveCnt;
+                m_sceneParam.emissiveNo[emissiveCnt].x = (float)instanceCnt;
                 emissiveCnt++;
             }
+            instanceCnt++;
         }
     }
     m_sceneParam.numEmissive.x = (float)emissiveCnt;
@@ -181,21 +207,20 @@ void VulkanRendererRt::Update(int maxRecursion) {
     m_sceneParam.cameraPosition = dev->getCameraViewPos();
     m_sceneParam.maxRecursion.x = (float)maxRecursion;
 
-    MATRIX VP;
-    MatrixMultiply(&VP, &dev->getCameraView(), &dev->getProjection());
+    MATRIX VP = dev->getCameraView() * dev->getProjection();
     MatrixTranspose(&VP);
     MatrixInverse(&m_sceneParam.projectionToWorld, &VP);
 
     int emissiveCnt = 0;
-    int matCnt = 0;
+    int instanceCnt = 0;
     for (int i = 0; i < rt.size(); i++) {
         for (int j = 0; j < rt[i]->instance.size(); j++) {
 
             Material m = {};
             memcpy(&m, &rt[i]->mat, sizeof(VulkanBasicPolygonRt::RtMaterial));
+            memcpy(&m.lightst, &rt[i]->instance[j].lightst, sizeof(CoordTf::VECTOR4));
             memcpy(&m.world, &rt[i]->instance[j].world, sizeof(CoordTf::MATRIX));
-            memcpy(&materialArr[matCnt], &m, sizeof(Material));
-            matCnt++;
+            memcpy(&materialArr[instanceCnt], &m, sizeof(Material));
 
             if (rt[i]->mat.MaterialType.x == (float)EMISSIVE) {
 
@@ -209,9 +234,10 @@ void VulkanRendererRt::Update(int maxRecursion) {
                 memcpy(&m_sceneParam.emissivePosition[emissiveCnt],
                     &v4,
                     sizeof(CoordTf::VECTOR4));
-                m_sceneParam.emissiveNo[emissiveCnt].x = (float)emissiveCnt;
+                m_sceneParam.emissiveNo[emissiveCnt].x = (float)instanceCnt;
                 emissiveCnt++;
             }
+            instanceCnt++;
         }
     }
     m_sceneParam.numEmissive.x = (float)emissiveCnt;
@@ -380,12 +406,19 @@ void VulkanRendererRt::CreateRaytracePipeline() {
     vkUtil::addChar emHit1[2];
     vkUtil::addChar aHit[1];
 
-    ray[0].addStr(Shader_common, Shader_raygen);
+    int numMaterial = (int)materialArr.size();
+
+    char replace[255] = {};
+    snprintf(replace, sizeof(replace), "%d", numMaterial);
+
+    char* Shader_common_R = changeStr(Shader_common, "replace_NUM_MAT_CB", replace);
+
+    ray[0].addStr(Shader_common_R, Shader_raygen);
 
     miss0[0].addStr(Shader_location_Index_In_0_Miss, Shader_miss);
     miss1[0].addStr(Shader_location_Index_In_1_Miss, Shader_miss);
 
-    clo0[0].addStr(Shader_common, ShaderCalculateLighting);
+    clo0[0].addStr(Shader_common_R, ShaderCalculateLighting);
     clo0[1].addStr(clo0[0].str, ShaderNormalTangent);
     clo0[2].addStr(clo0[1].str, Shader_hitCom);
     clo0[3].addStr(clo0[2].str, Shader_location_Index_Clo_0);
@@ -423,6 +456,8 @@ void VulkanRendererRt::CreateRaytracePipeline() {
     auto emHit0Stage = dev->createShaderModule("emhit0", emHit0[1].str, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR);
     auto emHit1Stage = dev->createShaderModule("emhit1", emHit1[1].str, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR);
     auto aHitStage = dev->createShaderModule("ahit", aHit[0].str, VK_SHADER_STAGE_ANY_HIT_BIT_KHR);
+
+    vkUtil::ARR_DELETE(Shader_common_R);
 
     std::vector<VkPipelineShaderStageCreateInfo> stages = {
         rgsStage,
