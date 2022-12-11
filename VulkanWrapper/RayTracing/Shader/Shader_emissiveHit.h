@@ -19,7 +19,7 @@ char* Shader_emissiveHit =
 "    bool mNoF     = materialIdent(mNo, EMISSIVE);\n"
 "    if(pay_mNoF && mNoF) {\n"
 "       payloadIn.color = difTex.xyz + sceneParams.GlobalAmbientColor.xyz;\n"
-"       if(gl_InstanceID != payloadIn.instanceID || difTex.w <= 0.0f) {\n"
+"       if(gl_InstanceID != payloadIn.pLightID || difTex.w <= 0.0f) {\n"
 "          payloadIn.reTry = true;\n"//–Ú•W‚Ì“_ŒõŒ¹ˆÈŠO‚Ìê‡‘f’Ê‚è
 "       }\n"
 "    }\n"

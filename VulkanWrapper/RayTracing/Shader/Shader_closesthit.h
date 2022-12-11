@@ -19,13 +19,13 @@ char* Shader_closesthit =
 "    payloadIn.reTry = false;\n"
 
 //深度取得
-//"    if(payloadIn.depth == -1.0f) {\n"
-//"       payloadIn.depth = getDepth(attr, v3);\n"
-//"    }\n"
+"    if(payloadIn.depth == -1.0f) {\n"
+"       payloadIn.depth = getDepth();\n"
+"    }\n"
 //光源への光線
 "    difTex.xyz = EmissivePayloadCalculate(payloadIn.RecursionCnt, payloadIn.hitPosition, difTex.xyz, speTex, normalMap, normal);\n"
 //反射方向への光線
-"    difTex.xyz = MetallicPayloadCalculate(payloadIn.RecursionCnt, payloadIn.hitPosition, difTex.xyz, normalMap);\n"
+"    difTex.xyz = MetallicPayloadCalculate(payloadIn.RecursionCnt, payloadIn.hitPosition, difTex.xyz, normalMap, payloadIn.hitInstanceId);\n"
 //半透明
 "    difTex.xyz = Translucent(payloadIn.RecursionCnt, payloadIn.hitPosition, difTex, normalMap); \n"
 //アルファブレンド

@@ -184,7 +184,7 @@ void VulkanDevice::swapchainBuffer::createswapchain(VkSurfaceKHR surface) {
 
 void VulkanDevice::swapchainBuffer::createDepth() {
 
-    const VkFormat depth_format = VK_FORMAT_D16_UNORM;
+    const VkFormat depth_format = VK_FORMAT_D32_SFLOAT;
     VkImageTiling tiling;
     VkFormatProperties props;
     vkGetPhysicalDeviceFormatProperties(DevicePointer->pDev, depth_format, &props);

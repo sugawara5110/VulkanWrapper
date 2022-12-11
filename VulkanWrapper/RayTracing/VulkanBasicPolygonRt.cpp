@@ -251,9 +251,12 @@ void VulkanBasicPolygonRt::instancing(CoordTf::VECTOR3 pos, CoordTf::VECTOR3 the
     memcpy(&vw.matrix[1], &w.m[1], sizeof(float) * 4);
     memcpy(&vw.matrix[2], &w.m[2], sizeof(float) * 4);
 
+    VulkanDevice* device = VulkanDevice::GetInstance();
+
     for (auto i = 0; i < Rdata.size(); i++) {
         Rdata[i].instance[InstanceCnt].world = w2;
         Rdata[i].instance[InstanceCnt].vkWorld = vw;
+        Rdata[i].instance[InstanceCnt].mvp = w2 * device->getCameraView() * device->getProjection();
         if (InstanceCnt > Rdata[i].instance.size()) {
             throw std::runtime_error("InstanceCnt exceeded rdata.instance.size! Check the number of executions of instancing()");
         }

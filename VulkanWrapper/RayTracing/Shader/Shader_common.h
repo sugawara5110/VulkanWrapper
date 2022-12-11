@@ -23,7 +23,7 @@ char* Shader_common =
 "    vec4 dLightColor;\n"
 "    vec4 dLightst;\n"//.x:オンオフ
 "    vec4 TMin_TMax;\n"//.x, .y
-"    vec4 maxRecursion;\n"//x:
+"    vec4 maxRecursion;\n"//x:, y:maxNumInstance
 "} sceneParams;\n"
 
 "struct MaterialCB {\n"
@@ -35,7 +35,7 @@ char* Shader_common =
 "    vec4 AlphaBlend;\n"//x:
 "    vec4 materialNo;\n"//x:
 "    vec4 lightst;\n"//レンジ, 減衰1, 減衰2, 減衰3
-"    mat4 world;\n"//使用してない, 後で消す
+"    mat4 mvp;\n"
 "};\n"
 
 "layout(binding = 0, set = 4) uniform Materials {\n"
@@ -50,8 +50,9 @@ char* Shader_common =
 "    bool hit;\n"
 "    float Alpha;\n"
 "    int RecursionCnt;\n"
-"    int instanceID;\n"
+"    int pLightID;\n"//ポイントライトチェック用
 "    int mNo;\n"
 "    vec4 lightst;\n"//レンジ, 減衰1, 減衰2, 減衰3
 "    float depth;\n"
+"    int hitInstanceId;\n"
 "};\n";

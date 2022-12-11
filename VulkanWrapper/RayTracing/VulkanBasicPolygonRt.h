@@ -24,6 +24,7 @@ public:
 	struct Instance {
 		VkAccelerationStructureInstanceKHR vkInstance = {};
 		CoordTf::MATRIX world = {};
+		CoordTf::MATRIX mvp = {};
 		VkTransformMatrixKHR vkWorld = {};
 		CoordTf::VECTOR4 lightst = { 100.0f,0.1f, 0.001f, 0.001f };//ƒŒƒ“ƒW, Œ¸Š1, Œ¸Š2, Œ¸Š3
 		float lightOn = 0.0f;

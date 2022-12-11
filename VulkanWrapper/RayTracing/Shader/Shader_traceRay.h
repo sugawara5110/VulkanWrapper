@@ -41,7 +41,7 @@ char* Shader_traceRay =
 
 "                 vec3 lightVec = normalize(emissivePosition.xyz - hitPosition);\n"
 "                 vec3 direction = lightVec;\n"
-"                 payload.instanceID = int(sceneParams.emissiveNo[i].x);\n"
+"                 payload.pLightID = int(sceneParams.emissiveNo[i].x);\n"
 "                 bool loop = true;\n"
 "                 payload.hitPosition = hitPosition;\n"
 "                 while(loop){\n"
@@ -65,7 +65,7 @@ char* Shader_traceRay =
 "                        tmin,\n"
 "                        direction,\n"
 "                        tmax,\n"
-"                        rayPayloadEXT_location\n"//ペイロードインデックス
+"                        rayPayloadEXT_location\n"//layoutのlocation番号
 "                    );\n"
 
 "                    loop = payload.reTry;\n"
@@ -121,10 +121,12 @@ char* Shader_traceRay =
 
 ///////////////////////反射方向へ光線を飛ばす, ヒットした場合ピクセル値乗算///////////////////////
 "vec3 MetallicPayloadCalculate(in int RecursionCnt, in vec3 hitPosition, \n"
-"                                in vec3 difTexColor, in vec3 normal)\n"
+"                                in vec3 difTexColor, in vec3 normal, inout int hitInstanceId)\n"
 "{\n"
 "    int mNo = int(matCB[gl_InstanceID].materialNo.x);\n"
 "    vec3 ret = difTexColor;\n"
+
+"    hitInstanceId = gl_InstanceID; \n"//自身のID書き込み
 
 "    if(materialIdent(mNo, METALLIC)) {\n"//METALLIC
 
@@ -162,6 +164,7 @@ char* Shader_traceRay =
 "       vec3 outCol = vec3(0.0f, 0.0f, 0.0f);\n"
 "       if (payload.hit) {\n"
 "           outCol = difTexColor * payload.color;\n"//ヒットした場合映り込みとして乗算
+"           hitInstanceId = payload.hitInstanceId;\n"//ヒットしたID書き込み
 "       }\n"
 "       else {\n"
 "           outCol = difTexColor;\n"//ヒットしなかった場合映り込み無しで元のピクセル書き込み

@@ -83,6 +83,20 @@ char* Shader_hitCom =
 "    return ret;\n"
 "}\n"
 
+///////////////////////////////////////深度値取得//////////////////////////////////////////////////
+"float getDepth()\n"
+"{\n"
+"    vec3 v = getVertex();\n"
+
+"    vec4 ver = vec4(v, 1.0f);\n"
+
+"    MaterialCB mcb = matCB[gl_InstanceID];\n"
+
+"    mat4 m = mcb.mvp;\n"
+"    vec4 ver2 = ver * m;\n"
+"    return ver2.z / ver2.w;\n"
+"}\n"
+
 ///////////////////////////////////////////法線取得///////////////////////////////////////////////
 "vec3 getNormal()\n"
 "{\n"

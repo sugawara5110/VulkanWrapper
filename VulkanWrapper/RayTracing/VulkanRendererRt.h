@@ -33,7 +33,7 @@ private:
         CoordTf::VECTOR4 dLightColor = {};
         CoordTf::VECTOR4 dLightst = {};//x:ƒIƒ“ƒIƒt
         CoordTf::VECTOR4 TMin_TMax = {};//x, y
-        CoordTf::VECTOR4 maxRecursion = {};//x:
+        CoordTf::VECTOR4 maxRecursion = {};//x:, y:maxNumInstance
     };
 
     std::vector<VulkanBasicPolygonRt::RtData*> rt;
@@ -45,6 +45,8 @@ private:
     VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
     VulkanDevice::ImageSet   m_raytracedImage;
     VkPipeline m_raytracePipeline;
+    VulkanDevice::ImageSet instanceIdMap;
+    VulkanDevice::ImageSet depthMap;
 
     enum ShaderGroups {
         GroupRayGenShader = 0,
@@ -78,12 +80,12 @@ private:
         CoordTf::VECTOR4 useAlpha;
         CoordTf::VECTOR4 MaterialType;
         CoordTf::VECTOR4 lightst;
-        CoordTf::MATRIX world;
+        CoordTf::MATRIX mvp;
     };
     std::vector<Material> materialArr;
     BufferSetRt materialUBO;
 
-    bool NormalMapTestMode = false;
+    bool testMode[3] = { false,false,false };
 
     void CreateTLAS(uint32_t comIndex);
 
@@ -106,9 +108,13 @@ private:
 public:
     std::unique_ptr<VulkanDeviceRt> m_device;
 
-    void NormalMapTestModeOn() {
-        NormalMapTestMode = true;
-    }
+    enum TestMode {
+        NormalMap = 0,
+        InstanceIdMap = 1,
+        DepthMap = 2
+    };
+
+    void TestModeOn(TestMode mode);
 
     void Init(uint32_t comIndex, std::vector<VulkanBasicPolygonRt::RtData*> rt);
     void destroy();
@@ -119,6 +125,18 @@ public:
 
     void Update(int maxRecursion);
     void Render(uint32_t comIndex);
+
+    VulkanDevice::ImageSet* getInstanceIdMap() {
+        return &instanceIdMap;
+    }
+
+    VulkanDevice::ImageSet* getDepthMap() {
+        return &depthMap;
+    }
+
+    VulkanDevice::ImageSet* getRenderedImage() {
+        return &m_raytracedImage;
+    }
 };
 
 #endif
