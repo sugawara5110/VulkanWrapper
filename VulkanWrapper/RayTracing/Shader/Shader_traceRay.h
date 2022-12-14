@@ -165,6 +165,10 @@ char* Shader_traceRay =
 "       if (payload.hit) {\n"
 "           outCol = difTexColor * payload.color;\n"//ヒットした場合映り込みとして乗算
 "           hitInstanceId = payload.hitInstanceId;\n"//ヒットしたID書き込み
+"           int hitmNo = payload.mNo;\n"
+"           if(materialIdent(hitmNo, EMISSIVE)){\n"
+"              outCol = payload.color;\n"
+"           }\n"
 "       }\n"
 "       else {\n"
 "           outCol = difTexColor;\n"//ヒットしなかった場合映り込み無しで元のピクセル書き込み

@@ -21,4 +21,5 @@ char* Shader_closesthit_NormalMapTest =
 "    payloadIn.color = normalMap;\n"
 "    payloadIn.hit = true;\n"
 "    payloadIn.Alpha = difTex.w;\n"
+"    payloadIn.mNo = int(matCB[gl_InstanceID].materialNo.x);\n"
 "}\n";
