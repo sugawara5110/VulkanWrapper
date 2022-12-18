@@ -254,9 +254,11 @@ void VulkanBasicPolygonRt::instancing(CoordTf::VECTOR3 pos, CoordTf::VECTOR3 the
     VulkanDevice* device = VulkanDevice::GetInstance();
 
     for (auto i = 0; i < Rdata.size(); i++) {
-        Rdata[i].instance[InstanceCnt].world = w2;
-        Rdata[i].instance[InstanceCnt].vkWorld = vw;
-        Rdata[i].instance[InstanceCnt].mvp = w2 * device->getCameraView() * device->getProjection();
+        VulkanBasicPolygonRt::Instance& ins = Rdata[i].instance[InstanceCnt];
+        ins.world = w2;
+        ins.vkWorld = vw;
+        ins.mvp = w2 * device->getCameraView() * device->getProjection();
+        MatrixTranspose(&ins.mvp);
         if (InstanceCnt > Rdata[i].instance.size()) {
             throw std::runtime_error("InstanceCnt exceeded rdata.instance.size! Check the number of executions of instancing()");
         }

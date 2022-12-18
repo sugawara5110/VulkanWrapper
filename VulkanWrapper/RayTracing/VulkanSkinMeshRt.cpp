@@ -150,7 +150,7 @@ void VulkanSkinMeshRt::Vertex_hold() {
 	pvVB_delete_f = false;
 }
 
-void VulkanSkinMeshRt::GetFbx(char* szFileName) {
+void VulkanSkinMeshRt::SetFbx(char* szFileName) {
 	//FBXローダーを初期化
 	if (!InitFBX(szFileName, 0))
 	{
@@ -158,12 +158,12 @@ void VulkanSkinMeshRt::GetFbx(char* szFileName) {
 	}
 }
 
-void VulkanSkinMeshRt::GetBuffer(float end_frame, bool singleMesh, bool deformer) {
+void VulkanSkinMeshRt::CreateBuffer(float end_frame, bool singleMesh, bool deformer) {
 	float ef[1] = { end_frame };
-	GetBuffer(1, ef, singleMesh, deformer);
+	CreateBuffer(1, ef, singleMesh, deformer);
 }
 
-void VulkanSkinMeshRt::GetBuffer(int num_end_frame, float* end_frame, bool singleMesh, bool deformer) {
+void VulkanSkinMeshRt::CreateBuffer(int num_end_frame, float* end_frame, bool singleMesh, bool deformer) {
 
 	using namespace CoordTf;
 	fbx[0].end_frame = std::make_unique<float[]>(num_end_frame);
@@ -660,7 +660,7 @@ bool VulkanSkinMeshRt::CreateFromFBX(uint32_t comIndex, bool useAlpha, uint32_t 
 	return true;
 }
 
-void VulkanSkinMeshRt::GetFbxSub(char* szFileName, int ind) {
+void VulkanSkinMeshRt::SetFbxSub(char* szFileName, int ind) {
 	if (ind <= 0) {
 		throw std::runtime_error("FBXローダー初期化失敗");
 	}
@@ -670,12 +670,12 @@ void VulkanSkinMeshRt::GetFbxSub(char* szFileName, int ind) {
 	}
 }
 
-void VulkanSkinMeshRt::GetBuffer_Sub(int ind, float end_frame) {
+void VulkanSkinMeshRt::CreateBuffer_Sub(int ind, float end_frame) {
 	float ef[1] = { end_frame };
-	GetBuffer_Sub(ind, 1, ef);
+	CreateBuffer_Sub(ind, 1, ef);
 }
 
-void VulkanSkinMeshRt::GetBuffer_Sub(int ind, int num_end_frame, float* end_frame) {
+void VulkanSkinMeshRt::CreateBuffer_Sub(int ind, int num_end_frame, float* end_frame) {
 
 	fbx[ind].end_frame = std::make_unique<float[]>(num_end_frame);
 	memcpy(fbx[ind].end_frame.get(), end_frame, num_end_frame * sizeof(float));

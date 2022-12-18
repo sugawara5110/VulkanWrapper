@@ -47,6 +47,7 @@ private:
     VkPipeline m_raytracePipeline;
     VulkanDevice::ImageSet instanceIdMap;
     VulkanDevice::ImageSet depthMap;
+    VulkanDevice::BufferSet depthMapUp;
 
     enum ShaderGroups {
         GroupRayGenShader = 0,
@@ -105,6 +106,10 @@ private:
         void* dst, uint64_t hitShaderEntrySize,
         void* hit, uint32_t handleSizeAligned, uint32_t hitHandleSize);
 
+    void DepthMapWrite(uint32_t comIndex);
+
+    void DepthMapUpdate(uint32_t comIndex);
+
 public:
     std::unique_ptr<VulkanDeviceRt> m_device;
 
@@ -124,7 +129,7 @@ public:
     void setGlobalAmbientColor(CoordTf::VECTOR3 Color);
 
     void Update(int maxRecursion);
-    void Render(uint32_t comIndex);
+    void Render(uint32_t comIndex, bool depthUpdate = false);
 
     VulkanDevice::ImageSet* getInstanceIdMap() {
         return &instanceIdMap;

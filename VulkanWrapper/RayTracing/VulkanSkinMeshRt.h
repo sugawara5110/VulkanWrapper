@@ -135,9 +135,9 @@ public:
 	void ObjOffset(float x, float y, float z, float thetaZ, float thetaY, float thetaX, int ind);
 	void SetConnectStep(int ind, float step);
 	void Vertex_hold();
-	void GetFbx(char* szFileName);
-	void GetBuffer(int num_end_frame, float* end_frame, bool singleMesh = false, bool deformer = true);
-	void GetBuffer(float end_frame, bool singleMesh = false, bool deformer = true);
+	void SetFbx(char* szFileName);
+	void CreateBuffer(int num_end_frame, float* end_frame, bool singleMesh = false, bool deformer = true);
+	void CreateBuffer(float end_frame, bool singleMesh = false, bool deformer = true);
 	void noUseMeshIndex(int meshIndex);
 	void SetVertex(bool lclOn = false, bool axisOn = false);
 
@@ -151,9 +151,9 @@ public:
 		float range = 100.0f, float att1 = 0.1f, float att2 = 0.001f, float att3 = 0.001f);
 
 	bool CreateFromFBX(uint32_t comIndex, bool useAlpha, uint32_t numInstance);
-	void GetFbxSub(char* szFileName, int ind);
-	void GetBuffer_Sub(int ind, int num_end_frame, float* end_frame);
-	void GetBuffer_Sub(int ind, float end_frame);
+	void SetFbxSub(char* szFileName, int ind);
+	void CreateBuffer_Sub(int ind, int num_end_frame, float* end_frame);
+	void CreateBuffer_Sub(int ind, float end_frame);
 	void CreateFromFBX_SubAnimation(int ind);
 
 	void Instancing(CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale);

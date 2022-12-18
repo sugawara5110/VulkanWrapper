@@ -177,6 +177,7 @@ void VulkanRendererRt::destroy() {
     m_shaderBindingTable.destroy();
     instanceIdMap.destroy();
     depthMap.destroy();
+    depthMapUp.destroy();
 
     auto device = VulkanDevice::GetInstance()->getDevice();
     vkDestroyPipeline(device, m_raytracePipeline, nullptr);
@@ -249,9 +250,46 @@ void VulkanRendererRt::Update(int maxRecursion) {
     m_sceneParam.numEmissive.x = (float)emissiveCnt;
 }
 
-void VulkanRendererRt::Render(uint32_t comIndex) {
+void VulkanRendererRt::DepthMapWrite(uint32_t comIndex) {
 
     VulkanDevice* dev = VulkanDevice::GetInstance();
+    VulkanDevice::swapchainBuffer* sw = dev->getSwapchainObj();
+
+    uint32_t width = sw->getSize().width;
+    uint32_t height = sw->getSize().height;
+
+    sw->getDepthImageSet()->barrierResource(comIndex, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        VK_IMAGE_ASPECT_DEPTH_BIT);
+
+    dev->copyBufferToImage(comIndex, depthMapUp.getBuffer(),
+        sw->getDepthImageSet()->getImage(), width, height, VK_IMAGE_ASPECT_DEPTH_BIT);
+
+    sw->getDepthImageSet()->barrierResource(comIndex, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+        VK_IMAGE_ASPECT_DEPTH_BIT);
+}
+
+void VulkanRendererRt::DepthMapUpdate(uint32_t comIndex) {
+
+    VulkanDevice* dev = VulkanDevice::GetInstance();
+    VulkanDevice::swapchainBuffer* sw = dev->getSwapchainObj();
+
+    uint32_t width = sw->getSize().width;
+    uint32_t height = sw->getSize().height;
+
+    depthMap.barrierResource(comIndex, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+
+    dev->copyImageToBuffer(comIndex, depthMap.getImage(), width, height,
+        depthMapUp.getBuffer(), VK_IMAGE_ASPECT_COLOR_BIT);
+
+    depthMap.barrierResource(comIndex, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
+
+    DepthMapWrite(comIndex);
+}
+
+void VulkanRendererRt::Render(uint32_t comIndex, bool depthUpdate) {
+
+    VulkanDevice* dev = VulkanDevice::GetInstance();
+    VulkanDevice::swapchainBuffer* sw = dev->getSwapchainObj();
     auto command = dev->getCommandBuffer(comIndex);
 
     UpdateTLAS(comIndex);
@@ -264,8 +302,8 @@ void VulkanRendererRt::Render(uint32_t comIndex) {
     vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_pipelineLayout, 0,
         numDescriptorSet, m_descriptorSet, 0, nullptr);
 
-    uint32_t width = dev->getSwapchainObj()->getSize().width;
-    uint32_t height = dev->getSwapchainObj()->getSize().height;
+    uint32_t width = sw->getSize().width;
+    uint32_t height = sw->getSize().height;
 
     VkStridedDeviceAddressRegionKHR callable_shader_sbt_entry{};
     vkCmdTraceRaysKHR(
@@ -282,19 +320,24 @@ void VulkanRendererRt::Render(uint32_t comIndex) {
     region.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
     region.dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
 
-    m_raytracedImage.barrierResource(comIndex, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+    m_raytracedImage.barrierResource(comIndex,
+        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
     dev->barrierResource(comIndex,
-        dev->getSwapchainObj()->getCurrentImage(),
+        sw->getCurrentImage(),
         VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
     vkCmdCopyImage(command,
         m_raytracedImage.getImage(), m_raytracedImage.info.imageLayout,
-        dev->getSwapchainObj()->getCurrentImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        sw->getCurrentImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
         1, &region);
 
-    m_raytracedImage.barrierResource(comIndex, VK_IMAGE_LAYOUT_GENERAL);
+    m_raytracedImage.barrierResource(comIndex, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
+
+    if (depthUpdate) {
+        DepthMapUpdate(comIndex);
+    }
 }
 
 void VulkanRendererRt::CreateTLAS(uint32_t comIndex) {
@@ -384,7 +427,7 @@ void VulkanRendererRt::CreateRaytracedBuffer(uint32_t comIndex) {
     VkMemoryPropertyFlags devMemProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
     m_raytracedImage.createImage(width, height, format,
-        VK_IMAGE_TILING_OPTIMAL, usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT, devMemProps);
+        VK_IMAGE_TILING_OPTIMAL, usage, devMemProps);
 
     m_raytracedImage.createImageView(format,
         VK_IMAGE_ASPECT_COLOR_BIT);
@@ -392,24 +435,30 @@ void VulkanRendererRt::CreateRaytracedBuffer(uint32_t comIndex) {
     VkFormat mapFormat = VK_FORMAT_R32_SFLOAT;
 
     instanceIdMap.createImage(width, height, mapFormat,
-        VK_IMAGE_TILING_OPTIMAL, usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT, devMemProps);
+        VK_IMAGE_TILING_OPTIMAL, usage, devMemProps);
 
     instanceIdMap.createImageView(mapFormat,
         VK_IMAGE_ASPECT_COLOR_BIT);
 
     depthMap.createImage(width, height, mapFormat,
-        VK_IMAGE_TILING_OPTIMAL, usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT, devMemProps);
+        VK_IMAGE_TILING_OPTIMAL, usage, devMemProps);
 
     depthMap.createImageView(mapFormat,
         VK_IMAGE_ASPECT_COLOR_BIT);
+
+    VkDeviceSize imageSize = width * height * 4;
+    VkImageUsageFlags usageUp =
+        VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
+        VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    depthMapUp.createUploadBuffer(imageSize, usageUp, nullptr);
 
     // バッファの状態を変更しておく.
     auto command = dev->getCommandBuffer(comIndex);
     dev->beginCommand(comIndex);
 
-    m_raytracedImage.barrierResource(comIndex, VK_IMAGE_LAYOUT_GENERAL);
-    instanceIdMap.barrierResource(comIndex, VK_IMAGE_LAYOUT_GENERAL);
-    depthMap.barrierResource(comIndex, VK_IMAGE_LAYOUT_GENERAL);
+    m_raytracedImage.barrierResource(comIndex, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
+    instanceIdMap.barrierResource(comIndex, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
+    depthMap.barrierResource(comIndex, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
     dev->endCommand(comIndex);
     dev->submitCommandsDoNotRender(comIndex);

@@ -47,8 +47,8 @@ void VulkanDevice::BufferSet::destroy() {
     mem = VK_NULL_HANDLE;
 }
 
-void VulkanDevice::ImageSet::barrierResource(uint32_t comBufindex, VkImageLayout dstImageLayout) {
-    DevicePointer->barrierResource(comBufindex, image, info.imageLayout, dstImageLayout);
+void VulkanDevice::ImageSet::barrierResource(uint32_t comBufindex, VkImageLayout dstImageLayout, VkImageAspectFlagBits mask) {
+    DevicePointer->barrierResource(comBufindex, image, info.imageLayout, dstImageLayout, mask);
     info.imageLayout = dstImageLayout;
 }
 
@@ -59,12 +59,14 @@ void VulkanDevice::ImageSet::createImage(uint32_t width, uint32_t height, VkForm
         image, mem);
 
     info.imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    this->format = format;
 }
 
 void VulkanDevice::ImageSet::createImageView(VkFormat format, VkImageAspectFlags mask,
     VkComponentMapping components) {
 
     info.imageView = DevicePointer->createImageView(image, format, mask, components);
+    this->format = format;
 }
 
 void VulkanDevice::ImageSet::destroy() {
@@ -82,14 +84,9 @@ void VulkanDevice::ImageSet::destroy() {
 void VulkanDevice::swapchainBuffer::destroySwapchain() {
     if (swapchainAlive) {
         VkDevice d = DevicePointer->device;
-        vkDestroyImageView(d, depth.view, nullptr);
-        vkDestroyImage(d, depth.image, nullptr);
-        vkFreeMemory(d, depth.mem, nullptr);
+        depth.destroy();
         vkDestroyRenderPass(d, renderPass, nullptr);
         vkDestroyFence(d, swFence, nullptr);
-        depth.view = VK_NULL_HANDLE;
-        depth.image = VK_NULL_HANDLE;
-        depth.mem = VK_NULL_HANDLE;
         renderPass = VK_NULL_HANDLE;
         swFence = VK_NULL_HANDLE;
         for (uint32_t i = 0; i < imageCount; i++) {
@@ -203,17 +200,15 @@ void VulkanDevice::swapchainBuffer::createDepth() {
     }
 
     //[“xImage¶¬
-    DevicePointer->createImage(wh.width, wh.height, depth_format,
-        tiling, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-        depth.image, depth.mem);
+    depth.createImage(wh.width, wh.height, depth_format,
+        tiling, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     VkImageAspectFlags depthMask = VK_IMAGE_ASPECT_DEPTH_BIT;
     //view¶¬
-    depth.view = DevicePointer->createImageView(depth.image, depth_format, depthMask,
+    depth.createImageView(depth_format, depthMask,
         { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G,
          VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A });
-    depth.format = depth_format;
 }
 
 void VulkanDevice::swapchainBuffer::createFence() {
@@ -235,7 +230,7 @@ void VulkanDevice::swapchainBuffer::createRenderPass(bool clearBackBuffer) {
     attachmentDesc[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     attachmentDesc[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
-    attachmentDesc[1].format = depth.format;
+    attachmentDesc[1].format = depth.getFormat();
     attachmentDesc[1].samples = VK_SAMPLE_COUNT_1_BIT;
     attachmentDesc[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     attachmentDesc[1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -286,7 +281,7 @@ void VulkanDevice::swapchainBuffer::createFramebuffers() {
     frameBuffer = std::make_unique<VkFramebuffer[]>(imageCount);
 
     VkImageView attachmentViews[2];
-    attachmentViews[1] = depth.view;
+    attachmentViews[1] = depth.info.imageView;
 
     VkFramebufferCreateInfo fbinfo{};
     fbinfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
@@ -527,7 +522,7 @@ void VulkanDevice::resetFence(VkFence fence) {
 }
 
 void VulkanDevice::barrierResource(uint32_t comBufindex, VkImage image,
-    VkImageLayout srcImageLayout, VkImageLayout dstImageLayout) {
+    VkImageLayout srcImageLayout, VkImageLayout dstImageLayout, VkImageAspectFlagBits mask) {
 
     VkImageMemoryBarrier barrier = {};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -536,7 +531,7 @@ void VulkanDevice::barrierResource(uint32_t comBufindex, VkImage image,
     barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.image = image;
-    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.aspectMask = mask;
     barrier.subresourceRange.baseMipLevel = 0;
     barrier.subresourceRange.levelCount = 1;
     barrier.subresourceRange.baseArrayLayer = 0;
@@ -590,13 +585,16 @@ void VulkanDevice::barrierResource(uint32_t comBufindex, VkImage image,
         1, &barrier);
 }
 
-void VulkanDevice::copyBufferToImage(VkCommandBuffer commandBuffer, VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) {
+void VulkanDevice::copyBufferToImage(uint32_t comBufindex,
+    VkBuffer buffer,
+    VkImage image, uint32_t width, uint32_t height,
+    VkImageAspectFlagBits mask) {
 
     VkBufferImageCopy region = {};
     region.bufferOffset = 0;
     region.bufferRowLength = 0;
     region.bufferImageHeight = 0;
-    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.imageSubresource.aspectMask = mask;
     region.imageSubresource.mipLevel = 0;
     region.imageSubresource.baseArrayLayer = 0;
     region.imageSubresource.layerCount = 1;
@@ -607,8 +605,35 @@ void VulkanDevice::copyBufferToImage(VkCommandBuffer commandBuffer, VkBuffer buf
             1
     };
 
-    vkCmdCopyBufferToImage(commandBuffer, buffer, image,
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+    vkCmdCopyBufferToImage(commandBuffer[comBufindex],
+        buffer,
+        image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        1, &region);
+}
+
+void VulkanDevice::copyImageToBuffer(uint32_t comBufindex,
+    VkImage image, uint32_t width, uint32_t height,
+    VkBuffer buffer,
+    VkImageAspectFlagBits mask) {
+
+    VkBufferImageCopy region = {};
+    region.bufferOffset = 0;
+    region.bufferRowLength = 0;
+    region.bufferImageHeight = 0;
+    region.imageSubresource.aspectMask = mask;
+    region.imageSubresource.mipLevel = 0;
+    region.imageSubresource.baseArrayLayer = 0;
+    region.imageSubresource.layerCount = 1;
+    region.imageOffset = { 0, 0, 0 };
+    region.imageExtent = {
+            width,
+            height,
+            1
+    };
+
+    vkCmdCopyImageToBuffer(commandBuffer[comBufindex],
+        image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        buffer, 1, &region);
 }
 
 void VulkanDevice::createImage(uint32_t width, uint32_t height, VkFormat format,
@@ -660,10 +685,14 @@ auto VulkanDevice::createTextureImage(uint32_t comBufindex, Texture& inByte) {
         VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     beginCommandWithFramebuffer(comBufindex, VkFramebuffer());
+
     texture.barrierResource(comBufindex, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-    copyBufferToImage(commandBuffer[comBufindex], stagingBuffer.getBuffer(), texture.image.getImage(),
-        static_cast<uint32_t>(inByte.width), static_cast<uint32_t>(inByte.height));
+
+    copyBufferToImage(comBufindex, stagingBuffer.getBuffer(), texture.image.getImage(),
+        static_cast<uint32_t>(inByte.width), static_cast<uint32_t>(inByte.height), VK_IMAGE_ASPECT_COLOR_BIT);
+
     texture.barrierResource(comBufindex, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
     vkEndCommandBuffer(commandBuffer[comBufindex]);
     submitCommandsDoNotRender(comBufindex);
 

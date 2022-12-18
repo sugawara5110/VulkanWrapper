@@ -108,7 +108,8 @@ bool VulkanDeviceRt::CreateSwapchain(VkSurfaceKHR surface, uint32_t width, uint3
     auto command = vkDev->getCommandBuffer(0);
     vkDev->beginCommand(0);
     for (uint32_t i = 0; i < imageCount; ++i) {
-        vkDev->barrierResource(0, vkDev->getSwapchainObj()->getImage(i), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+        vkDev->barrierResource(0, vkDev->getSwapchainObj()->getImage(i),
+            VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_ASPECT_COLOR_BIT);
     }
     vkDev->endCommand(0);
     vkDev->submitCommandsDoNotRender(0);

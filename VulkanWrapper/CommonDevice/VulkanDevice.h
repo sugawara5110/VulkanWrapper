@@ -56,7 +56,7 @@ public:
         VkDeviceMemory getMemory()const { return mem; }
         VkFormat getFormat()const { return format; }
 
-        void barrierResource(uint32_t comBufindex, VkImageLayout dstImageLayout);
+        void barrierResource(uint32_t comBufindex, VkImageLayout dstImageLayout, VkImageAspectFlagBits mask);
 
         void createImage(uint32_t width, uint32_t height, VkFormat format,
             VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties);
@@ -73,7 +73,7 @@ public:
         uint32_t height = 0;
 
         void barrierResource(uint32_t comBufindex, VkImageLayout dstImageLayout) {
-            image.barrierResource(comBufindex, dstImageLayout);
+            image.barrierResource(comBufindex, dstImageLayout, VK_IMAGE_ASPECT_COLOR_BIT);
         }
         void createImage(uint32_t Width, uint32_t Height, VkFormat format,
             VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties) {
@@ -113,16 +113,9 @@ public:
         int specularId = -1;
     };
 
-    struct Depth {
-        VkFormat format;
-        VkImage image;
-        VkDeviceMemory mem;
-        VkImageView view;
-    };
-
     class swapchainBuffer {
     private:
-        Depth depth;
+        ImageSet depth;
         VkExtent2D wh = {};
         VkSwapchainKHR swapchain = VK_NULL_HANDLE;
         std::unique_ptr<VkSurfaceFormatKHR[]> BackBufferFormat;
@@ -157,7 +150,7 @@ public:
         const VkSwapchainKHR* getSwapchain() { return &swapchain; }
         const VkFormat getFormat() { return format; }
         const uint32_t* getCurrentFrameIndex() { return &currentFrameIndex; }
-        const VkFormat getDepthFormat() { return depth.format; }
+        ImageSet* getDepthImageSet() { return &depth; }
         const VkExtent2D getSize() { return wh; }
         const VkRenderPass getRenderPass() { return renderPass; }
     };
@@ -238,9 +231,6 @@ private:
 
     void resetFence(VkFence fence);
 
-    void copyBufferToImage(VkCommandBuffer commandBuffer, VkBuffer buffer, VkImage image, uint32_t width,
-        uint32_t height);
-
     void AllocateMemory(VkBufferUsageFlags usage, VkMemoryRequirements memRequirements, VkMemoryPropertyFlags properties,
         VkDeviceMemory& bufferMemory, void* add_pNext);
 
@@ -262,6 +252,16 @@ public:
 
     static VulkanDevice* GetInstance();
     static void DeleteInstance();
+
+    void copyBufferToImage(uint32_t comBufindex,
+        VkBuffer buffer,
+        VkImage image, uint32_t width, uint32_t height,
+        VkImageAspectFlagBits mask);
+
+    void copyImageToBuffer(uint32_t comBufindex,
+        VkImage image, uint32_t width, uint32_t height,
+        VkBuffer buffer,
+        VkImageAspectFlagBits mask);
 
     VkPipelineShaderStageCreateInfo createShaderModule(const char* fname, char* shader, VkShaderStageFlagBits stage);
 
@@ -348,7 +348,8 @@ public:
 
     void beginCommandNextImage(uint32_t comBufindex);
 
-    void barrierResource(uint32_t comBufindex, VkImage image, VkImageLayout srcImageLayout, VkImageLayout dstImageLayout);
+    void barrierResource(uint32_t comBufindex, VkImage image,
+        VkImageLayout srcImageLayout, VkImageLayout dstImageLayout, VkImageAspectFlagBits mask);
 
     void beginDraw(uint32_t comBufindex);
 
