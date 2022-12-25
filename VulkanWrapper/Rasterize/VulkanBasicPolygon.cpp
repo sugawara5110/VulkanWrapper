@@ -16,7 +16,12 @@ VulkanBasicPolygon::VulkanBasicPolygon() {
 VulkanBasicPolygon::~VulkanBasicPolygon() {
 
 	for (uint32_t s = 0; s < numSwap; s++) {
-		uniform[s].buf.destroy();
+		vkUtil::S_DELETE(uniform[s]);
+		for (uint32_t i = 0; i < numMaterial; i++) {
+			vkUtil::S_DELETE(material[s][i]);
+		}
+		vkUtil::ARR_DELETE(material[s]);
+		vkUtil::ARR_DELETE(materialset[s]);
 	}
 
 	VulkanDevice* device = VulkanDevice::GetInstance();
@@ -31,7 +36,6 @@ VulkanBasicPolygon::~VulkanBasicPolygon() {
 		if (numIndex[i] <= 0)continue;
 		index[i].destroy();
 		for (uint32_t s = 0; s < numSwap; s++) {
-			material[s][i].buf.destroy();
 			//VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT の場合のみ個別に開放できる
 			//vkFreeDescriptorSets(device->device, descPool[s][i], descSetCnt, &descSet[s][i]);
 			vkDestroyDescriptorPool(vd, descPool[s][i], nullptr);
@@ -39,9 +43,6 @@ VulkanBasicPolygon::~VulkanBasicPolygon() {
 		texId[i].destroy();
 	}
 	vkUtil::ARR_DELETE(texId);
-	for (uint32_t s = 0; s < numSwap; s++) {
-		vkUtil::ARR_DELETE(material[s]);
-	}
 }
 
 void VulkanBasicPolygon::create(uint32_t comIndex, bool useAlpha, int32_t difTexInd, int32_t norTexInd, int32_t speTexInd, VulkanDevice::Vertex3D* ver, uint32_t num, uint32_t* ind, uint32_t indNum) {
@@ -67,9 +68,10 @@ void VulkanBasicPolygon::create(uint32_t comIndex, bool useAlpha, int32_t difTex
 void VulkanBasicPolygon::setMaterialParameter(uint32_t swapIndex,
 	CoordTf::VECTOR3 diffuse, CoordTf::VECTOR3 specular, CoordTf::VECTOR3 ambient, uint32_t materialIndex) {
 
-	material[swapIndex][materialIndex].uni.diffuse.as(diffuse.x, diffuse.y, diffuse.z, 1.0f);
-	material[swapIndex][materialIndex].uni.specular.as(specular.x, specular.y, specular.z, 1.0f);
-	material[swapIndex][materialIndex].uni.ambient.as(ambient.x, ambient.y, ambient.z, 1.0f);
+	materialset[swapIndex][materialIndex].diffuse.as(diffuse.x, diffuse.y, diffuse.z, 1.0f);
+	materialset[swapIndex][materialIndex].specular.as(specular.x, specular.y, specular.z, 1.0f);
+	materialset[swapIndex][materialIndex].ambient.as(ambient.x, ambient.y, ambient.z, 1.0f);
+	material[swapIndex][materialIndex]->update(0, &materialset[swapIndex][materialIndex]);
 }
 
 void VulkanBasicPolygon::update0(uint32_t swapIndex,
@@ -83,24 +85,24 @@ void VulkanBasicPolygon::update0(uint32_t swapIndex,
 
 	MATRIX vm;
 	MatrixMultiply(&vm, &world, &device->getCameraView());
-	MatrixMultiply(&uniform[swapIndex].uni.mvp, &vm, &device->getProjection());
-	uniform[swapIndex].uni.world = world;
-	if (numBone > 0)memcpy(uniform[swapIndex].uni.bone, bone, sizeof(MATRIX) * numBone);
-	device->updateUniform(uniform[swapIndex]);
+	MatrixMultiply(&matset[swapIndex].mvp, &vm, &device->getProjection());
+	matset[swapIndex].world = world;
+	if (numBone > 0)memcpy(matset[swapIndex].bone, bone, sizeof(MATRIX) * numBone);
+	uniform[swapIndex]->update(0, &matset[swapIndex]);
 
 	RasterizeDescriptor* rd = RasterizeDescriptor::GetInstance();
 
 	for (uint32_t m = 0; m < numMaterial; m++) {
 		if (numIndex[m] <= 0)continue;
-		VulkanDevice::Uniform<RasterizeDescriptor::Material>& mat = material[swapIndex][m];
-		mat.uni.viewPos.as(device->getCameraViewPos().x, device->getCameraViewPos().y, device->getCameraViewPos().z, 0.0f);
-		memcpy(mat.uni.lightPos, rd->lightPos, sizeof(VECTOR4) * rd->numLight);
-		memcpy(mat.uni.lightColor, rd->lightColor, sizeof(VECTOR4) * rd->numLight);
-		mat.uni.numLight.x = (float)rd->numLight;
-		mat.uni.numLight.y = rd->attenuation1;
-		mat.uni.numLight.z = rd->attenuation2;
-		mat.uni.numLight.w = rd->attenuation3;
-		device->updateUniform(mat);
+		RasterizeDescriptor::Material& mat = materialset[swapIndex][m];
+		mat.viewPos.as(device->getCameraViewPos().x, device->getCameraViewPos().y, device->getCameraViewPos().z, 0.0f);
+		memcpy(mat.lightPos, rd->lightPos, sizeof(VECTOR4) * rd->numLight);
+		memcpy(mat.lightColor, rd->lightColor, sizeof(VECTOR4) * rd->numLight);
+		mat.numLight.x = (float)rd->numLight;
+		mat.numLight.y = rd->attenuation1;
+		mat.numLight.z = rd->attenuation2;
+		mat.numLight.w = rd->attenuation3;
+		material[swapIndex][m]->update(0, &mat);
 	}
 }
 

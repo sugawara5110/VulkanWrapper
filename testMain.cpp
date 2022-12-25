@@ -1,6 +1,6 @@
 
 #define _CRT_SECURE_NO_WARNINGS
-#include "../../../VulkanWrapper/Rasterize/VulkanInstance.h"
+#include "../../../VulkanWrapper/Rasterize/RasterizeDescriptor.h"
 #include "../../../VulkanWrapper/Rasterize/Vulkan2D.h"
 #include "../../../VulkanWrapper/Rasterize/VulkanBasicPolygon.h"
 #include "../../../VulkanWrapper/Rasterize/VulkanSkinMesh.h"
@@ -103,13 +103,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	vins->createInstance("vulkanTest", VK_API_VERSION_1_0);
 	auto pd = vins->getPhysicalDevice(0);
 
-	VulkanDevice::InstanceCreate(pd, 2, false);
+	VulkanDevice::InstanceCreate(pd, vins->getApiVersion(), 2, false);
 	VulkanDevice* device = VulkanDevice::GetInstance();
 	device->createDevice();
 	vins->createSurfaceHwnd(hWnd);
 	auto sur = vins->getSurface();
 	device->createSwapchain(sur, true);
 	device->updateProjection();
+
+	RasterizeDescriptor::InstanceCreate();
+	RasterizeDescriptor* rd = RasterizeDescriptor::GetInstance();
 
 	static Vulkan2D::Vertex2D ver[] = {
 	{ { -0.1f, -0.1f }, { 1.0f, 1.0f, 1.0f, 1.0f } },
@@ -305,6 +308,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 		//ƒ‹[ƒv“àˆ—
 	}
 	th.join();
+
+	VulkanDevice::GetInstance()->DeviceWaitIdle();
 	for (int i = 0; i < fnum; i++)ARR_DELETE(ima[i]);
 	ARR_DELETE(ima);
 	S_DELETE(v2);
@@ -312,6 +317,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	S_DELETE(sk);
 	S_DELETE(sk1);
 	S_DELETE(sk2);
+	RasterizeDescriptor::DeleteInstance();
 	VulkanDevice::DeleteInstance();
 	S_DELETE(vins);
 	return (int)msg.wParam;
@@ -319,7 +325,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 
 void update(uint32_t sw) {
 	VulkanDevice* device = VulkanDevice::GetInstance();
-	if (the++ > 360.0f)the = 0.0f;
+	RasterizeDescriptor* rd = RasterizeDescriptor::GetInstance();
+	if (the > 360.0f)the = 0.0f;
+	the += 0.1f;
 	MATRIX thetaY;
 	VECTOR3 light1 = { 0.3f,0.4f,-2.0f };
 	VECTOR3 light2 = { -0.3f,-0.4f,2.0f };
@@ -328,12 +336,12 @@ void update(uint32_t sw) {
 	VectorMatrixMultiply(&light2, &thetaY);
 	//device->updateView({ 0,-0.2f,-8 }, { 0,0,25 }, { 0,1,0 });
 	//device->updateView({ 1.5f,-0.2f,-3 }, { 1.5f,0,25 }, { 0,1,0 });
-	device->updateView({ -1.3f,0.0f,-7 }, { -1.3f,0,25 }, { 0,1,0 });
-	device->setNumLight(2);
-	device->setLight(0, light1, { 1.0f,1.0f,1.0f });
-	device->setLight(1, light2, { 1.0f,0.0f,0.0f });
+	device->updateView({ -1.3f,0.0f,-13 }, { -1.3f,0,25 });
+	rd->setNumLight(2);
+	rd->setLight(0, light1, { 1.0f,1.0f,1.0f });
+	rd->setLight(1, light2, { 1.0f,0.0f,0.0f });
 	for (int i = 0; i < Num; i++) {
-		v22[i]->setMaterialParameter(sw, { 0.5f,0.5f,0.5f }, { 1.0f,1.0f,1.0f }, { 0.0f,0.0f,0.0f });
+		v22[i]->setMaterialParameter(sw, { 0.5f,0.5f,0.5f }, { 0.1f,0.1f,0.1f }, { 0.0f,0.0f,0.0f });
 		v22[i]->update(sw, { 0.4f * (float)i - 1.3f ,0.7f,0.0f }, { 0,the,0 }, { 1,1,1 });
 	}
 	sk->autoUpdate(sw, 0, frame, { 0,0,0 }, { 180,0,0 }, { 1.0f,1.0f,1.0f });

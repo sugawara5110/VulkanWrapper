@@ -74,8 +74,6 @@ bool VulkanDeviceRt::createDevice(VkInstance ins, VkPhysicalDevice phDev, uint32
 
     CreateDescriptorPool();
 
-    vkGetPhysicalDeviceProperties(physicalDevice, &physicalDeviceProperties);
-
     load_VK_EXTENSIONS(
         ins,
         vkGetInstanceProcAddr,

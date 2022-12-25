@@ -45,7 +45,6 @@ private:
     static VulkanDeviceRt* pDeviceRt;
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
     VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
-    VkPhysicalDeviceProperties physicalDeviceProperties;
 
 public:
     static const uint32_t numHitShader = 4;
@@ -67,8 +66,6 @@ public:
 
     uint32_t GetBackBufferCount() const { return VulkanDevice::GetInstance()->getSwapchainObj()->getImageCount(); }
 
-    const char* GetDeviceName() const { return physicalDeviceProperties.deviceName; }
-
     VkDescriptorSet AllocateDescriptorSet(VkDescriptorSetLayout dsLayout, const void* pNext = nullptr);
     void DeallocateDescriptorSet(VkDescriptorSet ds);
 
@@ -76,8 +73,6 @@ public:
 
     uint64_t GetDeviceAddress(VkBuffer buffer);
     VkPhysicalDeviceRayTracingPipelinePropertiesKHR GetRayTracingPipelineProperties();
-    VkDeviceSize GetUniformBufferAlignment() const { return physicalDeviceProperties.limits.minUniformBufferOffsetAlignment; }
-    VkDeviceSize GetStorageBufferAlignment() const { return physicalDeviceProperties.limits.minStorageBufferOffsetAlignment; }
 };
 
 #endif

@@ -16,7 +16,7 @@ Vulkan2D::~Vulkan2D() {
 	VkDevice vd = device->getDevice();
 	texture.destroy();
 	for (uint32_t s = 0; s < numSwap; s++) {
-		uniform[s].buf.destroy();
+		vkUtil::S_DELETE(uniform[s]);
 	}
 	vkDestroyDescriptorSetLayout(vd, descSetLayout, nullptr);
 	for (uint32_t s = 0; s < numSwap; s++) {
@@ -51,8 +51,8 @@ void Vulkan2D::createTexture(uint32_t comIndex, Vertex2DTex* ver, uint32_t num, 
 
 void Vulkan2D::update(uint32_t swapIndex, CoordTf::VECTOR2 pos) {
 	VulkanDevice* device = VulkanDevice::GetInstance();
-	uniform[swapIndex].uni.world.as(pos.x, pos.y);
-	device->updateUniform(uniform[swapIndex]);
+	mat2d[swapIndex].world.as(pos.x, pos.y);
+	uniform[swapIndex]->update(0, &mat2d[swapIndex]);
 }
 
 void Vulkan2D::draw(uint32_t swapIndex, uint32_t comIndex) {

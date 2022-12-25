@@ -55,7 +55,7 @@ VulkanSkinMeshRt::~VulkanSkinMeshRt() {
 	vkUtil::ARR_DELETE(m_pLastBoneMatrix);
 	vkUtil::ARR_DELETE(m_BoneArray);
 	vkUtil::ARR_DELETE(mObj);
-	mObject_BONES.buf.destroy();
+	vkUtil::S_DELETE(mObject_BONES);
 
 	DestroyFBX();
 }
@@ -213,7 +213,7 @@ void VulkanSkinMeshRt::CreateBuffer(int num_end_frame, float* end_frame, bool si
 			}
 		}
 
-		VulkanDevice::GetInstance()->createUniform(mObject_BONES);
+		mObject_BONES = new VulkanDevice::Uniform<SHADER_GLOBAL_BONES>(1);
 	}
 
 	pvVB = new MY_VERTEX_S * [numMesh];
@@ -615,7 +615,7 @@ bool VulkanSkinMeshRt::CreateFromFBX(uint32_t comIndex, bool useAlpha, uint32_t 
 			sk[i].createVertexBuffer(comIndex, pvVB[i], mesh->getNumPolygonVertices());
 			sk[i].CreateLayouts();
 			sk[i].CreateComputePipeline();
-			sk[i].CreateDescriptorSets(&o.Rdata[0].vertexBuf->info, &mObject_BONES.buf.info);
+			sk[i].CreateDescriptorSets(&o.Rdata[0].vertexBuf->info, &mObject_BONES->getBufferSet()->info);
 		}
 
 		if (pvVB_delete_f) {
@@ -889,7 +889,7 @@ bool VulkanSkinMeshRt::InstancingUpdate(uint32_t comIndex, int AnimationIndex, f
 	if (ti != -1.0f)frame_end = SetNewPoseMatrices(ti, AnimationIndex, InternalAnimationIndex);
 	MatrixMap_Bone(&sgb[0]);//Œã‚ÅØ‚è‘Ö‚¦‚é‚æ‚¤‚É•ÏX
 
-	if (sk)mObject_BONES.buf.memoryMap(&sgb[0]);
+	if (sk)mObject_BONES->update(0, &sgb[0]);
 
 	for (int i = 0; i < numMesh; i++) {
 		if (!noUseMesh[i]) {
@@ -972,7 +972,6 @@ void VulkanSkinMeshRt::SkinningCom::createVertexBuffer(uint32_t comIndex, MY_VER
 
 	VkBufferUsageFlags usageForRT =
 		VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
-		VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR |
 		VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
 
 	VkMemoryAllocateFlagsInfo memoryAllocateFlagsInfo{

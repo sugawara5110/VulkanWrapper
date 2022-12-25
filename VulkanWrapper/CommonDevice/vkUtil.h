@@ -60,6 +60,11 @@ namespace vkUtil {
     CoordTf::VECTOR3 normalRecalculation(CoordTf::VECTOR3 Nor[3]);
 
     char* getNameFromPass(char* pass);
+
+    template<class T>
+    T Align(T size, uint32_t align) {
+        return (size + align - 1) & ~static_cast<T>((align - 1));
+    }
 }
 
 #endif

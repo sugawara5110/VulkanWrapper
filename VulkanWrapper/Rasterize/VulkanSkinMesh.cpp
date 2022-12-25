@@ -343,6 +343,7 @@ void VulkanSkinMesh::create(uint32_t comIndex, bool useAlpha) {
 
 		for (uint32_t sw = 0; sw < bp[0]->numSwap; sw++) {
 			for (uint32_t matInd = 0; matInd < numMaterial; matInd++) {
+				if (numNewIndex[matInd] <= 0)continue;
 				bp[mI]->setMaterialParameter(sw, diffuse[matInd], specular[matInd], ambient[matInd],
 					matInd);
 			}

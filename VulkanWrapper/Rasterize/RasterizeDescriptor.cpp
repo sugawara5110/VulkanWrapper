@@ -197,8 +197,8 @@ uint32_t RasterizeDescriptor::upDescriptorSet(bool useTexture,
     VulkanDevice::VkTexture& difTexture,
     VulkanDevice::VkTexture& norTexture,
     VulkanDevice::VkTexture& speTexture,
-    VulkanDevice::Uniform<MatrixSet>& uni,
-    VulkanDevice::Uniform<Material>& material,
+    VulkanDevice::Uniform<MatrixSet>* uni,
+    VulkanDevice::Uniform<Material>* material,
     VkDescriptorSet& descriptorSet,
     VkDescriptorPool& descPool,
     VkDescriptorSetLayout& descSetLayout) {
@@ -224,7 +224,7 @@ uint32_t RasterizeDescriptor::upDescriptorSet(bool useTexture,
     bufferMat.dstSet = descriptorSet;
     bufferMat.descriptorCount = 1;
     bufferMat.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    bufferMat.pBufferInfo = &uni.buf.info;
+    bufferMat.pBufferInfo = &uni->getBufferSet()->info;
     bufferMat.dstArrayElement = 0;
     bufferMat.dstBinding = bCnt++;
 
@@ -266,7 +266,7 @@ uint32_t RasterizeDescriptor::upDescriptorSet(bool useTexture,
         bufferMaterial.dstSet = descriptorSet;
         bufferMaterial.descriptorCount = 1;
         bufferMaterial.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        bufferMaterial.pBufferInfo = &material.buf.info;
+        bufferMaterial.pBufferInfo = &material->getBufferSet()->info;
         bufferMaterial.dstArrayElement = 0;
         bufferMaterial.dstBinding = bCnt++;
     }
@@ -276,7 +276,7 @@ uint32_t RasterizeDescriptor::upDescriptorSet(bool useTexture,
 }
 
 uint32_t RasterizeDescriptor::upDescriptorSet2D(bool useTexture, VulkanDevice::VkTexture& texture,
-    VulkanDevice::Uniform<MatrixSet2D>& uni,
+    VulkanDevice::Uniform<MatrixSet2D>* uni,
     VkDescriptorSet& descriptorSet, VkDescriptorPool& descPool,
     VkDescriptorSetLayout& descSetLayout) {
 
@@ -301,7 +301,7 @@ uint32_t RasterizeDescriptor::upDescriptorSet2D(bool useTexture, VulkanDevice::V
     bufferMat.dstSet = descriptorSet;
     bufferMat.descriptorCount = 1;
     bufferMat.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    bufferMat.pBufferInfo = &uni.buf.info;
+    bufferMat.pBufferInfo = &uni->getBufferSet()->info;
     bufferMat.dstArrayElement = 0;
     bufferMat.dstBinding = bCnt++;
 

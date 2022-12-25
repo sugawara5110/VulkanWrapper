@@ -64,8 +64,7 @@ protected:
 		}
 	};
 
-	//コンスタントバッファOBJ
-	VulkanDevice::Uniform<SHADER_GLOBAL_BONES> mObject_BONES = {};
+	VulkanDevice::Uniform<SHADER_GLOBAL_BONES>* mObject_BONES = nullptr;
 	SHADER_GLOBAL_BONES sgb[2] = {};
 
 	MY_VERTEX_S** pvVB = nullptr;//使用後保持するか破棄するかフラグで決める,通常は破棄
@@ -75,7 +74,6 @@ protected:
 	VulkanDevice::textureIdSetInput** textureId = nullptr;
 	bool pvVB_delete_f = true;
 
-	//ボーン
 	int* numBone = nullptr;
 	int maxNumBone = 0;
 	int maxNumBoneMeshIndex = 0;

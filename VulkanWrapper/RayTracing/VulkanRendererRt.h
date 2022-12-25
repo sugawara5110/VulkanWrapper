@@ -10,10 +10,6 @@
 #include "AccelerationStructure.h"
 #include "VulkanBasicPolygonRt.h"
 
-template<class T> T Align(T size, uint32_t align) {
-    return (size + align - 1) & ~static_cast<T>((align - 1));
-}
-
 class VulkanRendererRt {
 
 private:
@@ -70,7 +66,7 @@ private:
     std::vector<VkDescriptorImageInfo> textureSpeArr;
 
     SceneParam m_sceneParam;
-    VulkanDevice::Uniform<SceneParam> m_sceneUBO;
+    VulkanDevice::Uniform<SceneParam>* m_sceneUBO = nullptr;
 
     struct Material {
         CoordTf::VECTOR4 vDiffuse;
@@ -84,7 +80,7 @@ private:
         CoordTf::MATRIX mvp;
     };
     std::vector<Material> materialArr;
-    BufferSetRt materialUBO;
+    VulkanDevice::Uniform<Material>* materialUBO = nullptr;
 
     bool testMode[3] = { false,false,false };
 
@@ -111,8 +107,6 @@ private:
     void DepthMapUpdate(uint32_t comIndex);
 
 public:
-    std::unique_ptr<VulkanDeviceRt> m_device;
-
     enum TestMode {
         NormalMap = 0,
         InstanceIdMap = 1,

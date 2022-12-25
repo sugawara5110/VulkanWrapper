@@ -346,6 +346,7 @@ void VulkanDevice::swapchainBuffer::beginRenderPass(uint32_t comBufindex) {
 
 VulkanDevice::VulkanDevice(VkPhysicalDevice pd, uint32_t numCommandBuffer, bool V_SYNC) {
     pDev = pd;
+    vkGetPhysicalDeviceProperties(pDev, &physicalDeviceProperties);
     DevicePointer = this;
     commandBufferCount = numCommandBuffer;
     if (V_SYNC) {
@@ -1106,4 +1107,16 @@ void VulkanDevice::DeleteInstance() {
         delete DevicePointer;
         DevicePointer = nullptr;
     }
+}
+
+const char* VulkanDevice::GetDeviceName() const {
+    return physicalDeviceProperties.deviceName;
+}
+
+VkDeviceSize VulkanDevice::GetUniformBufferAlignment() const {
+    return physicalDeviceProperties.limits.minUniformBufferOffsetAlignment;
+}
+
+VkDeviceSize VulkanDevice::GetStorageBufferAlignment() const {
+    return physicalDeviceProperties.limits.minStorageBufferOffsetAlignment;
 }

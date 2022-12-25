@@ -35,7 +35,8 @@ private:
 	VkPipelineLayout pipelineLayout;
 	VkPipelineCache pipelineCache;
 	VkPipeline pipeline;
-	VulkanDevice::Uniform<RasterizeDescriptor::MatrixSet2D> uniform[numSwap];
+	VulkanDevice::Uniform<RasterizeDescriptor::MatrixSet2D>* uniform[numSwap] = {};
+	RasterizeDescriptor::MatrixSet2D mat2d[numSwap] = {};
 
 	template<typename T>
 	void create(uint32_t comIndex, T* ver, uint32_t num, uint32_t* ind, uint32_t indNum,
@@ -63,7 +64,7 @@ private:
 		rd->descriptorAndPipelineLayouts2D(useTexture, pipelineLayout, descSetLayout);
 
 		for (uint32_t i = 0; i < numSwap; i++) {
-			device->createUniform(uniform[i]);
+			uniform[i] = new VulkanDevice::Uniform<RasterizeDescriptor::MatrixSet2D>(1);
 			rd->createDescriptorPool2D(useTexture, descPool[i]);
 			if (textureId < 0) {
 				if (i == 0)device->createVkTexture(texture, comIndex, device->getTexture(device->numTextureMax));

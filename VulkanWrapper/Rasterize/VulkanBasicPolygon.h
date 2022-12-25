@@ -29,8 +29,10 @@ private:
 	VkPipelineLayout pipelineLayout;
 	VkPipelineCache pipelineCache;
 	VkPipeline pipeline;
-	VulkanDevice::Uniform<RasterizeDescriptor::MatrixSet> uniform[numSwap];
-	VulkanDevice::Uniform<RasterizeDescriptor::Material>* material[numSwap];
+	VulkanDevice::Uniform<RasterizeDescriptor::MatrixSet>* uniform[numSwap] = {};
+	RasterizeDescriptor::MatrixSet matset[numSwap];
+	VulkanDevice::Uniform<RasterizeDescriptor::Material>** material[numSwap] = {};
+	RasterizeDescriptor::Material* materialset[numSwap];
 	uint32_t numMaterial = 1;
 	char* vs = nullptr;
 	char* fs = nullptr;
@@ -57,7 +59,6 @@ private:
 		for (uint32_t i = 0; i < numSwap; i++) {
 			descPool[i] = std::make_unique<VkDescriptorPool[]>(numMaterial);
 			descSet[i] = std::make_unique<VkDescriptorSet[]>(numMaterial);
-			material[i] = new VulkanDevice::Uniform<RasterizeDescriptor::Material>[numMaterial];
 		}
 
 		VkPipelineShaderStageCreateInfo vsInfo = device->createShaderModule("BPvs", vs, VK_SHADER_STAGE_VERTEX_BIT);
@@ -68,12 +69,15 @@ private:
 		rd->descriptorAndPipelineLayouts(true, pipelineLayout, descSetLayout);
 
 		for (uint32_t i = 0; i < numSwap; i++) {
-			device->createUniform(uniform[i]);
+			material[i] = new VulkanDevice::Uniform<RasterizeDescriptor::Material>*[numMaterial];
+			materialset[i] = new RasterizeDescriptor::Material[numMaterial];
+			uniform[i] = new VulkanDevice::Uniform<RasterizeDescriptor::MatrixSet>(1);
 			for (uint32_t m = 0; m < numMaterial; m++) {
 				if (i == 0)numIndex[m] = indNum[m];
+				material[i][m] = new VulkanDevice::Uniform<RasterizeDescriptor::Material>(1);
 				if (numIndex[m] <= 0)continue;
-				device->createUniform(material[i][m]);
-				material[i][m].uni.UvSwitch.x = uvSw[m];
+				materialset[i][m].UvSwitch.x = uvSw[m];
+				material[i][m]->update(0, &materialset[i][m]);
 				if (i == 0)index[m] = device->createVertexBuffer<uint32_t>(comIndex, ind[m], indNum[m],
 					true, nullptr, nullptr);
 

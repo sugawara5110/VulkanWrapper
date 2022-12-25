@@ -12,6 +12,18 @@
 class VulkanDevice final {
 
 public:
+    static void InstanceCreate(VkPhysicalDevice pd,
+        uint32_t ApiVersion,
+        uint32_t numCommandBuffer = 1,
+        bool V_SYNC = true);
+
+    static VulkanDevice* GetInstance();
+    static void DeleteInstance();
+
+    const char* GetDeviceName()const;
+    VkDeviceSize GetStorageBufferAlignment()const;
+    VkDeviceSize GetUniformBufferAlignment()const;
+
     const static uint32_t numLightMax = 256;
     const static uint32_t numBoneMax = 256;
     const static uint32_t numTextureMax = 254;
@@ -41,6 +53,44 @@ public:
         void UnMap();
 
         void destroy();
+    };
+
+    template<class T>
+    class Uniform {
+    protected:
+        BufferSet buf = {};
+        uint32_t elementByteSize = 0;
+        uint32_t elementCount = 0;
+        uint8_t* MappedData = nullptr;
+
+    public:
+        Uniform(uint32_t ElementCount, VkBufferUsageFlagBits usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, void* pNext = nullptr) {
+            elementCount = ElementCount;
+            uint32_t alignment = (uint32_t)VulkanDevice::GetInstance()->GetUniformBufferAlignment();
+            elementByteSize = (uint32_t)vkUtil::Align(sizeof(T), alignment);
+            uint32_t bSize = elementByteSize * elementCount;
+            buf.createUploadBuffer(bSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | usage, pNext);
+            MappedData = static_cast<uint8_t*>(buf.Map());
+        }
+
+        ~Uniform() {
+            buf.UnMap();
+            buf.destroy();
+        }
+
+        BufferSet* getBufferSet() {
+            return &buf;
+        }
+
+        void update(uint32_t elementIndex, T* data) {
+            memcpy(&MappedData[elementIndex * elementByteSize], data, sizeof(T));
+        }
+
+        void updateArr(T* dataArr) {
+            for (uint32_t i = 0; i < elementCount; i++) {
+                update(i, &dataArr[i]);
+            }
+        }
     };
 
     class ImageSet {
@@ -166,6 +216,7 @@ private:
     static VulkanDevice* DevicePointer;
 
     VkPhysicalDevice pDev = VK_NULL_HANDLE;//VulkanInstanceからポインタを受け取る
+    VkPhysicalDeviceProperties physicalDeviceProperties;
     VkDevice device = VK_NULL_HANDLE;
     VkQueue devQueue = VK_NULL_HANDLE;
     uint32_t queueFamilyIndex = 0xffffffff;
@@ -204,8 +255,8 @@ private:
     uint32_t numTexture = 0;
 
     VulkanDevice() {}
-    VulkanDevice(const VulkanDevice& obj) {}   // コピーコンストラクタ禁止
-    void operator=(const VulkanDevice& obj) {}// 代入演算子禁止
+    VulkanDevice(const VulkanDevice& obj) = delete;  //コピーコンストラクタ禁止
+    void operator=(const VulkanDevice& obj) = delete;//代入演算子禁止
 
     VulkanDevice(VkPhysicalDevice pd, uint32_t numCommandBuffer, bool V_SYNC);
 
@@ -245,14 +296,6 @@ private:
     uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 
 public:
-    static void InstanceCreate(VkPhysicalDevice pd,
-        uint32_t ApiVersion,
-        uint32_t numCommandBuffer = 1,
-        bool V_SYNC = true);
-
-    static VulkanDevice* GetInstance();
-    static void DeleteInstance();
-
     void copyBufferToImage(uint32_t comBufindex,
         VkBuffer buffer,
         VkImage image, uint32_t width, uint32_t height,
@@ -285,27 +328,11 @@ public:
 
     void UnMap(VkDeviceMemory mem);
 
-    template<typename UNI>
-    struct Uniform {
-        BufferSet buf = {};
-        UNI uni;
-    };
-
     void createUploadBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
         VkBuffer& buffer, VkDeviceMemory& bufferMemory, void* allocateMemory_add_pNext);
 
     void createDefaultBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
         VkBuffer& buffer, VkDeviceMemory& bufferMemory, void* allocateMemory_add_pNext);
-
-    template<typename UNI>
-    void createUniform(UNI& uni) {
-        uni.buf.createUploadBuffer(sizeof(UNI), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, nullptr);
-    }
-
-    template<typename UNI>
-    void updateUniform(UNI& uni) {
-        uni.buf.memoryMap(&uni.uni);
-    }
 
     template<typename T>
     auto createVertexBuffer(uint32_t comBufindex, T* ver, int num, bool typeIndex,

@@ -5,10 +5,6 @@
 char* Shader_Skinning =
 
 "#version 460\n"
-"#extension GL_EXT_ray_tracing : enable\n"
-"#extension GL_EXT_buffer_reference : enable\n"
-"#extension GL_EXT_scalar_block_layout : enable\n"
-"#extension GL_EXT_shader_explicit_arithmetic_types_int64 : enable\n"
 
 "layout(local_size_x = 1, local_size_y = 1) in;\n"
 

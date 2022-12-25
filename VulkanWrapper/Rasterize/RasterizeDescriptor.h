@@ -84,13 +84,13 @@ public:
         VulkanDevice::VkTexture& difTexture,
         VulkanDevice::VkTexture& norTexture,
         VulkanDevice::VkTexture& speTexture,
-        VulkanDevice::Uniform<MatrixSet>& uni,
-        VulkanDevice::Uniform<Material>& material,
+        VulkanDevice::Uniform<MatrixSet>* uni,
+        VulkanDevice::Uniform<Material>* material,
         VkDescriptorSet& descriptorSet, VkDescriptorPool& descPool,
         VkDescriptorSetLayout& descSetLayout);
 
     uint32_t upDescriptorSet2D(bool useTexture, VulkanDevice::VkTexture& texture,
-        VulkanDevice::Uniform<MatrixSet2D>& uni,
+        VulkanDevice::Uniform<MatrixSet2D>* uni,
         VkDescriptorSet& descriptorSet, VkDescriptorPool& descPool,
         VkDescriptorSetLayout& descSetLayout);
 
