@@ -133,66 +133,6 @@ void  RasterizeDescriptor::descriptorAndPipelineLayouts2D(bool useTexture, VkPip
     vkUtil::checkError(res);
 }
 
-void RasterizeDescriptor::createDescriptorPool(bool useTexture, VkDescriptorPool& descPool) {
-    VkResult res;
-    VkDescriptorPoolSize type_count[5];
-    uint32_t bCnt = 0;
-    VkDescriptorPoolSize& bufferMat = type_count[bCnt++];
-    bufferMat.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    bufferMat.descriptorCount = 1;
-    if (useTexture) {
-        VkDescriptorPoolSize& texSampler = type_count[bCnt++];
-        texSampler.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        texSampler.descriptorCount = 1;
-
-        VkDescriptorPoolSize& norSampler = type_count[bCnt++];
-        norSampler.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        norSampler.descriptorCount = 1;
-
-        VkDescriptorPoolSize& speSampler = type_count[bCnt++];
-        speSampler.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        speSampler.descriptorCount = 1;
-
-        VkDescriptorPoolSize& bufferMaterial = type_count[bCnt++];
-        bufferMaterial.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        bufferMaterial.descriptorCount = 1;
-    }
-
-    VkDescriptorPoolCreateInfo descriptor_pool = {};
-    descriptor_pool.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    descriptor_pool.pNext = nullptr;
-    descriptor_pool.maxSets = 1;
-    descriptor_pool.poolSizeCount = bCnt;
-    descriptor_pool.pPoolSizes = type_count;
-
-    res = vkCreateDescriptorPool(VulkanDevice::GetInstance()->getDevice(), &descriptor_pool, nullptr, &descPool);
-    vkUtil::checkError(res);
-}
-
-void RasterizeDescriptor::createDescriptorPool2D(bool useTexture, VkDescriptorPool& descPool) {
-    VkResult res;
-    VkDescriptorPoolSize type_count[2];
-    uint32_t bCnt = 0;
-    VkDescriptorPoolSize& bufferMat = type_count[bCnt++];
-    bufferMat.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    bufferMat.descriptorCount = 1;
-    if (useTexture) {
-        VkDescriptorPoolSize& texSampler = type_count[bCnt++];
-        texSampler.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        texSampler.descriptorCount = 1;
-    }
-
-    VkDescriptorPoolCreateInfo descriptor_pool = {};
-    descriptor_pool.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    descriptor_pool.pNext = nullptr;
-    descriptor_pool.maxSets = 1;
-    descriptor_pool.poolSizeCount = bCnt;
-    descriptor_pool.pPoolSizes = type_count;
-
-    res = vkCreateDescriptorPool(VulkanDevice::GetInstance()->getDevice(), &descriptor_pool, nullptr, &descPool);
-    vkUtil::checkError(res);
-}
-
 uint32_t RasterizeDescriptor::upDescriptorSet(bool useTexture,
     VulkanDevice::VkTexture& difTexture,
     VulkanDevice::VkTexture& norTexture,
@@ -200,7 +140,6 @@ uint32_t RasterizeDescriptor::upDescriptorSet(bool useTexture,
     VulkanDevice::Uniform<MatrixSet>* uni,
     VulkanDevice::Uniform<Material>* material,
     VkDescriptorSet& descriptorSet,
-    VkDescriptorPool& descPool,
     VkDescriptorSetLayout& descSetLayout) {
 
     VkResult res;
@@ -208,7 +147,7 @@ uint32_t RasterizeDescriptor::upDescriptorSet(bool useTexture,
     VkDescriptorSetAllocateInfo alloc_info[1];
     alloc_info[0].sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     alloc_info[0].pNext = nullptr;
-    alloc_info[0].descriptorPool = descPool;
+    alloc_info[0].descriptorPool = VulkanDevice::GetInstance()->GetDescriptorPool();
     alloc_info[0].descriptorSetCount = 1;
     alloc_info[0].pSetLayouts = &descSetLayout;
 
@@ -277,7 +216,7 @@ uint32_t RasterizeDescriptor::upDescriptorSet(bool useTexture,
 
 uint32_t RasterizeDescriptor::upDescriptorSet2D(bool useTexture, VulkanDevice::VkTexture& texture,
     VulkanDevice::Uniform<MatrixSet2D>* uni,
-    VkDescriptorSet& descriptorSet, VkDescriptorPool& descPool,
+    VkDescriptorSet& descriptorSet,
     VkDescriptorSetLayout& descSetLayout) {
 
     VkResult res;
@@ -285,7 +224,7 @@ uint32_t RasterizeDescriptor::upDescriptorSet2D(bool useTexture, VulkanDevice::V
     VkDescriptorSetAllocateInfo alloc_info[1];
     alloc_info[0].sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     alloc_info[0].pNext = nullptr;
-    alloc_info[0].descriptorPool = descPool;
+    alloc_info[0].descriptorPool = VulkanDevice::GetInstance()->GetDescriptorPool();
     alloc_info[0].descriptorSetCount = 1;
     alloc_info[0].pSetLayouts = &descSetLayout;
 

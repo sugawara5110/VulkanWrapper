@@ -23,7 +23,6 @@ private:
 	std::unique_ptr<uint32_t[]> numIndex;
 	VkDescriptorSetLayout descSetLayout;
 	const static uint32_t numSwap = 2;
-	std::unique_ptr<VkDescriptorPool[]> descPool[numSwap];
 	std::unique_ptr<VkDescriptorSet[]> descSet[numSwap];
 	uint32_t descSetCnt = 0;
 	VkPipelineLayout pipelineLayout;
@@ -57,7 +56,6 @@ private:
 		index = std::make_unique<VulkanDevice::BufferSet[]>(numMaterial);
 		numIndex = std::make_unique<uint32_t[]>(numMaterial);
 		for (uint32_t i = 0; i < numSwap; i++) {
-			descPool[i] = std::make_unique<VkDescriptorPool[]>(numMaterial);
 			descSet[i] = std::make_unique<VkDescriptorSet[]>(numMaterial);
 		}
 
@@ -81,13 +79,11 @@ private:
 				if (i == 0)index[m] = device->createVertexBuffer<uint32_t>(comIndex, ind[m], indNum[m],
 					true, nullptr, nullptr);
 
-				rd->createDescriptorPool(true, descPool[i][m]);
-
 				if (i == 0)device->createTextureSet(comIndex, texId[m]);
 
 				descSetCnt = rd->upDescriptorSet(true, texId[m].difTex, texId[m].norTex, texId[m].speTex,
 					uniform[i], material[i][m],
-					descSet[i][m], descPool[i][m], descSetLayout);
+					descSet[i][m], descSetLayout);
 			}
 		}
 

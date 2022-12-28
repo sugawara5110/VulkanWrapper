@@ -182,11 +182,11 @@ void VulkanRendererRt::destroy() {
     vkDestroyPipeline(device, m_raytracePipeline, nullptr);
     vkDestroyPipelineLayout(device, m_pipelineLayout, nullptr);
 
-    VulkanDeviceRt* devRt = VulkanDeviceRt::getVulkanDeviceRt();
+    VulkanDevice* dev = VulkanDevice::GetInstance();
 
     for (int i = 0; i < numDescriptorSet; i++) {
         vkDestroyDescriptorSetLayout(device, m_dsLayout[i], nullptr);
-        vkFreeDescriptorSets(device, devRt->GetDescriptorPool(), 1, &m_descriptorSet[i]);
+        vkFreeDescriptorSets(device, dev->GetDescriptorPool(), 1, &m_descriptorSet[i]);
     }
 }
 
@@ -464,16 +464,16 @@ void VulkanRendererRt::CreateRaytracedBuffer(uint32_t comIndex) {
 
 void VulkanRendererRt::CreateRaytracePipeline() {
 
-    vkUtil::addChar ray[2];
-    vkUtil::addChar miss0[1];
-    vkUtil::addChar miss1[1];
-    vkUtil::addChar clo0[6];
-    vkUtil::addChar clo1[3];
-    vkUtil::addChar emMiss0[1];
-    vkUtil::addChar emMiss1[1];
-    vkUtil::addChar emHit0[2];
-    vkUtil::addChar emHit1[2];
-    vkUtil::addChar aHit[1];
+    vkUtil::addChar ray[2] = {};
+    vkUtil::addChar miss0[1] = {};
+    vkUtil::addChar miss1[1] = {};
+    vkUtil::addChar clo0[6] = {};
+    vkUtil::addChar clo1[3] = {};
+    vkUtil::addChar emMiss0[1] = {};
+    vkUtil::addChar emMiss1[1] = {};
+    vkUtil::addChar emHit0[2] = {};
+    vkUtil::addChar emHit1[2] = {};
+    vkUtil::addChar aHit[1] = {};
 
     int numMaterial = (int)materialArr.size();
 
@@ -799,7 +799,7 @@ void VulkanRendererRt::CreateLayouts() {
 
     VkDescriptorSetLayoutCreateInfo dsLayout[numDescriptorSet] = {};
 
-    VulkanDeviceRt* devRt = VulkanDeviceRt::getVulkanDeviceRt();
+    VulkanDevice* dev = VulkanDevice::GetInstance();
 
     for (int i = 0; i < numDescriptorSet; i++) {
         dsLayout[i].sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -807,9 +807,9 @@ void VulkanRendererRt::CreateLayouts() {
         dsLayout[i].pBindings = set[i].data();
 
         vkCreateDescriptorSetLayout(
-            devRt->GetDevice(), &dsLayout[i], nullptr, &m_dsLayout[i]);
+            dev->getDevice(), &dsLayout[i], nullptr, &m_dsLayout[i]);
 
-        m_descriptorSet[i] = devRt->AllocateDescriptorSet(m_dsLayout[i]);
+        m_descriptorSet[i] = dev->AllocateDescriptorSet(m_dsLayout[i]);
     }
 
     VkPipelineLayoutCreateInfo pipelineLayoutCI{
@@ -817,7 +817,7 @@ void VulkanRendererRt::CreateLayouts() {
     };
     pipelineLayoutCI.setLayoutCount = numDescriptorSet;
     pipelineLayoutCI.pSetLayouts = m_dsLayout;
-    vkCreatePipelineLayout(devRt->GetDevice(),
+    vkCreatePipelineLayout(dev->getDevice(),
         &pipelineLayoutCI, nullptr, &m_pipelineLayout);
 }
 

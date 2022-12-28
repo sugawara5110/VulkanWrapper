@@ -15,7 +15,7 @@ public:
     static void InstanceCreate(VkPhysicalDevice pd,
         uint32_t ApiVersion,
         uint32_t numCommandBuffer = 1,
-        bool V_SYNC = true);
+        bool V_SYNC = false);
 
     static VulkanDevice* GetInstance();
     static void DeleteInstance();
@@ -224,6 +224,7 @@ private:
     VkCommandPool commandPool = VK_NULL_HANDLE;
     VkFence sFence = VK_NULL_HANDLE;
     VkSemaphore renderCompletedSem, presentCompletedSem;
+    VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
 
     swapchainBuffer swBuf;
     VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR;
@@ -272,6 +273,8 @@ private:
 
     void createCommandBuffers();
 
+    bool createDescriptorPool(std::vector<VkDescriptorPoolSize>* add_poolSize, uint32_t maxDescriptorSets);
+
     void beginCommandWithFramebuffer(uint32_t comBufindex, VkFramebuffer fb);
 
     void submitCommands(uint32_t comBufindex, VkFence fence, bool useRender);
@@ -286,8 +289,6 @@ private:
         VkDeviceMemory& bufferMemory, void* add_pNext);
 
     auto createTextureImage(uint32_t comBufindex, Texture& inByte);
-
-    void createTextureSampler(VkSampler& textureSampler);
 
     void destroyTexture();
 
@@ -320,6 +321,8 @@ public:
 
     void createVkTexture(VkTexture& tex, uint32_t comBufindex, Texture& inByte);
 
+    void createTextureSampler(VkSampler& textureSampler);
+
     void createTextureSet(uint32_t comBufindex, textureIdSet& texSet);
 
     void memoryMap(void* pData, VkDeviceMemory mem, VkDeviceSize size);
@@ -335,7 +338,7 @@ public:
         VkBuffer& buffer, VkDeviceMemory& bufferMemory, void* allocateMemory_add_pNext);
 
     template<typename T>
-    auto createVertexBuffer(uint32_t comBufindex, T* ver, int num, bool typeIndex,
+    auto createDefaultCopiedBuffer(uint32_t comBufindex, T* data, int num,
         void* allocateMemory_add_pNext, VkBufferUsageFlags* add_usage) {
 
         VkDeviceSize bufferSize = sizeof(T) * num;
@@ -343,22 +346,34 @@ public:
         BufferSet stagingBuffer;
         stagingBuffer.createUploadBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, nullptr);
 
-        stagingBuffer.memoryMap(ver);
+        stagingBuffer.memoryMap(data);
 
-        BufferSet vertexBuffer;
-        VkBufferUsageFlags usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-        if (typeIndex)usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+        BufferSet defaultBuffer;
+        VkBufferUsageFlags usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
         if (add_usage)usage = usage | *add_usage;
-        vertexBuffer.createDefaultBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage, allocateMemory_add_pNext);
+        defaultBuffer.createDefaultBuffer(bufferSize, usage, allocateMemory_add_pNext);
 
-        copyBuffer(comBufindex, stagingBuffer.getBuffer(), vertexBuffer.getBuffer(), bufferSize);
+        copyBuffer(comBufindex, stagingBuffer.getBuffer(), defaultBuffer.getBuffer(), bufferSize);
 
         stagingBuffer.destroy();
 
-        return vertexBuffer;
+        return defaultBuffer;
     }
 
-    void createDevice(std::vector<const char*>* requiredExtensions = nullptr, const void* pNext = nullptr);
+    template<typename T>
+    auto createVertexBuffer(uint32_t comBufindex, T* ver, int num, bool typeIndex,
+        void* allocateMemory_add_pNext, VkBufferUsageFlags* add_usage) {
+
+        VkBufferUsageFlags usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+        if (typeIndex)usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+        if (add_usage)usage = usage | *add_usage;
+
+        return createDefaultCopiedBuffer(comBufindex, ver, num, allocateMemory_add_pNext, &usage);
+    }
+
+    void createDevice(
+        std::vector<const char*>* requiredExtensions = nullptr, const void* pNext = nullptr,
+        std::vector<VkDescriptorPoolSize>* add_poolSize = nullptr, uint32_t maxDescriptorSets = 0);
 
     void createSwapchain(VkSurfaceKHR surface, bool clearBackBuffer);
 
@@ -403,6 +418,12 @@ public:
     CoordTf::VECTOR4 getCameraViewPos() { return viewPos; }
     CoordTf::VECTOR3 getUpVec() { return upVec; }
     Texture getTexture(uint32_t index) { return texture[index]; }
+
+    VkDescriptorPool GetDescriptorPool() const { return descriptorPool; }
+
+    VkDescriptorSet AllocateDescriptorSet(VkDescriptorSetLayout dsLayout, const void* pNext = nullptr);
+
+    void DeallocateDescriptorSet(VkDescriptorSet ds);
 };
 
 #endif

@@ -49,7 +49,7 @@ namespace vkUtil {
         void addStr(char* str1, char* str2);
 
         ~addChar() {
-            S_DELETE(str);
+            ARR_DELETE(str);
         }
     };
 

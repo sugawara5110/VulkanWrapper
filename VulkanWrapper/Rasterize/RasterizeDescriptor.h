@@ -59,10 +59,6 @@ private:
     void descriptorAndPipelineLayouts2D(bool useTexture, VkPipelineLayout& pipelineLayout,
         VkDescriptorSetLayout& descSetLayout);
 
-    void createDescriptorPool(bool useTexture, VkDescriptorPool& descPool);
-
-    void createDescriptorPool2D(bool useTexture, VkDescriptorPool& descPool);
-
     VkPipelineCache createPipelineCache();
 
     VkPipeline createGraphicsPipelineVF(bool useAlpha,
@@ -86,12 +82,12 @@ public:
         VulkanDevice::VkTexture& speTexture,
         VulkanDevice::Uniform<MatrixSet>* uni,
         VulkanDevice::Uniform<Material>* material,
-        VkDescriptorSet& descriptorSet, VkDescriptorPool& descPool,
+        VkDescriptorSet& descriptorSet,
         VkDescriptorSetLayout& descSetLayout);
 
     uint32_t upDescriptorSet2D(bool useTexture, VulkanDevice::VkTexture& texture,
         VulkanDevice::Uniform<MatrixSet2D>* uni,
-        VkDescriptorSet& descriptorSet, VkDescriptorPool& descPool,
+        VkDescriptorSet& descriptorSet,
         VkDescriptorSetLayout& descSetLayout);
 
     void setNumLight(uint32_t num);

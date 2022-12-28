@@ -358,6 +358,7 @@ VulkanDevice::VulkanDevice(VkPhysicalDevice pd, uint32_t numCommandBuffer, bool 
 }
 
 VulkanDevice::~VulkanDevice() {
+    vkDestroyDescriptorPool(device, descriptorPool, nullptr);
     destroySwapchain();
     destroyTexture();
     vkFreeCommandBuffers(device, commandPool, commandBufferCount, commandBuffer.get());
@@ -946,12 +947,16 @@ VkPipelineShaderStageCreateInfo VulkanDevice::createShaderModule(const char* fna
     return stageInfo;
 }
 
-void VulkanDevice::createDevice(std::vector<const char*>* requiredExtensions, const void* pNext) {
+void VulkanDevice::createDevice(
+    std::vector<const char*>* requiredExtensions, const void* pNext,
+    std::vector<VkDescriptorPoolSize>* add_poolSize, uint32_t maxDescriptorSets) {
+
     create(requiredExtensions, pNext);
     createCommandPool();
     createSFence();
     createSemaphore();
     createCommandBuffers();
+    createDescriptorPool(add_poolSize, maxDescriptorSets);
 
     //ダミーテクスチャ生成(テクスチャーが無い場合に代わりに入れる)
     unsigned char* dummyNor = new unsigned char[64 * 4 * 64];
@@ -1119,4 +1124,56 @@ VkDeviceSize VulkanDevice::GetUniformBufferAlignment() const {
 
 VkDeviceSize VulkanDevice::GetStorageBufferAlignment() const {
     return physicalDeviceProperties.limits.minStorageBufferOffsetAlignment;
+}
+
+bool VulkanDevice::createDescriptorPool(std::vector<VkDescriptorPoolSize>* add_poolSize, uint32_t maxDescriptorSets) {
+
+    VulkanDevice* vkDev = VulkanDevice::GetInstance();
+    VkResult result;
+    VkDescriptorPoolSize poolSize[] = {
+      { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
+      { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+      { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
+      { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
+      { VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 100 },
+    };
+    VkDescriptorPoolCreateInfo descPoolCI{
+      VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+      nullptr,  VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
+      100, // maxDescriptorSets数
+      _countof(poolSize), poolSize
+    };
+
+    if (add_poolSize) {
+        descPoolCI.poolSizeCount = (uint32_t)(*add_poolSize).size();
+        descPoolCI.pPoolSizes = (*add_poolSize).data();
+    }
+    if (maxDescriptorSets > 0) {
+        descPoolCI.maxSets = maxDescriptorSets;
+    }
+
+    result = vkCreateDescriptorPool(vkDev->getDevice(), &descPoolCI, nullptr, &descriptorPool);
+    return result == VK_SUCCESS;
+}
+
+VkDescriptorSet VulkanDevice::AllocateDescriptorSet(VkDescriptorSetLayout dsLayout, const void* pNext) {
+
+    VulkanDevice* vkDev = VulkanDevice::GetInstance();
+    VkDescriptorSetAllocateInfo dsAI{
+        VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO, nullptr
+    };
+    dsAI.descriptorPool = descriptorPool;
+    dsAI.pSetLayouts = &dsLayout;
+    dsAI.descriptorSetCount = 1;
+    dsAI.pNext = pNext;
+    VkDescriptorSet ds{};
+    auto r = vkAllocateDescriptorSets(vkDev->getDevice(), &dsAI, &ds);
+    vkUtil::checkError(r);
+    return ds;
+}
+
+void VulkanDevice::DeallocateDescriptorSet(VkDescriptorSet ds) {
+
+    VulkanDevice* vkDev = VulkanDevice::GetInstance();
+    vkFreeDescriptorSets(vkDev->getDevice(), descriptorPool, 1, &ds);
 }

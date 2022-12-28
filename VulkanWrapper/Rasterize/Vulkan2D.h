@@ -29,7 +29,6 @@ private:
 	uint32_t numIndex;
 	VkDescriptorSetLayout descSetLayout;
 	const static uint32_t numSwap = 2;
-	VkDescriptorPool descPool[numSwap];
 	VkDescriptorSet descSet[numSwap];
 	uint32_t descSetCnt = 0;
 	VkPipelineLayout pipelineLayout;
@@ -65,7 +64,6 @@ private:
 
 		for (uint32_t i = 0; i < numSwap; i++) {
 			uniform[i] = new VulkanDevice::Uniform<RasterizeDescriptor::MatrixSet2D>(1);
-			rd->createDescriptorPool2D(useTexture, descPool[i]);
 			if (textureId < 0) {
 				if (i == 0)device->createVkTexture(texture, comIndex, device->getTexture(device->numTextureMax));
 				//-1の場合テクスチャー無いので, ダミーを入れる
@@ -73,8 +71,7 @@ private:
 			else {
 				if (i == 0)device->createVkTexture(texture, comIndex, device->getTexture(textureId));
 			}
-			descSetCnt = rd->upDescriptorSet2D(useTexture, texture, uniform[i], descSet[i],
-				descPool[i], descSetLayout);
+			descSetCnt = rd->upDescriptorSet2D(useTexture, texture, uniform[i], descSet[i], descSetLayout);
 		}
 
 		pipelineCache = rd->createPipelineCache();

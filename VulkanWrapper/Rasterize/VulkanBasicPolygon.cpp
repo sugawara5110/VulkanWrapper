@@ -35,11 +35,6 @@ VulkanBasicPolygon::~VulkanBasicPolygon() {
 	for (uint32_t i = 0; i < numMaterial; i++) {
 		if (numIndex[i] <= 0)continue;
 		index[i].destroy();
-		for (uint32_t s = 0; s < numSwap; s++) {
-			//VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT の場合のみ個別に開放できる
-			//vkFreeDescriptorSets(device->device, descPool[s][i], descSetCnt, &descSet[s][i]);
-			vkDestroyDescriptorPool(vd, descPool[s][i], nullptr);
-		}
 		texId[i].destroy();
 	}
 	vkUtil::ARR_DELETE(texId);

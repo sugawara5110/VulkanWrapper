@@ -44,32 +44,27 @@ class VulkanDeviceRt {
 private:
     static VulkanDeviceRt* pDeviceRt;
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
-    VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
 
 public:
     static const uint32_t numHitShader = 4;
 
     static VulkanDeviceRt* getVulkanDeviceRt() { return pDeviceRt; };
 
-    bool createDevice(VkInstance ins, VkPhysicalDevice phDev, uint32_t ApiVersion);
+    bool createDevice(VkInstance ins, VkPhysicalDevice phDev, uint32_t ApiVersion,
+        uint32_t numCommandBuffer = 1, bool V_SYNC = false,
+        std::vector<VkDescriptorPoolSize>* add_poolSize = nullptr, uint32_t maxDescriptorSets = 0);
+
     void destroy();
 
     bool CreateSwapchain(VkSurfaceKHR surface, uint32_t width, uint32_t height);
 
     VkDevice GetDevice() const { return VulkanDevice::GetInstance()->getDevice(); }
 
-    VkDescriptorPool GetDescriptorPool() const { return descriptorPool; }
-
     VkSurfaceFormatKHR GetBackBufferFormat() const {
         return VulkanDevice::GetInstance()->getSwapchainObj()->getBackBufferFormat(0);
     }
 
     uint32_t GetBackBufferCount() const { return VulkanDevice::GetInstance()->getSwapchainObj()->getImageCount(); }
-
-    VkDescriptorSet AllocateDescriptorSet(VkDescriptorSetLayout dsLayout, const void* pNext = nullptr);
-    void DeallocateDescriptorSet(VkDescriptorSet ds);
-
-    bool CreateDescriptorPool();
 
     uint64_t GetDeviceAddress(VkBuffer buffer);
     VkPhysicalDeviceRayTracingPipelinePropertiesKHR GetRayTracingPipelineProperties();

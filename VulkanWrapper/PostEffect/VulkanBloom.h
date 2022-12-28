@@ -11,25 +11,37 @@
 
 class VulkanBloom {
 
+public:
+	struct InstanceParam {
+		uint32_t EmissiveInstanceId = 0;
+		float thresholdLuminance = 0.0f;
+		float bloomStrength = 1.0f;
+		float numGaussFilter = 1.0f;
+	};
+	std::vector<InstanceParam> iParam;
+
 private:
 	uint32_t Width = 0;
 	uint32_t Height = 0;
-	uint32_t EmissiveInstanceId[VulkanDevice::numLightMax] = {};
-	uint32_t NumEmissive = 0;
 
-	const static int numFilter = 7;
+	VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
+	VkPipeline Pipeline = VK_NULL_HANDLE;
+	VkDescriptorSetLayout dsLayout = VK_NULL_HANDLE;
+	VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
 
-	const unsigned int gaBaseSize[numFilter] = { 1024,512,256,128,64,32,16 };
+	const static int numMaxFilter = 7;
 
-	VulkanDevice::ImageSet* pRaytracedImage = nullptr;
-	VulkanDevice::ImageSet* pInstanceIdMap = nullptr;
+	const uint32_t gaBaseSize[numMaxFilter] = { 1024,512,256,128,64,32,16 };
 
-	VulkanDevice::BufferSet GaussianFilterBufferUp;
-	VulkanDevice::BufferSet GaussianFilterBuffer;
+	VulkanDevice::ImageSet* pRaytracedImage = nullptr;//ポインタ受け取り
+	VulkanDevice::ImageSet* pInstanceIdMap = nullptr;//ポインタ受け取り
+
+	VulkanDevice::BufferSet GaussianFilter;
 
 	struct FilterSet {
-		VulkanDevice::ImageSet Luminance[numFilter];
-		VulkanDevice::ImageSet Bloom[numFilter];
+		VulkanDevice::ImageSet Luminance[numMaxFilter];
+		VulkanDevice::ImageSet inOutBloom0[numMaxFilter];
+		VulkanDevice::ImageSet inOutBloom1[numMaxFilter];//サンプラーも
 	};
 	std::unique_ptr<FilterSet[]> fset;
 
@@ -40,13 +52,30 @@ private:
 		float bloomStrength;
 		float thresholdLuminance;
 		float numGaussFilter;
+		int   InstanceID;
 	};
+	BloomParam bParam = {};
+	VulkanDevice::Uniform<BloomParam>* bParamUBO = nullptr;
+
+	VkWriteDescriptorSet getDescriptorSet(uint32_t binding, VkDescriptorType type, VkDescriptorImageInfo* infoI, VkDescriptorBufferInfo* infoB);
+
+	void createGaussianFilter(uint32_t comIndex, float sigma);
+	void createBuffer(uint32_t comIndex);
+	void createLayouts();
+	void createPipeline();
+	void createDescriptorSets();
 
 public:
+	~VulkanBloom();
+
 	void setImage(
 		VulkanDevice::ImageSet* raytracedImage, VulkanDevice::ImageSet* instanceIdMap,
 		uint32_t width, uint32_t height,
-		uint32_t* emissiveInstanceId, uint32_t numEmissive);
+		std::vector<InstanceParam> instanceParam);
+
+	void Create(uint32_t comIndex, float sigma = 10.0f);
+
+	void Compute(uint32_t comIndex);
 };
 
 #endif

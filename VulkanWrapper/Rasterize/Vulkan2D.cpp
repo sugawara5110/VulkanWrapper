@@ -19,11 +19,6 @@ Vulkan2D::~Vulkan2D() {
 		vkUtil::S_DELETE(uniform[s]);
 	}
 	vkDestroyDescriptorSetLayout(vd, descSetLayout, nullptr);
-	for (uint32_t s = 0; s < numSwap; s++) {
-		//VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT の場合のみ個別に開放できる
-		//vkFreeDescriptorSets(vd, descPool[s], descSetCnt, &descSet[s]);
-		vkDestroyDescriptorPool(vd, descPool[s], nullptr);
-	}
 	vkDestroyPipeline(vd, pipeline, nullptr);
 	vkDestroyPipelineCache(vd, pipelineCache, nullptr);
 	vkDestroyPipelineLayout(vd, pipelineLayout, nullptr);

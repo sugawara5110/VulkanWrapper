@@ -18,7 +18,10 @@ void BufferSetRt::createDefaultBuffer(VkDeviceSize size, VkBufferUsageFlags usag
     deviceAddress = VulkanDeviceRt::getVulkanDeviceRt()->GetDeviceAddress(buffer);
 }
 
-bool VulkanDeviceRt::createDevice(VkInstance ins, VkPhysicalDevice phDev, uint32_t ApiVersion) {
+bool VulkanDeviceRt::createDevice(VkInstance ins, VkPhysicalDevice phDev, uint32_t ApiVersion,
+    uint32_t numCommandBuffer, bool V_SYNC,
+    std::vector<VkDescriptorPoolSize>* add_poolSize, uint32_t maxDescriptorSets) {
+
     pDeviceRt = this;
     physicalDevice = phDev;
     std::vector<const char*> requiredExtensions = {
@@ -66,13 +69,11 @@ bool VulkanDeviceRt::createDevice(VkInstance ins, VkPhysicalDevice phDev, uint32
     physicalDeviceFeatures2.pNext = &enabledDescriptorIndexingFeatures;
     physicalDeviceFeatures2.features = features;
 
-    VulkanDevice::InstanceCreate(phDev, ApiVersion, 2, false);
+    VulkanDevice::InstanceCreate(phDev, ApiVersion, numCommandBuffer, V_SYNC);
     VulkanDevice* vkDev = VulkanDevice::GetInstance();
 
     const void* pNext = &physicalDeviceFeatures2;
-    vkDev->createDevice(&requiredExtensions, pNext);
-
-    CreateDescriptorPool();
+    vkDev->createDevice(&requiredExtensions, pNext, add_poolSize, maxDescriptorSets);
 
     load_VK_EXTENSIONS(
         ins,
@@ -90,9 +91,6 @@ void VulkanDeviceRt::destroy() {
         vkDeviceWaitIdle(vkDev->getDevice());
     }
 
-    if (descriptorPool) {
-        vkDestroyDescriptorPool(vkDev->getDevice(), descriptorPool, nullptr);
-    }
     VulkanDevice::DeleteInstance();
 }
 
@@ -123,50 +121,6 @@ uint64_t VulkanDeviceRt::GetDeviceAddress(VkBuffer buffer) {
     };
     bufferDeviceInfo.buffer = buffer;
     return vkGetBufferDeviceAddress(vkDev->getDevice(), &bufferDeviceInfo);
-}
-
-bool VulkanDeviceRt::CreateDescriptorPool() {
-
-    VulkanDevice* vkDev = VulkanDevice::GetInstance();
-    VkResult result;
-    VkDescriptorPoolSize poolSize[] = {
-      { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
-      { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
-      { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
-      { VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 100 },
-      { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
-      { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
-    };
-    VkDescriptorPoolCreateInfo descPoolCI{
-      VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-      nullptr,  VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
-      100, // maxSets
-      _countof(poolSize), poolSize,
-    };
-    result = vkCreateDescriptorPool(vkDev->getDevice(), &descPoolCI, nullptr, &descriptorPool);
-    return result == VK_SUCCESS;
-}
-
-VkDescriptorSet VulkanDeviceRt::AllocateDescriptorSet(VkDescriptorSetLayout dsLayout, const void* pNext) {
-
-    VulkanDevice* vkDev = VulkanDevice::GetInstance();
-    VkDescriptorSetAllocateInfo dsAI{
-        VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO, nullptr
-    };
-    dsAI.descriptorPool = descriptorPool;
-    dsAI.pSetLayouts = &dsLayout;
-    dsAI.descriptorSetCount = 1;
-    dsAI.pNext = pNext;
-    VkDescriptorSet ds{};
-    auto r = vkAllocateDescriptorSets(vkDev->getDevice(), &dsAI, &ds);
-    vkUtil::checkError(r);
-    return ds;
-}
-
-void VulkanDeviceRt::DeallocateDescriptorSet(VkDescriptorSet ds) {
-
-    VulkanDevice* vkDev = VulkanDevice::GetInstance();
-    vkFreeDescriptorSets(vkDev->getDevice(), descriptorPool, 1, &ds);
 }
 
 VkPhysicalDeviceRayTracingPipelinePropertiesKHR VulkanDeviceRt::GetRayTracingPipelineProperties() {

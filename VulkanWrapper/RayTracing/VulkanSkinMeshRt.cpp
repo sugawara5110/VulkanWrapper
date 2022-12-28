@@ -937,8 +937,7 @@ VulkanSkinMeshRt::SkinningCom::~SkinningCom() {
 	vkDestroyPipeline(dev->getDevice(), computeSkiningPipeline, nullptr);
 	vkDestroyPipelineLayout(dev->getDevice(), pipelineLayoutSkinned, nullptr);
 	vkDestroyDescriptorSetLayout(dev->getDevice(), dsLayoutSkinned, nullptr);
-	VulkanDeviceRt* devRt = VulkanDeviceRt::getVulkanDeviceRt();
-	devRt->DeallocateDescriptorSet(descriptorSetCompute);
+	dev->DeallocateDescriptorSet(descriptorSetCompute);
 }
 
 void VulkanSkinMeshRt::SkinningCom::createVertexBuffer(uint32_t comIndex, MY_VERTEX_S* ver, uint32_t num) {
@@ -1043,7 +1042,7 @@ void VulkanSkinMeshRt::SkinningCom::CreateComputePipeline() {
 
 void VulkanSkinMeshRt::SkinningCom::CreateDescriptorSets(VkDescriptorBufferInfo* output, VkDescriptorBufferInfo* bone) {
 
-	VulkanDeviceRt* dev = VulkanDeviceRt::getVulkanDeviceRt();
+	VulkanDevice* dev = VulkanDevice::GetInstance();
 	descriptorSetCompute = dev->AllocateDescriptorSet(dsLayoutSkinned);
 
 	VkWriteDescriptorSet writeIn{
@@ -1075,7 +1074,7 @@ void VulkanSkinMeshRt::SkinningCom::CreateDescriptorSets(VkDescriptorBufferInfo*
 
 	std::vector<VkWriteDescriptorSet> writeSets = { writeIn, writeUBO, writeOut };
 
-	vkUpdateDescriptorSets(dev->GetDevice(), uint32_t(writeSets.size()), writeSets.data(), 0, nullptr);
+	vkUpdateDescriptorSets(dev->getDevice(), uint32_t(writeSets.size()), writeSets.data(), 0, nullptr);
 }
 
 void VulkanSkinMeshRt::SkinningCom::Skinned(uint32_t comIndex) {
