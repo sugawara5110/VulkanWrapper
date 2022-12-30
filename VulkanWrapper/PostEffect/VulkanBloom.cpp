@@ -33,59 +33,37 @@ namespace {
 
 		return gaArr;
 	}
-
-	VkDescriptorSetLayoutBinding getLayout(uint32_t binding, VkDescriptorType type) {
-		VkDescriptorSetLayoutBinding b{};
-		b.binding = binding;
-		b.descriptorType = type;
-		b.descriptorCount = 1;
-		b.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-		return b;
-	}
 }
 
 VulkanBloom::~VulkanBloom() {
 
 	GaussianFilter.destroy();
-	for (uint32_t i = 0; i < iParam.size(); i++) {
-		for (uint32_t j = 0; j < numMaxFilter; j++) {
-			fset[i].inOutBloom0[j].destroy();
-			fset[i].inOutBloom1[j].destroy();
-			fset[i].Luminance[j].destroy();
-		}
+	for (size_t i = 0; i < fset.size(); i++) {
+		fset[i].inOutBloom0.destroy();
+		fset[i].inOutBloom1.destroy();
+		fset[i].Luminance.destroy();
 	}
 	Output.destroy();
 	vkUtil::S_DELETE(bParamUBO);
 
 	VkDevice d = VulkanDevice::GetInstance()->getDevice();
 
-	vkDestroyPipeline(d, Pipeline, nullptr);
-	vkDestroyPipelineLayout(d, pipelineLayout, nullptr);
-	vkDestroyDescriptorSetLayout(d, dsLayout, nullptr);
-	VulkanDevice::GetInstance()->DeallocateDescriptorSet(descriptorSet);
-}
-
-VkWriteDescriptorSet VulkanBloom::getDescriptorSet(uint32_t binding, VkDescriptorType type,
-	VkDescriptorImageInfo* infoI, VkDescriptorBufferInfo* infoB) {
-
-	VkWriteDescriptorSet ds{
-   VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
-	};
-	ds.dstSet = descriptorSet;
-	ds.dstBinding = binding;
-	ds.descriptorCount = 1;
-	ds.descriptorType = type;
-	ds.pImageInfo = infoI;
-	ds.pBufferInfo = infoB;
-	return ds;
+	for (size_t i = 0; i < dset.size(); i++) {
+		vkDestroyPipeline(d, dset[i].Pipeline, nullptr);
+		vkDestroyPipelineLayout(d, dset[i].pipelineLayout, nullptr);
+		VulkanDevice::GetInstance()->DeallocateDescriptorSet(dset[i].descriptorSet);
+		vkDestroyDescriptorSetLayout(d, dset[i].dsLayout, nullptr);
+	}
 }
 
 void VulkanBloom::setImage(
-	VulkanDevice::ImageSet* raytracedImage, VulkanDevice::ImageSet* instanceIdMap,
+	VulkanDevice::ImageSet* RenderedImage, VulkanDevice::ImageSet* instanceIdMap,
 	uint32_t width, uint32_t height,
-	std::vector<InstanceParam> instanceParam) {
+	InstanceParam instanceParam,
+	std::vector<uint32_t> gausSize) {
 
-	pRaytracedImage = raytracedImage;
+	GausSize = gausSize;
+	pRenderedImage = RenderedImage;
 	pInstanceIdMap = instanceIdMap;
 	Width = width;
 	Height = height;
@@ -94,69 +72,187 @@ void VulkanBloom::setImage(
 
 void VulkanBloom::createLayouts() {
 
+	auto Create = [this](
+		std::vector<VkDescriptorSetLayoutBinding> bind,
+		uint32_t index) {
+
+			VkDescriptorSetLayoutCreateInfo dsLayoutCI{
+		   VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO
+			};
+			dsLayoutCI.bindingCount = uint32_t(bind.size());
+			dsLayoutCI.pBindings = bind.data();
+
+			VulkanDevice* dev = VulkanDevice::GetInstance();
+
+			vkCreateDescriptorSetLayout(
+				dev->getDevice(), &dsLayoutCI, nullptr, &dset[index].dsLayout);
+
+			VkPipelineLayoutCreateInfo pipelineLayoutCI{
+				VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO
+			};
+			pipelineLayoutCI.setLayoutCount = 1;
+			pipelineLayoutCI.pSetLayouts = &dset[index].dsLayout;
+			vkCreatePipelineLayout(dev->getDevice(),
+				&pipelineLayoutCI, nullptr, &dset[index].pipelineLayout);
+	};
+
+	auto getLayout = [](uint32_t binding, VkDescriptorType type, uint32_t descriptorCount) {
+		VkDescriptorSetLayoutBinding b{};
+		b.binding = binding;
+		b.descriptorType = type;
+		b.descriptorCount = descriptorCount;
+		b.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		return b;
+	};
+
+	auto Bind = [Create, getLayout](
+		VkDescriptorType bind1, uint32_t descriptorCount1, uint32_t createIndex) {
+
+			std::vector<VkDescriptorSetLayoutBinding> bind = {
+				getLayout(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1),
+				getLayout(1, bind1, descriptorCount1),
+				getLayout(2, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1),
+				getLayout(3, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1)
+			};
+			Create(bind, createIndex);
+	};
+
+	uint32_t cnt = 0;
+	for (size_t i = 0; i < fset.size(); i++) {
+		Bind(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, cnt++);
+		Bind(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, cnt++);
+		Bind(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, cnt++);
+	}
 	std::vector<VkDescriptorSetLayoutBinding> bind = {
-		getLayout(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER),
-		getLayout(1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
-		getLayout(2, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
-		getLayout(3, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE)
+				getLayout(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1),
+				getLayout(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, (uint32_t)fset.size()),
+				getLayout(2, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1),
 	};
-
-	VkDescriptorSetLayoutCreateInfo dsLayoutCI{
-	   VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO
-	};
-	dsLayoutCI.bindingCount = uint32_t(bind.size());
-	dsLayoutCI.pBindings = bind.data();
-
-	VulkanDevice* dev = VulkanDevice::GetInstance();
-
-	vkCreateDescriptorSetLayout(
-		dev->getDevice(), &dsLayoutCI, nullptr, &dsLayout);
-
-	VkPipelineLayoutCreateInfo pipelineLayoutCI{
-		VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO
-	};
-	pipelineLayoutCI.setLayoutCount = 1;
-	pipelineLayoutCI.pSetLayouts = &dsLayout;
-	vkCreatePipelineLayout(dev->getDevice(),
-		&pipelineLayoutCI, nullptr, &pipelineLayout);
+	Create(bind, cnt++);
 }
 
 void VulkanBloom::createPipeline() {
 
 	VulkanDevice* dev = VulkanDevice::GetInstance();
 
-	vkUtil::addChar bl[1] = {};
+	vkUtil::addChar bl0[1] = {};
+	vkUtil::addChar bl1[1] = {};
+	vkUtil::addChar bl2[1] = {};
+	vkUtil::addChar bl3[1] = {};
 
-	bl[0].addStr(ShaderBloom_Com, ShaderBloom0);
+	bl0[0].addStr(ShaderBloom_Com, ShaderBloom0);
+	bl1[0].addStr(ShaderBloom_Com, ShaderBloom1);
+	bl2[0].addStr(ShaderBloom_Com, ShaderBloom2);
+	bl3[0].addStr(ShaderBloom_Com, ShaderBloom3);
 
-	auto shaderStage = dev->createShaderModule("Bloom", bl[0].str, VK_SHADER_STAGE_COMPUTE_BIT);
+	VkPipelineShaderStageCreateInfo Stage[4] = {};
+	Stage[0] = dev->createShaderModule("Bloom0", bl0[0].str, VK_SHADER_STAGE_COMPUTE_BIT);
+	Stage[1] = dev->createShaderModule("Bloom1", bl1[0].str, VK_SHADER_STAGE_COMPUTE_BIT);
+	Stage[2] = dev->createShaderModule("Bloom2", bl2[0].str, VK_SHADER_STAGE_COMPUTE_BIT);
+	Stage[3] = dev->createShaderModule("Bloom3", bl3[0].str, VK_SHADER_STAGE_COMPUTE_BIT);
 
-	VkComputePipelineCreateInfo compPipelineCI{
-		VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO
+	auto pipe = [this, dev](
+		VkPipelineShaderStageCreateInfo Stage, uint32_t index) {
+
+			VkComputePipelineCreateInfo compPipelineCI{
+				VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO
+			};
+			compPipelineCI.layout = dset[index].pipelineLayout;
+			compPipelineCI.stage = Stage;
+
+			vkCreateComputePipelines(dev->getDevice(), VK_NULL_HANDLE, 1,
+				&compPipelineCI, nullptr, &dset[index].Pipeline);
 	};
-	compPipelineCI.layout = pipelineLayout;
-	compPipelineCI.stage = shaderStage;
 
-	vkCreateComputePipelines(dev->getDevice(), VK_NULL_HANDLE, 1,
-		&compPipelineCI, nullptr, &Pipeline);
+	uint32_t cnt = 0;
+	for (size_t i = 0; i < GausSize.size(); i++) {
+		pipe(Stage[0], cnt);
+		dset[cnt].sizeWH.width = GausSize[i];
+		dset[cnt++].sizeWH.height = GausSize[i];
+		pipe(Stage[1], cnt);
+		dset[cnt].sizeWH.width = GausSize[i];
+		dset[cnt++].sizeWH.height = GausSize[i];
+		pipe(Stage[2], cnt);
+		dset[cnt].sizeWH.width = GausSize[i];
+		dset[cnt++].sizeWH.height = GausSize[i];
+	}
+	pipe(Stage[3], cnt);
+	dset[cnt].sizeWH.width = Width;
+	dset[cnt++].sizeWH.height = Height;
 
-	vkDestroyShaderModule(dev->getDevice(), shaderStage.module, nullptr);
+	for (int i = 0; i < COUNTOF(Stage); i++) {
+		vkDestroyShaderModule(dev->getDevice(), Stage[i].module, nullptr);
+	}
 }
 
 void VulkanBloom::createDescriptorSets() {
 
 	VulkanDevice* dev = VulkanDevice::GetInstance();
-	descriptorSet = dev->AllocateDescriptorSet(dsLayout);
 
-	std::vector<VkWriteDescriptorSet> writeSets = {
-		getDescriptorSet(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,nullptr, &bParamUBO->getBufferSet()->info),
-		getDescriptorSet(1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,&pRaytracedImage->info,nullptr),
-		getDescriptorSet(2, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,&pInstanceIdMap->info,nullptr),
-		getDescriptorSet(3, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,&fset[0].Luminance[0].info,nullptr),
+	for (size_t i = 0; i < dset.size(); i++) {
+		dset[i].descriptorSet = dev->AllocateDescriptorSet(dset[i].dsLayout);
+	}
+
+	auto getDescriptorSet = [this](
+		VkDescriptorSet descriptorSet, uint32_t binding, VkDescriptorType type,
+		uint32_t descriptorCount,
+		VkDescriptorImageInfo* infoI, VkDescriptorBufferInfo* infoB) {
+
+			VkWriteDescriptorSet ds{
+		   VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
+			};
+			ds.dstSet = descriptorSet;
+			ds.dstBinding = binding;
+			ds.descriptorCount = descriptorCount;
+			ds.descriptorType = type;
+			ds.pImageInfo = infoI;
+			ds.pBufferInfo = infoB;
+			return ds;
 	};
 
-	vkUpdateDescriptorSets(dev->getDevice(), uint32_t(writeSets.size()), writeSets.data(),
-		0, nullptr);
+	auto deset = [dev](std::vector<VkWriteDescriptorSet> write) {
+		vkUpdateDescriptorSets(dev->getDevice(), uint32_t(write.size()), write.data(), 0, nullptr);
+	};
+
+	uint32_t cnt = 0;
+
+	for (size_t i = 0; i < fset.size(); i++) {
+		VkDescriptorSet ds0 = dset[cnt++].descriptorSet;
+		std::vector<VkWriteDescriptorSet> write0 = {
+			getDescriptorSet(ds0, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, nullptr, &bParamUBO->getBufferSet()->info),
+			getDescriptorSet(ds0, 1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, &pRenderedImage->info, nullptr),
+			getDescriptorSet(ds0, 2, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, &pInstanceIdMap->info, nullptr),
+			getDescriptorSet(ds0, 3, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, &fset[i].Luminance.info, nullptr),
+		};
+		deset(write0);
+
+		VkDescriptorSet ds1 = dset[cnt++].descriptorSet;
+		std::vector<VkWriteDescriptorSet> write1 = {
+			getDescriptorSet(ds1, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, nullptr, &bParamUBO->getBufferSet()->info),
+			getDescriptorSet(ds1, 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, nullptr, &GaussianFilter.info),
+			getDescriptorSet(ds1, 2, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, &fset[i].Luminance.info, nullptr),
+			getDescriptorSet(ds1, 3, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, &fset[i].inOutBloom0.info, nullptr),
+		};
+		deset(write1);
+
+		VkDescriptorSet ds2 = dset[cnt++].descriptorSet;
+		std::vector<VkWriteDescriptorSet> write2 = {
+			getDescriptorSet(ds2, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, nullptr, &bParamUBO->getBufferSet()->info),
+			getDescriptorSet(ds2, 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, nullptr, &GaussianFilter.info),
+			getDescriptorSet(ds2, 2, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, &fset[i].inOutBloom0.info, nullptr),
+			getDescriptorSet(ds2, 3, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, &fset[i].inOutBloom1.info, nullptr),
+		};
+		deset(write2);
+	}
+
+	VkDescriptorSet ds3 = dset[cnt++].descriptorSet;
+	std::vector<VkWriteDescriptorSet> write3 = {
+		getDescriptorSet(ds3, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, nullptr, &bParamUBO->getBufferSet()->info),
+		getDescriptorSet(ds3, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, (uint32_t)inOutBloom1_Info.size(), inOutBloom1_Info.data(), nullptr),
+		getDescriptorSet(ds3, 2, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, &Output.info, nullptr),
+
+	};
+	deset(write3);
 }
 
 void VulkanBloom::createGaussianFilter(uint32_t comIndex, float sigma) {
@@ -166,9 +262,11 @@ void VulkanBloom::createGaussianFilter(uint32_t comIndex, float sigma) {
 	gaFil = gaussian(sigma, GaussianWid);
 	bParam.GaussianWid = (float)GaussianWid;
 
+	VkImageUsageFlags usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+
 	GaussianFilter = VulkanDevice::GetInstance()->createDefaultCopiedBuffer(
 		comIndex, gaFil, GaussianWid,
-		nullptr, nullptr);
+		nullptr, &usage);
 
 	vkUtil::ARR_DELETE(gaFil);
 }
@@ -179,6 +277,13 @@ void VulkanBloom::createBuffer(uint32_t comIndex) {
 	VulkanDevice::swapchainBuffer* sw = dev->getSwapchainObj();
 	VkFormat format = sw->getFormat();
 
+	int numFilter = (int)GausSize.size();//ガウシアンフィルタ計算回数
+	int numFilterDispatch = numGausShader * numFilter;//ガウシアンフィルタのシェーダー実行回数
+	int numDispatch = numFilterDispatch + 1;
+
+	dset.resize(numDispatch);
+	fset.resize(numFilter);
+
 	VkImageUsageFlags usage =
 		VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
 		VK_IMAGE_USAGE_TRANSFER_DST_BIT |
@@ -187,27 +292,24 @@ void VulkanBloom::createBuffer(uint32_t comIndex) {
 		usage | VK_IMAGE_USAGE_SAMPLED_BIT;
 	VkMemoryPropertyFlags devMemProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
-	fset = std::make_unique<FilterSet[]>(iParam.size());
-
 	dev->beginCommand(comIndex);
 
-	for (uint32_t i = 0; i < iParam.size(); i++) {
-		for (uint32_t j = 0; j < numMaxFilter; j++) {
-			uint32_t s = gaBaseSize[j];
-			VulkanDevice::ImageSet& Luminance = fset[i].Luminance[j];
-			Luminance.createImage(Width, Height, format, VK_IMAGE_TILING_OPTIMAL, usage, devMemProps);
-			Luminance.createImageView(format, VK_IMAGE_ASPECT_COLOR_BIT);
-			Luminance.barrierResource(comIndex, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
-			VulkanDevice::ImageSet& Bloom0 = fset[i].inOutBloom0[j];
-			Bloom0.createImage(s, s, format, VK_IMAGE_TILING_OPTIMAL, usage, devMemProps);
-			Bloom0.createImageView(format, VK_IMAGE_ASPECT_COLOR_BIT);
-			Bloom0.barrierResource(comIndex, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
-			VulkanDevice::ImageSet& Bloom1 = fset[i].inOutBloom1[j];
-			Bloom1.createImage(s, s, format, VK_IMAGE_TILING_OPTIMAL, usage2, devMemProps);
-			Bloom1.createImageView(format, VK_IMAGE_ASPECT_COLOR_BIT);
-			Bloom1.barrierResource(comIndex, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
-			dev->createTextureSampler(Bloom1.info.sampler);
-		}
+	for (size_t i = 0; i < fset.size(); i++) {
+		uint32_t s = GausSize[i];
+		VulkanDevice::ImageSet& Luminance = fset[i].Luminance;
+		Luminance.createImage(s, s, format, VK_IMAGE_TILING_OPTIMAL, usage, devMemProps);
+		Luminance.createImageView(format, VK_IMAGE_ASPECT_COLOR_BIT);
+		Luminance.barrierResource(comIndex, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
+		VulkanDevice::ImageSet& Bloom0 = fset[i].inOutBloom0;
+		Bloom0.createImage(s, s, format, VK_IMAGE_TILING_OPTIMAL, usage, devMemProps);
+		Bloom0.createImageView(format, VK_IMAGE_ASPECT_COLOR_BIT);
+		Bloom0.barrierResource(comIndex, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
+		VulkanDevice::ImageSet& Bloom1 = fset[i].inOutBloom1;
+		Bloom1.createImage(s, s, format, VK_IMAGE_TILING_OPTIMAL, usage2, devMemProps);
+		Bloom1.createImageView(format, VK_IMAGE_ASPECT_COLOR_BIT);
+		Bloom1.barrierResource(comIndex, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
+		dev->createTextureSampler(Bloom1.info.sampler);
+		inOutBloom1_Info.push_back(fset[i].inOutBloom1.info);
 	}
 
 	Output.createImage(sw->getSize().width, sw->getSize().height, format, VK_IMAGE_TILING_OPTIMAL, usage, devMemProps);
@@ -233,35 +335,38 @@ void VulkanBloom::Compute(uint32_t comIndex) {
 	VulkanDevice* dev = VulkanDevice::GetInstance();
 	auto command = dev->getCommandBuffer(comIndex);
 
-	bParam.bloomStrength = iParam[0].bloomStrength;
-	bParam.InstanceID = iParam[0].EmissiveInstanceId;
-	bParam.numGaussFilter = iParam[0].numGaussFilter;
-	bParam.thresholdLuminance = iParam[0].thresholdLuminance;
+	bParam.bloomStrength = iParam.bloomStrength;
+	bParam.InstanceID = iParam.EmissiveInstanceId;
+	bParam.numGaussFilter = (float)GausSize.size();
+	bParam.thresholdLuminance = iParam.thresholdLuminance;
 
 	bParamUBO->update(0, &bParam);
 
-	vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_COMPUTE, Pipeline);
-	vkCmdBindDescriptorSets(
-		command, VK_PIPELINE_BIND_POINT_COMPUTE,
-		pipelineLayout, 0,
-		1, &descriptorSet,
-		0,
-		nullptr);
+	for (size_t i = 0; i < dset.size(); i++) {
 
-	vkCmdDispatch(command, Width, Height, 1);
+		vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_COMPUTE, dset[i].Pipeline);
+		vkCmdBindDescriptorSets(
+			command, VK_PIPELINE_BIND_POINT_COMPUTE,
+			dset[i].pipelineLayout, 0,
+			1, &dset[i].descriptorSet,
+			0,
+			nullptr);
 
-	VkMemoryBarrier barrier{
-		VK_STRUCTURE_TYPE_MEMORY_BARRIER,
-	};
-	barrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
-	barrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-	vkCmdPipelineBarrier(
-		command,
-		VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-		VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-		0, 1, &barrier,
-		0, nullptr,
-		0, nullptr);
+		vkCmdDispatch(command, dset[i].sizeWH.width, dset[i].sizeWH.height, 1);
+
+		VkMemoryBarrier barrier{
+			VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+		};
+		barrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
+		barrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+		vkCmdPipelineBarrier(
+			command,
+			VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+			VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+			0, 1, &barrier,
+			0, nullptr,
+			0, nullptr);
+	}
 
 	VkImageCopy region{};
 	region.extent = { Width, Height, 1 };
@@ -270,7 +375,7 @@ void VulkanBloom::Compute(uint32_t comIndex) {
 
 	VulkanDevice::swapchainBuffer* sw = dev->getSwapchainObj();
 
-	fset[0].Luminance[0].barrierResource(comIndex,
+	Output.barrierResource(comIndex,
 		VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
 	dev->barrierResource(comIndex,
@@ -279,7 +384,7 @@ void VulkanBloom::Compute(uint32_t comIndex) {
 		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
 	vkCmdCopyImage(command,
-		fset[0].Luminance[0].getImage(), fset[0].Luminance[0].info.imageLayout,
+		Output.getImage(), Output.info.imageLayout,
 		sw->getCurrentImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 		1, &region);
 
@@ -288,5 +393,5 @@ void VulkanBloom::Compute(uint32_t comIndex) {
 		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 		VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_ASPECT_COLOR_BIT);
 
-	fset[0].Luminance[0].barrierResource(comIndex, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
+	Output.barrierResource(comIndex, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
 }

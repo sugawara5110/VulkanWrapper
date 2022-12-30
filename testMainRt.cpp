@@ -7,6 +7,7 @@
 #include "../T_float/T_float.h"
 #include"../CreateGeometry/CreateGeometry.h"
 #include "../VulkanWrapper/Rasterize/VulkanSkinMesh.h"
+#include "../VulkanWrapper/PostEffect/VulkanBloom.h"
 
 HWND hWnd;
 
@@ -208,7 +209,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 
 	std::unique_ptr<VulkanDeviceRt> devRt;
 	devRt = std::make_unique<VulkanDeviceRt>();
-	devRt->createDevice(vins->getInstance(), pd, vins->getApiVersion());
+
+	std::vector<VkDescriptorPoolSize> poolSize = {
+	  { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
+	  { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+	  { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
+	  { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
+	  { VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 100 },
+	};
+
+	devRt->createDevice(vins->getInstance(), pd, vins->getApiVersion(), 1, false, & poolSize, 100);
 
 	VulkanRendererRt theApp;
 	
@@ -384,6 +394,27 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 
 	rd->setNumLight(2);
 
+	VulkanBloom* bl = nullptr;
+	bl = new VulkanBloom();
+
+	int w = VulkanDevice::GetInstance()->getSwapchainObj()->getSize().width;
+	int h = VulkanDevice::GetInstance()->getSwapchainObj()->getSize().height;
+
+	VulkanBloom::InstanceParam ipa;
+	ipa.bloomStrength = 10.0f;
+	ipa.EmissiveInstanceId = 0;
+	ipa.thresholdLuminance = 0.3f;
+
+	VulkanBloom::InstanceParam ipa1;
+	ipa.bloomStrength = 1.0f;
+	ipa.EmissiveInstanceId = 1;
+	ipa.thresholdLuminance = 0.3f;
+
+	std::vector<uint32_t> ga = { 256,128,64,32 };
+
+	bl->setImage(theApp.getRenderedImage(), theApp.getInstanceIdMap(), w, h, ipa,ga);
+	bl->Create(0);
+
 	while (1)
 	{
 		T_float::GetTime(hWnd);
@@ -448,6 +479,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 			 // レンダーパスが終了するとバックバッファは
 			 // TRANSFER_DST_OPTIMAL->PRESENT_SRC_KHR へレイアウト変更が適用される.
 			vDev->endDraw(0);
+			//bl->Compute(0);
 			vDev->endCommand(0);
 			vDev->Present(0);
 
@@ -458,6 +490,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	}
 	VulkanDevice::GetInstance()->DeviceWaitIdle();
 	vkUtil::S_DELETE(sk);
+	vkUtil::S_DELETE(bl);
 	RasterizeDescriptor::DeleteInstance();
 	vkUtil::S_DELETE(skin);
 	vkUtil::S_DELETE(emissiv);

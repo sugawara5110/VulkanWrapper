@@ -16,34 +16,39 @@ public:
 		uint32_t EmissiveInstanceId = 0;
 		float thresholdLuminance = 0.0f;
 		float bloomStrength = 1.0f;
-		float numGaussFilter = 1.0f;
 	};
-	std::vector<InstanceParam> iParam;
+	InstanceParam iParam;
 
 private:
-	uint32_t Width = 0;
-	uint32_t Height = 0;
+	uint32_t Width;
+	uint32_t Height;
 
-	VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
-	VkPipeline Pipeline = VK_NULL_HANDLE;
-	VkDescriptorSetLayout dsLayout = VK_NULL_HANDLE;
-	VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
+	const static int numGausShader = 3;
 
-	const static int numMaxFilter = 7;
+	struct DescSet {
+		VkPipelineLayout pipelineLayout;
+		VkPipeline Pipeline;
+		VkDescriptorSetLayout dsLayout;
+		VkDescriptorSet descriptorSet;
+		VkExtent2D sizeWH;
+	};
+	std::vector<DescSet> dset;
 
-	const uint32_t gaBaseSize[numMaxFilter] = { 1024,512,256,128,64,32,16 };
+	std::vector<uint32_t> GausSize;
 
-	VulkanDevice::ImageSet* pRaytracedImage = nullptr;//ポインタ受け取り
+	VulkanDevice::ImageSet* pRenderedImage = nullptr;//ポインタ受け取り
 	VulkanDevice::ImageSet* pInstanceIdMap = nullptr;//ポインタ受け取り
 
 	VulkanDevice::BufferSet GaussianFilter;
 
 	struct FilterSet {
-		VulkanDevice::ImageSet Luminance[numMaxFilter];
-		VulkanDevice::ImageSet inOutBloom0[numMaxFilter];
-		VulkanDevice::ImageSet inOutBloom1[numMaxFilter];//サンプラーも
+		VulkanDevice::ImageSet Luminance;
+		VulkanDevice::ImageSet inOutBloom0;
+		VulkanDevice::ImageSet inOutBloom1;//サンプラーも
 	};
-	std::unique_ptr<FilterSet[]> fset;
+	std::vector<FilterSet> fset;
+
+	std::vector<VkDescriptorImageInfo> inOutBloom1_Info;
 
 	VulkanDevice::ImageSet Output;
 
@@ -57,8 +62,6 @@ private:
 	BloomParam bParam = {};
 	VulkanDevice::Uniform<BloomParam>* bParamUBO = nullptr;
 
-	VkWriteDescriptorSet getDescriptorSet(uint32_t binding, VkDescriptorType type, VkDescriptorImageInfo* infoI, VkDescriptorBufferInfo* infoB);
-
 	void createGaussianFilter(uint32_t comIndex, float sigma);
 	void createBuffer(uint32_t comIndex);
 	void createLayouts();
@@ -69,9 +72,10 @@ public:
 	~VulkanBloom();
 
 	void setImage(
-		VulkanDevice::ImageSet* raytracedImage, VulkanDevice::ImageSet* instanceIdMap,
+		VulkanDevice::ImageSet* RenderedImage, VulkanDevice::ImageSet* instanceIdMap,
 		uint32_t width, uint32_t height,
-		std::vector<InstanceParam> instanceParam);
+		InstanceParam instanceParam,
+		std::vector<uint32_t> gausSize = { 512,256,128,64,32 });
 
 	void Create(uint32_t comIndex, float sigma = 10.0f);
 
