@@ -139,8 +139,6 @@ char* ShaderBloom3 =
 "   vec2 uv;\n"
 "   getImageUV(index, uv);\n"
 
-"   vec4 Out = imageLoad(Output, ivec2(index));\n"
-
 "   int numGaus = int(bloomParam.numGaussFilter);\n"
 
 "   vec4 gau = vec4(0.0f, 0.0f, 0.0f, 0.0f);\n"
@@ -157,17 +155,30 @@ char* ShaderBloom3 =
 char* ShaderBloom4 =
 
 "#version 460\n"
+"#extension GL_EXT_nonuniform_qualifier : enable\n"
 
 "layout(local_size_x = 1, local_size_y = 1) in;\n"
 
-"layout(binding = 0, set = 0, rgba8) uniform image2D image;\n"
-"layout(binding = 1, set = 0, rgba8) uniform image2D inOutput;\n"
+"layout(binding = 0, set = 0) uniform BloomParam {\n"
+"    int numInstance;\n"
+"} bloomParam;\n"
+
+"layout(binding = 1, set = 0, rgba8) uniform image2D image;\n"
+"layout(binding = 2, set = 0, rgba8) uniform image2D Bloom[];\n"
+"layout(binding = 3, set = 0, rgba8) uniform image2D Output;\n"
 
 "void main()\n"
 "{\n"
 "	uvec2 index = gl_GlobalInvocationID.xy;\n"//imageのサイズでの位置
 
 "   vec4 Image = imageLoad(image, ivec2(index));\n"
-"   vec4 Bloom = imageLoad(inOutput, ivec2(index));\n"
-"   imageStore(inOutput, ivec2(index), Image + Bloom);\n"
+
+"   vec4 bl = vec4(0.0f, 0.0f, 0.0f, 0.0f);\n"
+
+"   for(int i = 0; i < bloomParam.numInstance; i++){\n"
+"      vec4 bloom = imageLoad(Bloom[i], ivec2(index));\n"
+"      bl += bloom;\n"
+"   }\n"
+
+"   imageStore(Output, ivec2(index), Image + bl);\n"
 "}\n";

@@ -401,18 +401,20 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	int h = VulkanDevice::GetInstance()->getSwapchainObj()->getSize().height;
 
 	VulkanBloom::InstanceParam ipa;
-	ipa.bloomStrength = 10.0f;
+	ipa.bloomStrength = 2.5f;
 	ipa.EmissiveInstanceId = 0;
-	ipa.thresholdLuminance = 0.3f;
+	ipa.thresholdLuminance = 0.0f;
 
 	VulkanBloom::InstanceParam ipa1;
-	ipa.bloomStrength = 1.0f;
+	ipa.bloomStrength = 4.0f;
 	ipa.EmissiveInstanceId = 1;
-	ipa.thresholdLuminance = 0.3f;
+	ipa.thresholdLuminance = 0.0f;
 
-	std::vector<uint32_t> ga = { 256,128,64,32 };
+	std::vector<VulkanBloom::InstanceParam> ipaA = { ipa,ipa1 };
 
-	bl->setImage(theApp.getRenderedImage(), theApp.getInstanceIdMap(), w, h, ipa,ga);
+	std::vector<std::vector<uint32_t>> ga = { { 256,128,64,32 },{ 256,128,64,32 } };
+
+	bl->setImage(theApp.getRenderedImage(), theApp.getInstanceIdMap(), w, h,ipaA,&ga);
 	bl->Create(0);
 
 	while (1)
@@ -434,7 +436,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 			if (theta0 > 360.0f)theta0 = 0.0f;
 			theta0 += 0.1f;
 			if (theta > 360.0f)theta = 0.0f;
-			theta += 0.04f;
+			theta += 0.4f;
 			if (thetaCam > 360.0f)thetaCam = 0.0f;
 			//thetaCam += 0.1f;
 			MATRIX Yc;
@@ -465,7 +467,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 			plane->update(0,{ 0,-10,0 }, { 0,0,0 }, { 15,5,15 });
 			skin->Instancing({ 8,3.5f,1 }, { -90,0,theta0 }, { 1.0f,1.0f,1.0f });
 			//skin->Instancing({ 3,10,1 }, { -90,0,0 }, { 0.5,0.5,0.5 });
-			skin->InstancingUpdate(0, 0, 0.7f);
+			skin->InstancingUpdate(0, 0, 5.0f);
 	
 
 			theApp.Update(5);
@@ -479,7 +481,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 			 // レンダーパスが終了するとバックバッファは
 			 // TRANSFER_DST_OPTIMAL->PRESENT_SRC_KHR へレイアウト変更が適用される.
 			vDev->endDraw(0);
-			//bl->Compute(0);
+			bl->Compute(0);
 			vDev->endCommand(0);
 			vDev->Present(0);
 
