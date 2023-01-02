@@ -23,7 +23,7 @@ public:
 	};
 
 private:
-	VulkanDevice::VkTexture texture;
+	VulkanDevice::ImageSet texture;
 	VulkanDevice::BufferSet vertices;
 	VulkanDevice::BufferSet index;
 	uint32_t numIndex;
@@ -75,8 +75,9 @@ private:
 		}
 
 		pipelineCache = rd->createPipelineCache();
+		VulkanSwapchain* sw = VulkanSwapchain::GetInstance();
 		pipeline = rd->createGraphicsPipelineVF(false, vsInfo, fsInfo,
-			bindDesc, attrDescs, 2, pipelineLayout, device->getSwapchainObj()->getRenderPass(), pipelineCache);
+			bindDesc, attrDescs, 2, pipelineLayout, sw->getRenderPass(), pipelineCache);
 		vkDestroyShaderModule(device->getDevice(), vsInfo.module, nullptr);
 		vkDestroyShaderModule(device->getDevice(), fsInfo.module, nullptr);
 	}

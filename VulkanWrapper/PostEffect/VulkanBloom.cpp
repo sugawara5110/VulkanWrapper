@@ -108,7 +108,7 @@ void VulkanBloom::setImage(
 void VulkanBloom::createBuffer(uint32_t comIndex) {
 
 	VulkanDevice* dev = VulkanDevice::GetInstance();
-	VulkanDevice::swapchainBuffer* sw = dev->getSwapchainObj();
+	VulkanSwapchain* sw = VulkanSwapchain::GetInstance();
 	VkFormat format = sw->getFormat();
 
 	VkImageUsageFlags usage =
@@ -220,7 +220,7 @@ void VulkanBloom::Compute(uint32_t comIndex) {
 	}
 
 	VulkanDevice* dev = VulkanDevice::GetInstance();
-	VulkanDevice::swapchainBuffer* sw = dev->getSwapchainObj();
+	VulkanSwapchain* sw = VulkanSwapchain::GetInstance();
 	auto command = dev->getCommandBuffer(comIndex);
 
 	vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_COMPUTE, Pipeline);
@@ -484,7 +484,7 @@ void VulkanBloom::Bloom::createGaussianFilter(uint32_t comIndex, float sigma) {
 void VulkanBloom::Bloom::createBuffer(uint32_t comIndex) {
 
 	VulkanDevice* dev = VulkanDevice::GetInstance();
-	VulkanDevice::swapchainBuffer* sw = dev->getSwapchainObj();
+	VulkanSwapchain* sw = VulkanSwapchain::GetInstance();
 	VkFormat format = sw->getFormat();
 
 	int numFilter = (int)GausSize.size();//ガウシアンフィルタ計算回数

@@ -53,12 +53,16 @@ void VulkanDevice::ImageSet::barrierResource(uint32_t comBufindex, VkImageLayout
 }
 
 void VulkanDevice::ImageSet::createImage(uint32_t width, uint32_t height, VkFormat format,
-    VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties) {
+    VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties,
+    VkImageLayout initialLayout) {
+
+    Width = width;
+    Height = height;
 
     DevicePointer->createImage(width, height, format, tiling, usage, properties,
-        image, mem);
+        image, mem, initialLayout);
 
-    info.imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    info.imageLayout = initialLayout;
     this->format = format;
 }
 
@@ -81,290 +85,17 @@ void VulkanDevice::ImageSet::destroy() {
     mem = VK_NULL_HANDLE;
 }
 
-void VulkanDevice::swapchainBuffer::destroySwapchain() {
-    if (swapchainAlive) {
-        VkDevice d = DevicePointer->device;
-        depth.destroy();
-        vkDestroyRenderPass(d, renderPass, nullptr);
-        vkDestroyFence(d, swFence, nullptr);
-        renderPass = VK_NULL_HANDLE;
-        swFence = VK_NULL_HANDLE;
-        for (uint32_t i = 0; i < imageCount; i++) {
-            vkDestroyImageView(d, views[i], nullptr);
-            vkDestroyFramebuffer(d, frameBuffer[i], nullptr);
-            views[i] = VK_NULL_HANDLE;
-            frameBuffer[i] = VK_NULL_HANDLE;
-        }
-        vkDestroySwapchainKHR(d, swapchain, nullptr);
-        swapchain = VK_NULL_HANDLE;
-        swapchainAlive = false;
-    }
-}
-
-void VulkanDevice::swapchainBuffer::createswapchain(VkSurfaceKHR surface) {
-
-    VkSwapchainCreateInfoKHR scinfo{};
-    VkPhysicalDevice pd = DevicePointer->pDev;
-    //デバイスが,スワップチェーンをサポートしているか確認
-    VkBool32 surfaceSupported;
-    vkGetPhysicalDeviceSurfaceSupportKHR(pd, DevicePointer->queueFamilyIndex, surface, &surfaceSupported);
-    //サーフェスの機能取得
-    VkSurfaceCapabilitiesKHR surfaceCaps;
-    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(pd, surface, &surfaceCaps);
-    //サーフェスフォーマット数取得
-    uint32_t surfaceFormatCount;
-    vkGetPhysicalDeviceSurfaceFormatsKHR(pd, surface, &surfaceFormatCount, nullptr);
-    //サーフェスフォーマット取得
-    BackBufferFormat = std::make_unique<VkSurfaceFormatKHR[]>(surfaceFormatCount);
-    vkGetPhysicalDeviceSurfaceFormatsKHR(pd, surface, &surfaceFormatCount, BackBufferFormat.get());
-    //サーフェスでサポートされるプレゼンテーションモード数取得
-    uint32_t presentModeCount;
-    vkGetPhysicalDeviceSurfacePresentModesKHR(pd, surface, &presentModeCount, nullptr);
-    //サーフェスでサポートされるプレゼンテーションモード取得
-    auto presentModes = std::make_unique<VkPresentModeKHR[]>(presentModeCount);
-    vkGetPhysicalDeviceSurfacePresentModesKHR(pd, surface, &presentModeCount, presentModes.get());
-
-    for (uint32_t i = 0; i < surfaceFormatCount; i++) {
-        auto c = BackBufferFormat[i];
-#ifdef __ANDROID__
-#else
-        OutputDebugString(L"Supported Format Check...");
-#endif
-    }
-
-    wh = surfaceCaps.currentExtent;
-
-    scinfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-    scinfo.pNext = nullptr;
-    scinfo.surface = surface;
-    scinfo.minImageCount = surfaceCaps.minImageCount;
-    scinfo.imageFormat = BackBufferFormat.get()->format;
-    scinfo.imageColorSpace = BackBufferFormat.get()->colorSpace;
-    scinfo.imageExtent = wh;
-    scinfo.imageArrayLayers = surfaceCaps.maxImageArrayLayers;
-    scinfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-    scinfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    scinfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-    scinfo.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
-
-#ifdef __ANDROID__
-    scinfo.presentMode = presentModes[0];
-#else
-    scinfo.presentMode = DevicePointer->presentMode;
-#endif
-    scinfo.clipped = VK_TRUE;
-    VkDevice d = DevicePointer->device;
-    //スワップチェーン生成
-    auto res = vkCreateSwapchainKHR(d, &scinfo, nullptr, &swapchain);
-    vkUtil::checkError(res);
-
-    //ウインドウに直接表示する画像のオブジェクト生成
-    res = vkGetSwapchainImagesKHR(d, swapchain, &imageCount,
-        nullptr);//個数imageCount取得
-    vkUtil::checkError(res);
-    images = std::make_unique<VkImage[]>(imageCount);
-    res = vkGetSwapchainImagesKHR(d, swapchain, &imageCount,
-        images.get());//個数分生成
-    vkUtil::checkError(res);
-
-    //ビュー生成
-    views = std::make_unique<VkImageView[]>(imageCount);
-    format = scinfo.imageFormat;
-
-    for (uint32_t i = 0; i < imageCount; i++) {
-        views[i] = DevicePointer->createImageView(images[i], format,
-            VK_IMAGE_ASPECT_COLOR_BIT,
-            { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G,
-             VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A });
-    }
-}
-
-void VulkanDevice::swapchainBuffer::createDepth() {
-
-    const VkFormat depth_format = VK_FORMAT_D32_SFLOAT;
-    VkImageTiling tiling;
-    VkFormatProperties props;
-    vkGetPhysicalDeviceFormatProperties(DevicePointer->pDev, depth_format, &props);
-    if (props.linearTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) {
-        tiling = VK_IMAGE_TILING_LINEAR;
-    }
-    else if (props.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) {
-        tiling = VK_IMAGE_TILING_OPTIMAL;
-    }
-    else {
-#ifdef __ANDROID__
-#else
-        OutputDebugString(L"depth_formatUnsupported.\n");
-#endif
-        exit(-1);
-    }
-
-    //深度Image生成
-    depth.createImage(wh.width, wh.height, depth_format,
-        tiling, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-    VkImageAspectFlags depthMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-    //view生成
-    depth.createImageView(depth_format, depthMask,
-        { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G,
-         VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A });
-}
-
-void VulkanDevice::swapchainBuffer::createFence() {
-    VkFenceCreateInfo finfo{};
-    finfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-
-    auto res = vkCreateFence(DevicePointer->device, &finfo, nullptr, &swFence);
-    vkUtil::checkError(res);
-    firstswFence = false;
-}
-
-void VulkanDevice::swapchainBuffer::createRenderPass(bool clearBackBuffer) {
-
-    VkAttachmentDescription attachmentDesc[2]{};
-    attachmentDesc[0].format = format;
-    attachmentDesc[0].samples = VK_SAMPLE_COUNT_1_BIT;
-    attachmentDesc[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    attachmentDesc[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    attachmentDesc[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    attachmentDesc[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
-    attachmentDesc[1].format = depth.getFormat();
-    attachmentDesc[1].samples = VK_SAMPLE_COUNT_1_BIT;
-    attachmentDesc[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    attachmentDesc[1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    attachmentDesc[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-    attachmentDesc[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
-    attachmentDesc[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    attachmentDesc[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-    attachmentDesc[1].flags = 0;
-
-    if (!clearBackBuffer) {
-        attachmentDesc[0].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        attachmentDesc[1].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    }
-
-    VkAttachmentReference attachmentRef{};
-    attachmentRef.attachment = 0;
-    attachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-    VkAttachmentReference depth_reference = {};
-    depth_reference.attachment = 1;
-    depth_reference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-    VkSubpassDescription subpass{};
-    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    subpass.flags = 0;
-    subpass.inputAttachmentCount = 0;
-    subpass.pInputAttachments = NULL;
-    subpass.colorAttachmentCount = 1;
-    subpass.pColorAttachments = &attachmentRef;
-    subpass.pResolveAttachments = NULL;
-    subpass.pDepthStencilAttachment = &depth_reference;
-    subpass.preserveAttachmentCount = 0;
-    subpass.pPreserveAttachments = NULL;
-
-    VkRenderPassCreateInfo renderPassInfo{};
-    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    renderPassInfo.attachmentCount = 2;
-    renderPassInfo.pAttachments = attachmentDesc;
-    renderPassInfo.subpassCount = 1;
-    renderPassInfo.pSubpasses = &subpass;
-
-    auto res = vkCreateRenderPass(DevicePointer->device, &renderPassInfo, nullptr, &renderPass);
-    vkUtil::checkError(res);
-}
-
-void VulkanDevice::swapchainBuffer::createFramebuffers() {
-
-    frameBuffer = std::make_unique<VkFramebuffer[]>(imageCount);
-
-    VkImageView attachmentViews[2];
-    attachmentViews[1] = depth.info.imageView;
-
-    VkFramebufferCreateInfo fbinfo{};
-    fbinfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-    fbinfo.pNext = nullptr;
-    fbinfo.attachmentCount = 2;
-    fbinfo.renderPass = renderPass;
-    fbinfo.pAttachments = attachmentViews;
-    fbinfo.width = wh.width;
-    fbinfo.height = wh.height;
-    fbinfo.layers = 1;
-    fbinfo.flags = 0;
-
-    for (uint32_t i = 0; i < imageCount; i++) {
-        attachmentViews[0] = views[i];
-        auto res = vkCreateFramebuffer(DevicePointer->device, &fbinfo, nullptr, &frameBuffer[i]);
-        vkUtil::checkError(res);
-    }
-}
-
-void VulkanDevice::swapchainBuffer::create(VkSurfaceKHR surface, bool clearBackBuffer) {
-    createswapchain(surface);
-    createDepth();
-    createFence();
-    createRenderPass(clearBackBuffer);
-    createFramebuffers();
-    swapchainAlive = true;
-}
-
-void VulkanDevice::swapchainBuffer::acquireNextImageAndWait() {
-    //vkAcquireNextImageKHR:命令はバックバッファのスワップを行い,次に描画されるべきImageのインデックスを返す
-    auto res = vkAcquireNextImageKHR(DevicePointer->device, swapchain,
-        UINT64_MAX, DevicePointer->presentCompletedSem, VK_NULL_HANDLE,
-        &currentFrameIndex);
-    vkUtil::checkError(res);
-    if (!firstswFence) {
-        firstswFence = true;
-        return;
-    }
-    DevicePointer->waitForFence(swFence);
-}
-
-void VulkanDevice::swapchainBuffer::beginRenderPass(uint32_t comBufindex) {
-    static VkClearValue clearValue[2];
-    clearValue[0].color.float32[0] = 0.0f;
-    clearValue[0].color.float32[1] = 0.0f;
-    clearValue[0].color.float32[2] = 0.0f;
-    clearValue[0].color.float32[3] = 1.0f;
-    clearValue[1].depthStencil.depth = 1.0f;
-    clearValue[1].depthStencil.stencil = 0;
-
-    VkRenderPassBeginInfo rpinfo{};
-    rpinfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    rpinfo.framebuffer = getFramebuffer();
-    rpinfo.renderPass = renderPass;
-    rpinfo.renderArea.extent.width = wh.width;
-    rpinfo.renderArea.extent.height = wh.height;
-    rpinfo.clearValueCount = 2;
-    rpinfo.pClearValues = clearValue;
-
-    vkCmdBeginRenderPass(DevicePointer->commandBuffer[comBufindex], &rpinfo, VK_SUBPASS_CONTENTS_INLINE);
-}
-
-VulkanDevice::VulkanDevice(VkPhysicalDevice pd, uint32_t numCommandBuffer, bool V_SYNC) {
+VulkanDevice::VulkanDevice(VkPhysicalDevice pd, uint32_t numCommandBuffer) {
     pDev = pd;
     vkGetPhysicalDeviceProperties(pDev, &physicalDeviceProperties);
-    DevicePointer = this;
     commandBufferCount = numCommandBuffer;
-    if (V_SYNC) {
-        presentMode = VK_PRESENT_MODE_FIFO_KHR;
-    }
-    else {
-        presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
-    }
 }
 
 VulkanDevice::~VulkanDevice() {
     vkDestroyDescriptorPool(device, descriptorPool, nullptr);
-    destroySwapchain();
     destroyTexture();
     vkFreeCommandBuffers(device, commandPool, commandBufferCount, commandBuffer.get());
     vkDestroyFence(device, sFence, nullptr);
-    vkDestroySemaphore(device, presentCompletedSem, nullptr);
-    vkDestroySemaphore(device, renderCompletedSem, nullptr);
     vkDestroyCommandPool(device, commandPool, nullptr);
     vkDeviceWaitIdle(device);
     vkDestroyDevice(device, nullptr);
@@ -443,13 +174,6 @@ void VulkanDevice::createSFence() {
     vkUtil::checkError(res);
 }
 
-void VulkanDevice::createSemaphore() {
-    VkSemaphoreCreateInfo ci{};
-    ci.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-    vkCreateSemaphore(device, &ci, nullptr, &renderCompletedSem);
-    vkCreateSemaphore(device, &ci, nullptr, &presentCompletedSem);
-}
-
 void VulkanDevice::createCommandBuffers() {
 
     VkCommandBufferAllocateInfo cbAllocInfo{};
@@ -464,7 +188,7 @@ void VulkanDevice::createCommandBuffers() {
     vkUtil::checkError(res);
 }
 
-void VulkanDevice::beginCommandWithFramebuffer(uint32_t comBufindex, VkFramebuffer fb) {
+void VulkanDevice::beginCommand(uint32_t comBufindex, VkFramebuffer fb) {
     VkCommandBufferInheritanceInfo inhInfo{};
     VkCommandBufferBeginInfo beginInfo{};
 
@@ -476,7 +200,10 @@ void VulkanDevice::beginCommandWithFramebuffer(uint32_t comBufindex, VkFramebuff
     vkBeginCommandBuffer(commandBuffer[comBufindex], &beginInfo);
 }
 
-void VulkanDevice::submitCommands(uint32_t comBufindex, VkFence fence, bool useRender) {
+void VulkanDevice::submitCommands(uint32_t comBufindex, VkFence fence, bool useRender,
+    uint32_t waitSemaphoreCount, VkSemaphore* WaitSemaphores,
+    uint32_t signalSemaphoreCount, VkSemaphore* SignalSemaphores) {
+
     VkSubmitInfo sinfo{};
     static const VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 
@@ -485,10 +212,10 @@ void VulkanDevice::submitCommands(uint32_t comBufindex, VkFence fence, bool useR
     sinfo.pCommandBuffers = &commandBuffer[comBufindex];
     sinfo.pWaitDstStageMask = &waitStageMask;
     if (useRender) {
-        sinfo.waitSemaphoreCount = 1;
-        sinfo.pWaitSemaphores = &presentCompletedSem;
-        sinfo.signalSemaphoreCount = 1;
-        sinfo.pSignalSemaphores = &renderCompletedSem;
+        sinfo.waitSemaphoreCount = waitSemaphoreCount;
+        sinfo.pWaitSemaphores = WaitSemaphores;
+        sinfo.signalSemaphoreCount = signalSemaphoreCount;
+        sinfo.pSignalSemaphores = SignalSemaphores;
         resetFence(fence);
     }
     auto res = vkQueueSubmit(devQueue, 1, &sinfo, fence);
@@ -501,20 +228,6 @@ VkResult VulkanDevice::waitForFence(VkFence fence) {
     //条件が満たされない,かつ
     //タイムアウト(ここではUINT64_MAX)に達した場合,待ち解除でVK_TIMEOUTを返す
     return vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX);
-}
-
-void VulkanDevice::present() {
-    VkPresentInfoKHR pinfo{};
-
-    pinfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-    pinfo.swapchainCount = 1;
-    pinfo.pSwapchains = swBuf.getSwapchain();
-    pinfo.pImageIndices = swBuf.getCurrentFrameIndex();
-    pinfo.waitSemaphoreCount = 1;
-    pinfo.pWaitSemaphores = &renderCompletedSem;
-
-    auto res = vkQueuePresentKHR(devQueue, &pinfo);
-    vkUtil::checkError(res);
 }
 
 void VulkanDevice::resetFence(VkFence fence) {
@@ -640,7 +353,7 @@ void VulkanDevice::copyImageToBuffer(uint32_t comBufindex,
 
 void VulkanDevice::createImage(uint32_t width, uint32_t height, VkFormat format,
     VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties,
-    VkImage& image, VkDeviceMemory& imageMemory) {
+    VkImage& image, VkDeviceMemory& imageMemory, VkImageLayout initialLayout) {
 
     VkImageCreateInfo imageInfo = {};
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -652,7 +365,7 @@ void VulkanDevice::createImage(uint32_t width, uint32_t height, VkFormat format,
     imageInfo.arrayLayers = 1;
     imageInfo.format = format;
     imageInfo.tiling = tiling;
-    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    imageInfo.initialLayout = initialLayout;
     imageInfo.usage = usage;
     imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
@@ -682,15 +395,15 @@ auto VulkanDevice::createTextureImage(uint32_t comBufindex, Texture& inByte) {
 
     stagingBuffer.memoryMap(inByte.byte);
 
-    VkTexture texture;
+    ImageSet texture;
     texture.createImage(inByte.width, inByte.height, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
         VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-    beginCommandWithFramebuffer(comBufindex, VkFramebuffer());
+    beginCommand(comBufindex);
 
     texture.barrierResource(comBufindex, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
-    copyBufferToImage(comBufindex, stagingBuffer.getBuffer(), texture.image.getImage(),
+    copyBufferToImage(comBufindex, stagingBuffer.getBuffer(), texture.getImage(),
         static_cast<uint32_t>(inByte.width), static_cast<uint32_t>(inByte.height), VK_IMAGE_ASPECT_COLOR_BIT);
 
     texture.barrierResource(comBufindex, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
@@ -811,7 +524,7 @@ void VulkanDevice::createDefaultBuffer(VkDeviceSize size, VkBufferUsageFlags usa
 
 void VulkanDevice::copyBuffer(uint32_t comBufindex, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
 
-    beginCommandWithFramebuffer(comBufindex, VkFramebuffer());
+    beginCommand(comBufindex);
 
     VkBufferCopy copyRegion = {};
     copyRegion.size = size;
@@ -954,7 +667,6 @@ void VulkanDevice::createDevice(
     create(requiredExtensions, pNext);
     createCommandPool();
     createSFence();
-    createSemaphore();
     createCommandBuffers();
     createDescriptorPool(add_poolSize, maxDescriptorSets);
 
@@ -978,18 +690,10 @@ void VulkanDevice::createDevice(
     vkUtil::ARR_DELETE(dummyDifSpe);
 }
 
-void VulkanDevice::createSwapchain(VkSurfaceKHR surface, bool clearBackBuffer) {
-    swBuf.create(surface, clearBackBuffer);
-}
-
-void VulkanDevice::destroySwapchain() {
-    swBuf.destroySwapchain();
-}
-
-void VulkanDevice::createVkTexture(VkTexture& tex, uint32_t comBufindex, Texture& inByte) {
+void VulkanDevice::createVkTexture(ImageSet& tex, uint32_t comBufindex, Texture& inByte) {
     tex = createTextureImage(comBufindex, inByte);
     tex.createImageView(VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT);
-    createTextureSampler(tex.image.info.sampler);
+    createTextureSampler(tex.info.sampler);
 }
 
 void VulkanDevice::createTextureSet(uint32_t comIndex, textureIdSet& texSet) {
@@ -1048,8 +752,8 @@ int32_t VulkanDevice::getTextureNo(char* pass) {
     return -1;
 }
 
-void VulkanDevice::updateProjection(float AngleView, float Near, float Far) {
-    MatrixPerspectiveFovLH(&proj, AngleView, (float)swBuf.getSize().width / (float)swBuf.getSize().height, Near, Far);
+void VulkanDevice::updateProjection(VkExtent2D wh, float AngleView, float Near, float Far) {
+    MatrixPerspectiveFovLH(&proj, AngleView, (float)wh.width / (float)wh.height, Near, Far);
 }
 
 void VulkanDevice::updateView(CoordTf::VECTOR3 vi, CoordTf::VECTOR3 gaze, CoordTf::VECTOR3 up) {
@@ -1058,34 +762,14 @@ void VulkanDevice::updateView(CoordTf::VECTOR3 vi, CoordTf::VECTOR3 gaze, CoordT
     viewPos.as(vi.x, vi.y, vi.z, 0.0f);
 }
 
-void VulkanDevice::beginCommandNextImage(uint32_t comBufindex) {
-    swBuf.acquireNextImageAndWait();
-    beginCommandWithFramebuffer(comBufindex, swBuf.getFramebuffer());
-}
-
-void VulkanDevice::beginDraw(uint32_t comBufindex) {
-    swBuf.beginRenderPass(comBufindex);
-}
-
-void VulkanDevice::endDraw(uint32_t comBufindex) {
-    vkCmdEndRenderPass(commandBuffer[comBufindex]);
-}
-
 void VulkanDevice::endCommand(uint32_t comBufindex) {
     vkEndCommandBuffer(commandBuffer[comBufindex]);
 }
 
-void VulkanDevice::Present(uint32_t comBufindex) {
-    submitCommands(comBufindex, swBuf.getFence(), true);
-    present();
-}
-
-void VulkanDevice::beginCommand(uint32_t comBufindex) {
-    beginCommandWithFramebuffer(comBufindex, VkFramebuffer());
-}
-
 void VulkanDevice::submitCommandsDoNotRender(uint32_t comBufindex) {
-    submitCommands(comBufindex, sFence, false);
+    submitCommands(comBufindex, sFence, false,
+        0, nullptr,
+        0, nullptr);
     waitForFence(sFence);
     resetFence(sFence);
 }
@@ -1096,10 +780,9 @@ void VulkanDevice::DeviceWaitIdle() {
 
 void VulkanDevice::InstanceCreate(VkPhysicalDevice pd,
     uint32_t apiVersion,
-    uint32_t numCommandBuffer,
-    bool V_SYNC) {
+    uint32_t numCommandBuffer) {
 
-    if (DevicePointer == nullptr)DevicePointer = new VulkanDevice(pd, numCommandBuffer, V_SYNC);
+    if (DevicePointer == nullptr)DevicePointer = new VulkanDevice(pd, numCommandBuffer);
     ApiVersion = apiVersion;
 }
 

@@ -7,7 +7,6 @@
 #ifndef VulkanBasicPolygonRt_Header
 #define VulkanBasicPolygonRt_Header
 
-#include "VulkanDeviceRt.h"
 #include "AccelerationStructure.h"
 
 enum vkMaterialType {

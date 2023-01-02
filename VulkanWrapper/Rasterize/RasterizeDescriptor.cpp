@@ -134,9 +134,9 @@ void  RasterizeDescriptor::descriptorAndPipelineLayouts2D(bool useTexture, VkPip
 }
 
 uint32_t RasterizeDescriptor::upDescriptorSet(bool useTexture,
-    VulkanDevice::VkTexture& difTexture,
-    VulkanDevice::VkTexture& norTexture,
-    VulkanDevice::VkTexture& speTexture,
+    VulkanDevice::ImageSet& difTexture,
+    VulkanDevice::ImageSet& norTexture,
+    VulkanDevice::ImageSet& speTexture,
     VulkanDevice::Uniform<MatrixSet>* uni,
     VulkanDevice::Uniform<Material>* material,
     VkDescriptorSet& descriptorSet,
@@ -175,7 +175,7 @@ uint32_t RasterizeDescriptor::upDescriptorSet(bool useTexture,
         texSampler.dstBinding = bCnt++;
         texSampler.descriptorCount = 1;
         texSampler.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        texSampler.pImageInfo = &difTexture.image.info;
+        texSampler.pImageInfo = &difTexture.info;
         texSampler.dstArrayElement = 0;
 
         VkWriteDescriptorSet& norSampler = writes[bCnt];
@@ -185,7 +185,7 @@ uint32_t RasterizeDescriptor::upDescriptorSet(bool useTexture,
         norSampler.dstBinding = bCnt++;
         norSampler.descriptorCount = 1;
         norSampler.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        norSampler.pImageInfo = &norTexture.image.info;
+        norSampler.pImageInfo = &norTexture.info;
         norSampler.dstArrayElement = 0;
 
         VkWriteDescriptorSet& speSampler = writes[bCnt];
@@ -195,7 +195,7 @@ uint32_t RasterizeDescriptor::upDescriptorSet(bool useTexture,
         speSampler.dstBinding = bCnt++;
         speSampler.descriptorCount = 1;
         speSampler.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        speSampler.pImageInfo = &speTexture.image.info;
+        speSampler.pImageInfo = &speTexture.info;
         speSampler.dstArrayElement = 0;
 
         VkWriteDescriptorSet& bufferMaterial = writes[bCnt];
@@ -214,7 +214,7 @@ uint32_t RasterizeDescriptor::upDescriptorSet(bool useTexture,
     return bCnt;
 }
 
-uint32_t RasterizeDescriptor::upDescriptorSet2D(bool useTexture, VulkanDevice::VkTexture& texture,
+uint32_t RasterizeDescriptor::upDescriptorSet2D(bool useTexture, VulkanDevice::ImageSet& texture,
     VulkanDevice::Uniform<MatrixSet2D>* uni,
     VkDescriptorSet& descriptorSet,
     VkDescriptorSetLayout& descSetLayout) {
@@ -252,7 +252,7 @@ uint32_t RasterizeDescriptor::upDescriptorSet2D(bool useTexture, VulkanDevice::V
         texSampler.dstBinding = bCnt++;
         texSampler.descriptorCount = 1;
         texSampler.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        texSampler.pImageInfo = &texture.image.info;
+        texSampler.pImageInfo = &texture.info;
         texSampler.dstArrayElement = 0;
     }
 
@@ -274,8 +274,9 @@ VkPipeline RasterizeDescriptor::createGraphicsPipelineVF(bool useAlpha,
     const VkVertexInputBindingDescription& bindDesc, const VkVertexInputAttributeDescription* attrDescs, uint32_t numAttr,
     const VkPipelineLayout& pLayout, const VkRenderPass renderPass, const VkPipelineCache& pCache) {
 
-    uint32_t width = VulkanDevice::GetInstance()->getSwapchainObj()->getSize().width;
-    uint32_t height = VulkanDevice::GetInstance()->getSwapchainObj()->getSize().height;
+    VulkanSwapchain* sw = VulkanSwapchain::GetInstance();
+    uint32_t width = sw->getSize().width;
+    uint32_t height = sw->getSize().height;
 
     static VkViewport vports[] = { {0.0f, 0.0f, (float)width, (float)height, 0.0f, 1.0f} };
     static VkRect2D scissors[] = { {{0, 0}, {width,height}} };

@@ -218,7 +218,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	  { VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 100 },
 	};
 
-	devRt->createDevice(vins->getInstance(), pd, vins->getApiVersion(), 1, false, & poolSize, 100);
+	devRt->createDevice(vins->getInstance(), pd, vins->getApiVersion(), 1, & poolSize, 100);
+
+	VulkanSwapchain::InstanceCreate();
+	VulkanSwapchain* sc = VulkanSwapchain::GetInstance();
+	sc->create(pd, sur, false, false);//レイトレでラスタライザもやる時はclearBackBufferはオフ
 
 	VulkanRendererRt theApp;
 	
@@ -348,8 +352,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	skin->SetVertex();
 	skin->CreateFromFBX(0, true, 1);
 
-	devRt->CreateSwapchain(sur, 1280, 720);
-
 	sk->setFbx("../texturePPM/player1_fbx_att.fbx",300.0f);
 	sk->create(0, true);
 
@@ -390,18 +392,18 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 
 	theApp.setGlobalAmbientColor({ 0.1f, 0.1f, 0.1f });
 
-	vDev->updateProjection(45.0f,1.0f,500.0f);
+	vDev->updateProjection(sc->getSize(), 45.0f, 1.0f, 500.0f);
 
 	rd->setNumLight(2);
 
 	VulkanBloom* bl = nullptr;
 	bl = new VulkanBloom();
 
-	int w = VulkanDevice::GetInstance()->getSwapchainObj()->getSize().width;
-	int h = VulkanDevice::GetInstance()->getSwapchainObj()->getSize().height;
+	int w = sc->getSize().width;
+	int h = sc->getSize().height;
 
 	VulkanBloom::InstanceParam ipa;
-	ipa.bloomStrength = 2.5f;
+	ipa.bloomStrength = 5.5f;
 	ipa.EmissiveInstanceId = 0;
 	ipa.thresholdLuminance = 0.0f;
 
@@ -412,7 +414,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 
 	std::vector<VulkanBloom::InstanceParam> ipaA = { ipa,ipa1 };
 
-	std::vector<std::vector<uint32_t>> ga = { { 256,128,64,32 },{ 256,128,64,32 } };
+	std::vector<std::vector<uint32_t>> ga = { { 256,128,64,32,16 },{ 256,128,64,32 } };
 
 	bl->setImage(theApp.getRenderedImage(), theApp.getInstanceIdMap(), w, h,ipaA,&ga);
 	bl->Create(0);
@@ -452,7 +454,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 			VectorMatrixMultiply(&epos2, &Y);
 			vDev->updateView(cam, { 0,0,0 });
 
-			vDev->beginCommandNextImage(0);
+			sc->beginCommandNextImage(0);
 
 			rd->setLight(0, epos1, { 1.0f,1.0f,1.0f });
 			rd->setLight(1, epos2, { 1.0f,0.0f,0.0f });
@@ -473,17 +475,17 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 			theApp.Update(5);
 			theApp.Render(0,true);
 
-			vDev->beginDraw(0);
+			sc->beginDraw(0);
 
 			//通常のレンダリングする場合ここで処理/////////////////////
 			sk->autoUpdate(0, 0, 0.1f, { -8,0.5f,1 }, { 90,0,0 }, { 2.0f,2.0f,2.0f });
 			sk->draw(0, 0);
 			 // レンダーパスが終了するとバックバッファは
 			 // TRANSFER_DST_OPTIMAL->PRESENT_SRC_KHR へレイアウト変更が適用される.
-			vDev->endDraw(0);
+			sc->endDraw(0);
 			bl->Compute(0);
 			vDev->endCommand(0);
-			vDev->Present(0);
+			sc->Present(0);
 
 			int kk = 0;
 
@@ -493,6 +495,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	VulkanDevice::GetInstance()->DeviceWaitIdle();
 	vkUtil::S_DELETE(sk);
 	vkUtil::S_DELETE(bl);
+	VulkanSwapchain::DeleteInstance();
 	RasterizeDescriptor::DeleteInstance();
 	vkUtil::S_DELETE(skin);
 	vkUtil::S_DELETE(emissiv);

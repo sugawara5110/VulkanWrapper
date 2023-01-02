@@ -19,7 +19,7 @@ void BufferSetRt::createDefaultBuffer(VkDeviceSize size, VkBufferUsageFlags usag
 }
 
 bool VulkanDeviceRt::createDevice(VkInstance ins, VkPhysicalDevice phDev, uint32_t ApiVersion,
-    uint32_t numCommandBuffer, bool V_SYNC,
+    uint32_t numCommandBuffer,
     std::vector<VkDescriptorPoolSize>* add_poolSize, uint32_t maxDescriptorSets) {
 
     pDeviceRt = this;
@@ -69,7 +69,7 @@ bool VulkanDeviceRt::createDevice(VkInstance ins, VkPhysicalDevice phDev, uint32
     physicalDeviceFeatures2.pNext = &enabledDescriptorIndexingFeatures;
     physicalDeviceFeatures2.features = features;
 
-    VulkanDevice::InstanceCreate(phDev, ApiVersion, numCommandBuffer, V_SYNC);
+    VulkanDevice::InstanceCreate(phDev, ApiVersion, numCommandBuffer);
     VulkanDevice* vkDev = VulkanDevice::GetInstance();
 
     const void* pNext = &physicalDeviceFeatures2;
@@ -92,25 +92,6 @@ void VulkanDeviceRt::destroy() {
     }
 
     VulkanDevice::DeleteInstance();
-}
-
-bool VulkanDeviceRt::CreateSwapchain(VkSurfaceKHR surface, uint32_t width, uint32_t height) {
-
-    VulkanDevice* vkDev = VulkanDevice::GetInstance();
-    vkDev->createSwapchain(surface, false);
-
-    uint32_t imageCount = vkDev->getSwapchainObj()->getImageCount();
-
-    auto command = vkDev->getCommandBuffer(0);
-    vkDev->beginCommand(0);
-    for (uint32_t i = 0; i < imageCount; ++i) {
-        vkDev->barrierResource(0, vkDev->getSwapchainObj()->getImage(i),
-            VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_ASPECT_COLOR_BIT);
-    }
-    vkDev->endCommand(0);
-    vkDev->submitCommandsDoNotRender(0);
-
-    return true;
 }
 
 uint64_t VulkanDeviceRt::GetDeviceAddress(VkBuffer buffer) {

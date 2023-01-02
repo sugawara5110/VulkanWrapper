@@ -103,13 +103,15 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	vins->createInstance("vulkanTest", VK_API_VERSION_1_0);
 	auto pd = vins->getPhysicalDevice(0);
 
-	VulkanDevice::InstanceCreate(pd, vins->getApiVersion(), 2, false);
+	VulkanDevice::InstanceCreate(pd, vins->getApiVersion(), 2);
 	VulkanDevice* device = VulkanDevice::GetInstance();
 	device->createDevice();
 	vins->createSurfaceHwnd(hWnd);
 	auto sur = vins->getSurface();
-	device->createSwapchain(sur, true);
-	device->updateProjection();
+	VulkanSwapchain::InstanceCreate();
+	VulkanSwapchain* sc = VulkanSwapchain::GetInstance();
+	sc->create(pd, sur, true, false);
+	device->updateProjection(sc->getSize());
 
 	RasterizeDescriptor::InstanceCreate();
 	RasterizeDescriptor* rd = RasterizeDescriptor::GetInstance();
@@ -317,6 +319,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	S_DELETE(sk);
 	S_DELETE(sk1);
 	S_DELETE(sk2);
+	VulkanSwapchain::DeleteInstance();
 	RasterizeDescriptor::DeleteInstance();
 	VulkanDevice::DeleteInstance();
 	S_DELETE(vins);
@@ -353,11 +356,12 @@ void update(uint32_t sw) {
 
 void draw(uint32_t& sw0) {
 	VulkanDevice* device = VulkanDevice::GetInstance();
+	VulkanSwapchain* sc = VulkanSwapchain::GetInstance();
 	while (loop) {
 		uint32_t sw = 1 - sw0;
 		if (firstDraw) {
-			device->beginCommandNextImage(0);
-			device->beginDraw(0);
+			sc->beginCommandNextImage(0);
+			sc->beginDraw(0);
 			v2->draw(sw, 0);
 			for (int i = 0; i < Num; i++) {
 				v22[i]->draw(sw, 0);
@@ -365,9 +369,9 @@ void draw(uint32_t& sw0) {
 			sk->draw(sw, 0);
 			sk1->draw(sw, 0);
 			sk2->draw(sw, 0);
-			device->endDraw(0);
+			sc->endDraw(0);
 			device->endCommand(0);
-			device->Present(0);
+			sc->Present(0);
 		}
 		sync = true;
 		while (sync);

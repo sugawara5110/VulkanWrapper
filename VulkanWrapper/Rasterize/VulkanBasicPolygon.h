@@ -88,8 +88,9 @@ private:
 		}
 
 		pipelineCache = rd->createPipelineCache();
+		VulkanSwapchain* sw = VulkanSwapchain::GetInstance();
 		pipeline = rd->createGraphicsPipelineVF(useAlpha, vsInfo, fsInfo, bindDesc, attrDescs, numAttr,
-			pipelineLayout, device->getSwapchainObj()->getRenderPass(), pipelineCache);
+			pipelineLayout, sw->getRenderPass(), pipelineCache);
 		vkDestroyShaderModule(device->getDevice(), vsInfo.module, nullptr);
 		vkDestroyShaderModule(device->getDevice(), fsInfo.module, nullptr);
 	}

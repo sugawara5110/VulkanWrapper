@@ -7,7 +7,7 @@
 #ifndef RasterizeDescriptor_Header
 #define RasterizeDescriptor_Header
 
-#include "../CommonDevice/VulkanDevice.h"
+#include "../CommonDevice/VulkanSwapchain.h"
 
 class Vulkan2D;
 class VulkanBasicPolygon;
@@ -77,15 +77,15 @@ public:
     static void DeleteInstance();
 
     uint32_t upDescriptorSet(bool useTexture,
-        VulkanDevice::VkTexture& difTexture,
-        VulkanDevice::VkTexture& norTexture,
-        VulkanDevice::VkTexture& speTexture,
+        VulkanDevice::ImageSet& difTexture,
+        VulkanDevice::ImageSet& norTexture,
+        VulkanDevice::ImageSet& speTexture,
         VulkanDevice::Uniform<MatrixSet>* uni,
         VulkanDevice::Uniform<Material>* material,
         VkDescriptorSet& descriptorSet,
         VkDescriptorSetLayout& descSetLayout);
 
-    uint32_t upDescriptorSet2D(bool useTexture, VulkanDevice::VkTexture& texture,
+    uint32_t upDescriptorSet2D(bool useTexture, VulkanDevice::ImageSet& texture,
         VulkanDevice::Uniform<MatrixSet2D>* uni,
         VkDescriptorSet& descriptorSet,
         VkDescriptorSetLayout& descSetLayout);

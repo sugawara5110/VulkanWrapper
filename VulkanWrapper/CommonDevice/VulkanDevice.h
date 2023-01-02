@@ -14,8 +14,7 @@ class VulkanDevice final {
 public:
     static void InstanceCreate(VkPhysicalDevice pd,
         uint32_t ApiVersion,
-        uint32_t numCommandBuffer = 1,
-        bool V_SYNC = false);
+        uint32_t numCommandBuffer = 1);
 
     static VulkanDevice* GetInstance();
     static void DeleteInstance();
@@ -100,56 +99,36 @@ public:
         VkFormat format = {};
 
     public:
+        uint32_t Width = 0;
+        uint32_t Height = 0;
         VkDescriptorImageInfo info = {};
         VkImage getImage()const { return image; }
         VkImage* getImageAddress() { return &image; }
         VkDeviceMemory getMemory()const { return mem; }
         VkFormat getFormat()const { return format; }
 
-        void barrierResource(uint32_t comBufindex, VkImageLayout dstImageLayout, VkImageAspectFlagBits mask);
+        void barrierResource(uint32_t comBufindex, VkImageLayout dstImageLayout, VkImageAspectFlagBits mask = VK_IMAGE_ASPECT_COLOR_BIT);
 
         void createImage(uint32_t width, uint32_t height, VkFormat format,
-            VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties);
+            VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties,
+            VkImageLayout initialLayout = VK_IMAGE_LAYOUT_UNDEFINED);
 
-        void createImageView(VkFormat format, VkImageAspectFlags mask,
+        void createImageView(VkFormat format, VkImageAspectFlags mask = VK_IMAGE_ASPECT_COLOR_BIT,
             VkComponentMapping components = { VK_COMPONENT_SWIZZLE_IDENTITY });
 
         void destroy();
     };
 
-    struct VkTexture {
-        ImageSet image;
-        uint32_t width = 0;
-        uint32_t height = 0;
-
-        void barrierResource(uint32_t comBufindex, VkImageLayout dstImageLayout) {
-            image.barrierResource(comBufindex, dstImageLayout, VK_IMAGE_ASPECT_COLOR_BIT);
-        }
-        void createImage(uint32_t Width, uint32_t Height, VkFormat format,
-            VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties) {
-            image.createImage(Width, Height, format, tiling, usage, properties);
-            width = Width;
-            height = Height;
-        }
-        void createImageView(VkFormat format, VkImageAspectFlags mask,
-            VkComponentMapping components = { VK_COMPONENT_SWIZZLE_IDENTITY }) {
-            image.createImageView(format, mask, components);
-        }
-        void destroy() {
-            image.destroy();
-        }
-    };
-
     struct textureIdSet {
         int diffuseId = -1;
         char difUvName[256] = {};
-        VulkanDevice::VkTexture difTex;
+        ImageSet difTex;
         int normalId = -1;
         char norUvName[256] = {};
-        VulkanDevice::VkTexture norTex;
+        ImageSet norTex;
         int specularId = -1;
         char speUvName[256] = {};
-        VulkanDevice::VkTexture speTex;
+        ImageSet speTex;
         void destroy() {
             difTex.destroy();
             norTex.destroy();
@@ -161,48 +140,6 @@ public:
         int diffuseId = -1;
         int normalId = -1;
         int specularId = -1;
-    };
-
-    class swapchainBuffer {
-    private:
-        ImageSet depth;
-        VkExtent2D wh = {};
-        VkSwapchainKHR swapchain = VK_NULL_HANDLE;
-        std::unique_ptr<VkSurfaceFormatKHR[]> BackBufferFormat;
-        uint32_t imageCount = 0;
-        uint32_t currentFrameIndex = 0;
-        std::unique_ptr<VkImage[]> images = nullptr;//スワップチェーンの画像表示に使う
-        std::unique_ptr<VkImageView[]> views = nullptr;
-        std::unique_ptr<VkFramebuffer[]> frameBuffer = nullptr;
-        VkFence swFence = nullptr;
-        bool firstswFence = false;
-        VkFormat format = {};
-        bool swapchainAlive = false;
-        VkRenderPass renderPass = VK_NULL_HANDLE;
-
-        void createswapchain(VkSurfaceKHR surface);
-        void createDepth();
-        void createFence();
-        void createRenderPass(bool clearBackBuffer);
-        void createFramebuffers();
-
-    public:
-        void destroySwapchain();
-        void create(VkSurfaceKHR surface, bool clearBackBuffer);
-        void acquireNextImageAndWait();
-        void beginRenderPass(uint32_t comBufindex);
-        const VkSurfaceFormatKHR getBackBufferFormat(uint32_t index) { return BackBufferFormat[index]; }
-        const VkImage getCurrentImage() { return images[currentFrameIndex]; }
-        const VkImage getImage(uint32_t index) { return images[index]; }
-        const VkFence getFence() { return swFence; }
-        const uint32_t getImageCount() { return imageCount; }
-        const VkFramebuffer getFramebuffer() { return frameBuffer[currentFrameIndex]; }
-        const VkSwapchainKHR* getSwapchain() { return &swapchain; }
-        const VkFormat getFormat() { return format; }
-        const uint32_t* getCurrentFrameIndex() { return &currentFrameIndex; }
-        ImageSet* getDepthImageSet() { return &depth; }
-        const VkExtent2D getSize() { return wh; }
-        const VkRenderPass getRenderPass() { return renderPass; }
     };
 
     struct Vertex3D {
@@ -223,11 +160,7 @@ private:
     VkPhysicalDeviceMemoryProperties memProps = {};
     VkCommandPool commandPool = VK_NULL_HANDLE;
     VkFence sFence = VK_NULL_HANDLE;
-    VkSemaphore renderCompletedSem, presentCompletedSem;
     VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
-
-    swapchainBuffer swBuf;
-    VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR;
 
     uint32_t commandBufferCount = 1;
     std::unique_ptr<VkCommandBuffer[]> commandBuffer = nullptr;
@@ -259,7 +192,7 @@ private:
     VulkanDevice(const VulkanDevice& obj) = delete;  //コピーコンストラクタ禁止
     void operator=(const VulkanDevice& obj) = delete;//代入演算子禁止
 
-    VulkanDevice(VkPhysicalDevice pd, uint32_t numCommandBuffer, bool V_SYNC);
+    VulkanDevice(VkPhysicalDevice pd, uint32_t numCommandBuffer);
 
     ~VulkanDevice();
 
@@ -269,19 +202,9 @@ private:
 
     void createSFence();
 
-    void createSemaphore();
-
     void createCommandBuffers();
 
     bool createDescriptorPool(std::vector<VkDescriptorPoolSize>* add_poolSize, uint32_t maxDescriptorSets);
-
-    void beginCommandWithFramebuffer(uint32_t comBufindex, VkFramebuffer fb);
-
-    void submitCommands(uint32_t comBufindex, VkFence fence, bool useRender);
-
-    VkResult waitForFence(VkFence fence);
-
-    void present();
 
     void resetFence(VkFence fence);
 
@@ -297,15 +220,31 @@ private:
     uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 
 public:
+    VkResult waitForFence(VkFence fence);
+
+    uint32_t getQueueFamilyIndex() {
+        return queueFamilyIndex;
+    }
+
+    VkQueue getDevQueue() {
+        return devQueue;
+    }
+
+    void beginCommand(uint32_t comBufindex, VkFramebuffer fb = VkFramebuffer());
+
+    void submitCommands(uint32_t comBufindex, VkFence fence, bool useRender,
+        uint32_t waitSemaphoreCount, VkSemaphore* WaitSemaphores,
+        uint32_t signalSemaphoreCount, VkSemaphore* SignalSemaphores);
+
     void copyBufferToImage(uint32_t comBufindex,
         VkBuffer buffer,
         VkImage image, uint32_t width, uint32_t height,
-        VkImageAspectFlagBits mask);
+        VkImageAspectFlagBits mask = VK_IMAGE_ASPECT_COLOR_BIT);
 
     void copyImageToBuffer(uint32_t comBufindex,
         VkImage image, uint32_t width, uint32_t height,
         VkBuffer buffer,
-        VkImageAspectFlagBits mask);
+        VkImageAspectFlagBits mask = VK_IMAGE_ASPECT_COLOR_BIT);
 
     VkPipelineShaderStageCreateInfo createShaderModule(const char* fname, char* shader, VkShaderStageFlagBits stage);
 
@@ -314,12 +253,12 @@ public:
 
     void createImage(uint32_t width, uint32_t height, VkFormat format,
         VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties,
-        VkImage& image, VkDeviceMemory& imageMemory);
+        VkImage& image, VkDeviceMemory& imageMemory, VkImageLayout initialLayout);
 
     VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags mask,
         VkComponentMapping components = { VK_COMPONENT_SWIZZLE_IDENTITY });
 
-    void createVkTexture(VkTexture& tex, uint32_t comBufindex, Texture& inByte);
+    void createVkTexture(ImageSet& tex, uint32_t comBufindex, Texture& inByte);
 
     void createTextureSampler(VkSampler& textureSampler);
 
@@ -375,41 +314,25 @@ public:
         std::vector<const char*>* requiredExtensions = nullptr, const void* pNext = nullptr,
         std::vector<VkDescriptorPoolSize>* add_poolSize = nullptr, uint32_t maxDescriptorSets = 0);
 
-    void createSwapchain(VkSurfaceKHR surface, bool clearBackBuffer);
-
-    void destroySwapchain();
-
     void GetTexture(uint32_t comBufindex, char* fileName, unsigned char* byteArr, uint32_t width,
         uint32_t height);
 
     int32_t getTextureNo(char* pass);
 
-    void updateProjection(float AngleView = 45.0f, float Near = 1.0f, float Far = 100.0f);
+    void updateProjection(VkExtent2D wh, float AngleView = 45.0f, float Near = 1.0f, float Far = 100.0f);
 
     void updateView(CoordTf::VECTOR3 view, CoordTf::VECTOR3 gaze, CoordTf::VECTOR3 up = { 0.0f,1.0f,0.0f });
-
-    void beginCommandNextImage(uint32_t comBufindex);
 
     void barrierResource(uint32_t comBufindex, VkImage image,
         VkImageLayout srcImageLayout, VkImageLayout dstImageLayout, VkImageAspectFlagBits mask);
 
-    void beginDraw(uint32_t comBufindex);
-
-    void endDraw(uint32_t comBufindex);
-
     void endCommand(uint32_t comBufindex);
-
-    void Present(uint32_t comBufindex);
-
-    void beginCommand(uint32_t comBufindex);
 
     void submitCommandsDoNotRender(uint32_t comBufindex);
 
     VkDevice getDevice() { return device; }
 
     VkCommandBuffer getCommandBuffer(uint32_t comBufindex) { return commandBuffer[comBufindex]; }
-
-    swapchainBuffer* getSwapchainObj() { return &swBuf; }
 
     void DeviceWaitIdle();
 

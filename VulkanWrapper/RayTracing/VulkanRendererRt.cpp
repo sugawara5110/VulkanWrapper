@@ -5,6 +5,7 @@
 //*****************************************************************************************//
 
 #include "VulkanRendererRt.h"
+#include "../CommonDevice/VulkanSwapchain.h"
 #include "Shader/Shader_common.h"
 #include "Shader/ShaderCalculateLighting.h"
 #include "Shader/ShaderNormalTangent.h"
@@ -104,9 +105,9 @@ void VulkanRendererRt::Init(uint32_t comIndex, std::vector<VulkanBasicPolygonRt:
     int instanceCnt = 0;
     for (int i = 0; i < rt.size(); i++) {
         for (int j = 0; j < rt[i]->instance.size(); j++) {
-            textureDifArr.push_back(rt[i]->texId.difTex.image.info);
-            textureNorArr.push_back(rt[i]->texId.norTex.image.info);
-            textureSpeArr.push_back(rt[i]->texId.speTex.image.info);
+            textureDifArr.push_back(rt[i]->texId.difTex.info);
+            textureNorArr.push_back(rt[i]->texId.norTex.info);
+            textureSpeArr.push_back(rt[i]->texId.speTex.info);
             Material m = {};
             memcpy(&m, &rt[i]->mat, sizeof(VulkanBasicPolygonRt::RtMaterial));
             memcpy(&m.lightst, &rt[i]->instance[j].lightst, sizeof(CoordTf::VECTOR4));
@@ -251,7 +252,7 @@ void VulkanRendererRt::Update(int maxRecursion) {
 void VulkanRendererRt::DepthMapWrite(uint32_t comIndex) {
 
     VulkanDevice* dev = VulkanDevice::GetInstance();
-    VulkanDevice::swapchainBuffer* sw = dev->getSwapchainObj();
+    VulkanSwapchain* sw = VulkanSwapchain::GetInstance();
 
     uint32_t width = sw->getSize().width;
     uint32_t height = sw->getSize().height;
@@ -269,17 +270,17 @@ void VulkanRendererRt::DepthMapWrite(uint32_t comIndex) {
 void VulkanRendererRt::DepthMapUpdate(uint32_t comIndex) {
 
     VulkanDevice* dev = VulkanDevice::GetInstance();
-    VulkanDevice::swapchainBuffer* sw = dev->getSwapchainObj();
+    VulkanSwapchain* sw = VulkanSwapchain::GetInstance();
 
     uint32_t width = sw->getSize().width;
     uint32_t height = sw->getSize().height;
 
-    depthMap.barrierResource(comIndex, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+    depthMap.barrierResource(comIndex, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 
     dev->copyImageToBuffer(comIndex, depthMap.getImage(), width, height,
-        depthMapUp.getBuffer(), VK_IMAGE_ASPECT_COLOR_BIT);
+        depthMapUp.getBuffer());
 
-    depthMap.barrierResource(comIndex, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
+    depthMap.barrierResource(comIndex, VK_IMAGE_LAYOUT_GENERAL);
 
     DepthMapWrite(comIndex);
 }
@@ -287,7 +288,7 @@ void VulkanRendererRt::DepthMapUpdate(uint32_t comIndex) {
 void VulkanRendererRt::Render(uint32_t comIndex, bool depthUpdate) {
 
     VulkanDevice* dev = VulkanDevice::GetInstance();
-    VulkanDevice::swapchainBuffer* sw = dev->getSwapchainObj();
+    VulkanSwapchain* sw = VulkanSwapchain::GetInstance();
     auto command = dev->getCommandBuffer(comIndex);
 
     UpdateTLAS(comIndex);
@@ -411,12 +412,13 @@ void VulkanRendererRt::CreateRaytracedBuffer(uint32_t comIndex) {
 
     VulkanDevice* dev = VulkanDevice::GetInstance();
     VulkanDeviceRt* devRt = VulkanDeviceRt::getVulkanDeviceRt();
+    VulkanSwapchain* sw = VulkanSwapchain::GetInstance();
 
     // バックバッファと同じフォーマットで作成する.
-    auto format = devRt->GetBackBufferFormat().format;
+    auto format = sw->getBackBufferFormat(0).format;
 
-    uint32_t width = dev->getSwapchainObj()->getSize().width;
-    uint32_t height = dev->getSwapchainObj()->getSize().height;
+    uint32_t width = sw->getSize().width;
+    uint32_t height = sw->getSize().height;
 
     VkImageUsageFlags usage =
         VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
@@ -427,22 +429,19 @@ void VulkanRendererRt::CreateRaytracedBuffer(uint32_t comIndex) {
     m_raytracedImage.createImage(width, height, format,
         VK_IMAGE_TILING_OPTIMAL, usage, devMemProps);
 
-    m_raytracedImage.createImageView(format,
-        VK_IMAGE_ASPECT_COLOR_BIT);
+    m_raytracedImage.createImageView(format);
 
     VkFormat mapFormat = VK_FORMAT_R32_SFLOAT;
 
     instanceIdMap.createImage(width, height, mapFormat,
         VK_IMAGE_TILING_OPTIMAL, usage, devMemProps);
 
-    instanceIdMap.createImageView(mapFormat,
-        VK_IMAGE_ASPECT_COLOR_BIT);
+    instanceIdMap.createImageView(mapFormat);
 
     depthMap.createImage(width, height, mapFormat,
         VK_IMAGE_TILING_OPTIMAL, usage, devMemProps);
 
-    depthMap.createImageView(mapFormat,
-        VK_IMAGE_ASPECT_COLOR_BIT);
+    depthMap.createImageView(mapFormat);
 
     VkDeviceSize imageSize = width * height * 4;
     VkImageUsageFlags usageUp =
@@ -454,9 +453,9 @@ void VulkanRendererRt::CreateRaytracedBuffer(uint32_t comIndex) {
     auto command = dev->getCommandBuffer(comIndex);
     dev->beginCommand(comIndex);
 
-    m_raytracedImage.barrierResource(comIndex, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
-    instanceIdMap.barrierResource(comIndex, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
-    depthMap.barrierResource(comIndex, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
+    m_raytracedImage.barrierResource(comIndex, VK_IMAGE_LAYOUT_GENERAL);
+    instanceIdMap.barrierResource(comIndex, VK_IMAGE_LAYOUT_GENERAL);
+    depthMap.barrierResource(comIndex, VK_IMAGE_LAYOUT_GENERAL);
 
     dev->endCommand(comIndex);
     dev->submitCommandsDoNotRender(comIndex);

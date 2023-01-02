@@ -51,20 +51,12 @@ public:
     static VulkanDeviceRt* getVulkanDeviceRt() { return pDeviceRt; };
 
     bool createDevice(VkInstance ins, VkPhysicalDevice phDev, uint32_t ApiVersion,
-        uint32_t numCommandBuffer = 1, bool V_SYNC = false,
+        uint32_t numCommandBuffer = 1,
         std::vector<VkDescriptorPoolSize>* add_poolSize = nullptr, uint32_t maxDescriptorSets = 0);
 
     void destroy();
 
-    bool CreateSwapchain(VkSurfaceKHR surface, uint32_t width, uint32_t height);
-
     VkDevice GetDevice() const { return VulkanDevice::GetInstance()->getDevice(); }
-
-    VkSurfaceFormatKHR GetBackBufferFormat() const {
-        return VulkanDevice::GetInstance()->getSwapchainObj()->getBackBufferFormat(0);
-    }
-
-    uint32_t GetBackBufferCount() const { return VulkanDevice::GetInstance()->getSwapchainObj()->getImageCount(); }
 
     uint64_t GetDeviceAddress(VkBuffer buffer);
     VkPhysicalDeviceRayTracingPipelinePropertiesKHR GetRayTracingPipelineProperties();

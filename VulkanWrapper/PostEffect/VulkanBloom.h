@@ -7,7 +7,7 @@
 #ifndef VulkanBloom_Header
 #define VulkanBloom_Header
 
-#include "../CommonDevice/VulkanDevice.h"
+#include "../CommonDevice/VulkanSwapchain.h"
 
 class VulkanBloom {
 

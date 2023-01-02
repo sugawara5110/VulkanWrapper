@@ -109,8 +109,9 @@ void VulkanBasicPolygon::update(uint32_t swapIndex,
 
 void VulkanBasicPolygon::draw(uint32_t swapIndex, uint32_t comIndex) {
 	VulkanDevice* device = VulkanDevice::GetInstance();
-	uint32_t width = device->getSwapchainObj()->getSize().width;
-	uint32_t height = device->getSwapchainObj()->getSize().height;
+	VulkanSwapchain* sw = VulkanSwapchain::GetInstance();
+	uint32_t width = sw->getSize().width;
+	uint32_t height = sw->getSize().height;
 	static VkViewport vp = { 0.0f, 0.0f, (float)width, (float)height, 0.0f, 1.0f };
 	static VkRect2D sc = { { 0, 0 }, { width, height } };
 	static VkDeviceSize offsets[] = { 0 };
