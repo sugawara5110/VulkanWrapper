@@ -116,6 +116,11 @@ void VulkanDevice::CommandObj::createCommandBuffers() {
     //コマンドバッファの作成
     auto res = vkAllocateCommandBuffers(d, &cbAllocInfo, commandBuffer.data());
     vkUtil::checkError(res);
+    temp = std::make_unique<VkCommandBuffer[]>(commandBuffer.size());
+    status = std::make_unique<Status[]>(commandBuffer.size());
+    for (size_t i = 0; i < commandBuffer.size(); i++) {
+        status[i] = OPEN;
+    }
 }
 
 void VulkanDevice::CommandObj::create(uint32_t numCommand) {
@@ -154,18 +159,27 @@ void VulkanDevice::CommandObj::beginCommand(uint32_t comBufindex, VkFramebuffer 
 
 void VulkanDevice::CommandObj::endCommand(uint32_t comBufindex) {
     vkEndCommandBuffer(commandBuffer[comBufindex]);
+    status[comBufindex] = CLOSE;
 }
 
 void VulkanDevice::CommandObj::submitCommands(VkFence fence, bool useRender,
     uint32_t waitSemaphoreCount, VkSemaphore* WaitSemaphores,
     uint32_t signalSemaphoreCount, VkSemaphore* SignalSemaphores) {
 
+    uint32_t comCnt = 0;
+    for (size_t i = 0; i < commandBuffer.size(); i++) {
+        if (status[i] == CLOSE) {
+            temp[comCnt++] = commandBuffer[i];
+        }
+        status[i] = OPEN;
+    }
+
     VkSubmitInfo sinfo{};
     static const VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 
     sinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    sinfo.commandBufferCount = (uint32_t)commandBuffer.size();
-    sinfo.pCommandBuffers = commandBuffer.data();
+    sinfo.commandBufferCount = comCnt;
+    sinfo.pCommandBuffers = temp.get();
     sinfo.pWaitDstStageMask = &waitStageMask;
     if (useRender) {
         sinfo.waitSemaphoreCount = waitSemaphoreCount;
@@ -235,7 +249,8 @@ void VulkanDevice::create(std::vector<const char*>* requiredExtensions, const vo
         }
     }
     for (uint32_t i = 0; i < propertyCount; i++) {
-        if ((properties[i].queueFlags & VK_QUEUE_COMPUTE_BIT) != 0) {
+        if ((properties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) == 0 &&
+            (properties[i].queueFlags & VK_QUEUE_COMPUTE_BIT) != 0) {
             queueFamilyIndexCOMPUTE = i;
             cntCo = properties[i].queueCount;
             break;
@@ -524,7 +539,7 @@ auto VulkanDevice::createTextureImage(uint32_t QueueIndex, uint32_t comBufindex,
 
     texture.barrierResource(QueueIndex, comBufindex, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-    vkEndCommandBuffer(com->commandBuffer[comBufindex]);
+    com->endCommand(comBufindex);
     com->submitCommandsDoNotRender();
 
     stagingBuffer.destroy();
@@ -648,8 +663,7 @@ void VulkanDevice::copyBuffer(uint32_t QueueIndex, uint32_t comBufindex, VkBuffe
     copyRegion.size = size;
     vkCmdCopyBuffer(com->commandBuffer[comBufindex], srcBuffer, dstBuffer, 1, &copyRegion);
 
-    auto res = vkEndCommandBuffer(com->commandBuffer[comBufindex]);
-    vkUtil::checkError(res);
+    com->endCommand(comBufindex);
     com->submitCommandsDoNotRender();
 }
 

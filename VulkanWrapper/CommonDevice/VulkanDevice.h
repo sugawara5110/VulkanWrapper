@@ -160,6 +160,12 @@ public:
         uint32_t queueFamilyIndex = 0xffffffff;
         VkCommandPool commandPool = VK_NULL_HANDLE;
         std::vector<VkCommandBuffer> commandBuffer = {};
+        std::unique_ptr<VkCommandBuffer[]> temp = nullptr;
+        enum Status {
+            OPEN,
+            CLOSE
+        };
+        std::unique_ptr<Status[]> status = nullptr;
         VkFence fence = VK_NULL_HANDLE;
 
         void createCommandPool();
@@ -363,7 +369,7 @@ public:
 
     void DeallocateDescriptorSet(VkDescriptorSet ds);
 
-    CommandObj* getCommandObj(uint32_t index) { return &commandObj[index]; }
+    CommandObj* getCommandObj(uint32_t QueueIndex) { return &commandObj[QueueIndex]; }
 };
 
 #endif

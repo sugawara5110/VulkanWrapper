@@ -61,7 +61,7 @@ public:
     void beginCommandNextImage(uint32_t QueueIndex, uint32_t comBufindex);
     void beginDraw(uint32_t QueueIndex, uint32_t comBufindex);
     void endDraw(uint32_t QueueIndex, uint32_t comBufindex);
-    void Present(uint32_t QueueIndex, uint32_t comBufindex);
+    void Present(uint32_t QueueIndex);
 
     const VkSurfaceFormatKHR getBackBufferFormat(uint32_t index) { return BackBufferFormat[index]; }
     const VkImage getCurrentImage() { return images[currentFrameIndex]; }

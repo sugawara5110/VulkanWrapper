@@ -354,7 +354,7 @@ void VulkanSwapchain::endDraw(uint32_t QueueIndex, uint32_t comBufindex) {
     vkCmdEndRenderPass(getCommand(QueueIndex, comBufindex));
 }
 
-void VulkanSwapchain::Present(uint32_t QueueIndex, uint32_t comBufindex) {
+void VulkanSwapchain::Present(uint32_t QueueIndex) {
 
     getDevice()->getCommandObj(QueueIndex)->submitCommands(getFence(), true,
         1, &presentCompletedSem,
