@@ -47,8 +47,9 @@ void VulkanDevice::BufferSet::destroy() {
     mem = VK_NULL_HANDLE;
 }
 
-void VulkanDevice::ImageSet::barrierResource(uint32_t comBufindex, VkImageLayout dstImageLayout, VkImageAspectFlagBits mask) {
-    DevicePointer->barrierResource(comBufindex, image, info.imageLayout, dstImageLayout, mask);
+void VulkanDevice::ImageSet::barrierResource(
+    uint32_t QueueIndex, uint32_t comBufindex, VkImageLayout dstImageLayout, VkImageAspectFlagBits mask) {
+    DevicePointer->barrierResource(QueueIndex, comBufindex, image, info.imageLayout, dstImageLayout, mask);
     info.imageLayout = dstImageLayout;
 }
 
@@ -85,110 +86,61 @@ void VulkanDevice::ImageSet::destroy() {
     mem = VK_NULL_HANDLE;
 }
 
-VulkanDevice::VulkanDevice(VkPhysicalDevice pd, uint32_t numCommandBuffer) {
-    pDev = pd;
-    vkGetPhysicalDeviceProperties(pDev, &physicalDeviceProperties);
-    commandBufferCount = numCommandBuffer;
-}
-
-VulkanDevice::~VulkanDevice() {
-    vkDestroyDescriptorPool(device, descriptorPool, nullptr);
-    destroyTexture();
-    vkFreeCommandBuffers(device, commandPool, commandBufferCount, commandBuffer.get());
-    vkDestroyFence(device, sFence, nullptr);
-    vkDestroyCommandPool(device, commandPool, nullptr);
-    vkDeviceWaitIdle(device);
-    vkDestroyDevice(device, nullptr);
-}
-
-void VulkanDevice::create(std::vector<const char*>* requiredExtensions, const void* pNext) {
-    VkDeviceCreateInfo devInfo{};
-    VkDeviceQueueCreateInfo queueInfo{};
-
-    //グラフィックス用のデバイスキューのファミリー番号を取得:VK_QUEUE_GRAPHICS_BIT
-    uint32_t propertyCount;
-    //nullptr指定でプロパティ数取得
-    vkGetPhysicalDeviceQueueFamilyProperties(pDev, &propertyCount, nullptr);
-    auto properties = std::make_unique<VkQueueFamilyProperties[]>(propertyCount);
-    vkGetPhysicalDeviceQueueFamilyProperties(pDev, &propertyCount, properties.get());
-    for (uint32_t i = 0; i < propertyCount; i++) {
-        if ((properties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0) {
-            queueFamilyIndex = i;
-            break;
-        }
-    }
-    if (queueFamilyIndex == 0xffffffff)
-        throw std::runtime_error("No Graphics queues available on current device.");
-
-    const char* layers[] = { "VK_LAYER_KHRONOS_validation" };
-    std::vector<const char*> extensions = { "VK_KHR_swapchain" };//スワップチェーンで必須
-
-    if (requiredExtensions) {
-        for (auto& e : (*requiredExtensions)) {
-            extensions.push_back(e);
-        }
-    }
-
-    static float qPriorities[] = { 0.0f };
-    queueInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-    queueInfo.pNext = nullptr;
-    queueInfo.queueCount = 1;
-    queueInfo.queueFamilyIndex = queueFamilyIndex;
-    queueInfo.pQueuePriorities = qPriorities;
-
-    devInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    devInfo.pNext = pNext;
-    devInfo.queueCreateInfoCount = 1;
-    devInfo.pQueueCreateInfos = &queueInfo;
-    devInfo.enabledLayerCount = (uint32_t)COUNTOF(layers);
-    devInfo.ppEnabledLayerNames = layers;
-    devInfo.enabledExtensionCount = (uint32_t)extensions.size();
-    devInfo.ppEnabledExtensionNames = extensions.data();
-    devInfo.pEnabledFeatures = nullptr;
-
-    //論理デバイス生成,キューも生成される
-    auto res = vkCreateDevice(pDev, &devInfo, nullptr, &device);
-    vkUtil::checkError(res);
-    //キュー取得
-    vkGetDeviceQueue(device, queueFamilyIndex, 0, &devQueue);
-    //VRAMプロパティ取得:頂点バッファ取得時使用
-    vkGetPhysicalDeviceMemoryProperties(pDev, &memProps);
-}
-
-void VulkanDevice::createCommandPool() {
+void VulkanDevice::CommandObj::createCommandPool() {
+    VkDevice d = VulkanDevice::GetInstance()->getDevice();
     VkCommandPoolCreateInfo info{};
-
     info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     info.pNext = nullptr;
     info.queueFamilyIndex = queueFamilyIndex;
     info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
     //コマンドプールの作成:コマンドバッファーメモリが割り当てられるオブジェクト
-    auto res = vkCreateCommandPool(device, &info, nullptr, &commandPool);
+    auto res = vkCreateCommandPool(d, &info, nullptr, &commandPool);
     vkUtil::checkError(res);
 }
 
-void VulkanDevice::createSFence() {
+void VulkanDevice::CommandObj::createFence() {
+    VkDevice d = VulkanDevice::GetInstance()->getDevice();
     VkFenceCreateInfo finfo{};
     finfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-    auto res = vkCreateFence(device, &finfo, nullptr, &sFence);
+    auto res = vkCreateFence(d, &finfo, nullptr, &fence);
     vkUtil::checkError(res);
 }
 
-void VulkanDevice::createCommandBuffers() {
-
+void VulkanDevice::CommandObj::createCommandBuffers() {
+    VkDevice d = VulkanDevice::GetInstance()->getDevice();
     VkCommandBufferAllocateInfo cbAllocInfo{};
-
     cbAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     cbAllocInfo.commandPool = commandPool;
     cbAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    cbAllocInfo.commandBufferCount = commandBufferCount;
+    cbAllocInfo.commandBufferCount = (uint32_t)commandBuffer.size();
     //コマンドバッファの作成
-    commandBuffer = std::make_unique<VkCommandBuffer[]>(commandBufferCount);
-    auto res = vkAllocateCommandBuffers(device, &cbAllocInfo, commandBuffer.get());
+    auto res = vkAllocateCommandBuffers(d, &cbAllocInfo, commandBuffer.data());
     vkUtil::checkError(res);
 }
 
-void VulkanDevice::beginCommand(uint32_t comBufindex, VkFramebuffer fb) {
+void VulkanDevice::CommandObj::create(uint32_t numCommand) {
+    commandBuffer.resize(numCommand);
+    createCommandPool();
+    createFence();
+    createCommandBuffers();
+}
+
+void VulkanDevice::CommandObj::destroy() {
+    VkDevice d = VulkanDevice::GetInstance()->getDevice();
+    vkFreeCommandBuffers(d, commandPool, (uint32_t)commandBuffer.size(), commandBuffer.data());
+    vkDestroyFence(d, fence, nullptr);
+    vkDestroyCommandPool(d, commandPool, nullptr);
+}
+
+uint32_t VulkanDevice::CommandObj::getQueueFamilyIndex() {
+    return queueFamilyIndex;
+}
+
+VkQueue VulkanDevice::CommandObj::getQueue() {
+    return devQueue;
+}
+
+void VulkanDevice::CommandObj::beginCommand(uint32_t comBufindex, VkFramebuffer fb) {
     VkCommandBufferInheritanceInfo inhInfo{};
     VkCommandBufferBeginInfo beginInfo{};
 
@@ -200,7 +152,11 @@ void VulkanDevice::beginCommand(uint32_t comBufindex, VkFramebuffer fb) {
     vkBeginCommandBuffer(commandBuffer[comBufindex], &beginInfo);
 }
 
-void VulkanDevice::submitCommands(uint32_t comBufindex, VkFence fence, bool useRender,
+void VulkanDevice::CommandObj::endCommand(uint32_t comBufindex) {
+    vkEndCommandBuffer(commandBuffer[comBufindex]);
+}
+
+void VulkanDevice::CommandObj::submitCommands(VkFence fence, bool useRender,
     uint32_t waitSemaphoreCount, VkSemaphore* WaitSemaphores,
     uint32_t signalSemaphoreCount, VkSemaphore* SignalSemaphores) {
 
@@ -208,18 +164,172 @@ void VulkanDevice::submitCommands(uint32_t comBufindex, VkFence fence, bool useR
     static const VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 
     sinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    sinfo.commandBufferCount = 1;
-    sinfo.pCommandBuffers = &commandBuffer[comBufindex];
+    sinfo.commandBufferCount = (uint32_t)commandBuffer.size();
+    sinfo.pCommandBuffers = commandBuffer.data();
     sinfo.pWaitDstStageMask = &waitStageMask;
     if (useRender) {
         sinfo.waitSemaphoreCount = waitSemaphoreCount;
         sinfo.pWaitSemaphores = WaitSemaphores;
         sinfo.signalSemaphoreCount = signalSemaphoreCount;
         sinfo.pSignalSemaphores = SignalSemaphores;
-        resetFence(fence);
+        VulkanDevice::GetInstance()->resetFence(fence);
     }
     auto res = vkQueueSubmit(devQueue, 1, &sinfo, fence);
     vkUtil::checkError(res);
+}
+
+void VulkanDevice::CommandObj::submitCommandsDoNotRender() {
+    submitCommands(fence, false,
+        0, nullptr,
+        0, nullptr);
+    VulkanDevice::GetInstance()->waitForFence(fence);
+    VulkanDevice::GetInstance()->resetFence(fence);
+}
+
+VkCommandBuffer VulkanDevice::CommandObj::getCommandBuffer(uint32_t comBufindex) {
+    return commandBuffer[comBufindex];
+}
+
+VulkanDevice::VulkanDevice(VkPhysicalDevice pd, uint32_t numCommandBuffer, uint32_t numGraphicsQueue, uint32_t numComputeQueue) {
+    pDev = pd;
+    vkGetPhysicalDeviceProperties(pDev, &physicalDeviceProperties);
+    commandBufferCount = numCommandBuffer;
+    NumGraphicsQueue = numGraphicsQueue;
+    NumComputeQueue = numComputeQueue;
+    NumAllQueue = NumGraphicsQueue + NumComputeQueue;
+}
+
+VulkanDevice::~VulkanDevice() {
+    vkDestroyDescriptorPool(device, descriptorPool, nullptr);
+    destroyTexture();
+    for (uint32_t i = 0; i < NumAllQueue; i++) {
+        commandObj[i].destroy();
+    }
+    vkDeviceWaitIdle(device);
+    vkDestroyDevice(device, nullptr);
+}
+
+void VulkanDevice::create(std::vector<const char*>* requiredExtensions, const void* pNext) {
+    VkDeviceCreateInfo devInfo{};
+    VkDeviceQueueCreateInfo queueInfo[2] = {};
+
+    const uint32_t uintMax = 0xffffffff;
+
+    uint32_t queueFamilyIndexGRAPHICS = uintMax;
+    uint32_t cntGr = 0;
+    uint32_t queueFamilyIndexCOMPUTE = uintMax;
+    uint32_t cntCo = 0;
+
+    //デバイスキューのファミリー番号を取得
+    uint32_t propertyCount;
+    //nullptr指定でプロパティ数取得
+    vkGetPhysicalDeviceQueueFamilyProperties(pDev, &propertyCount, nullptr);
+    auto properties = std::make_unique<VkQueueFamilyProperties[]>(propertyCount);
+    vkGetPhysicalDeviceQueueFamilyProperties(pDev, &propertyCount, properties.get());
+
+    for (uint32_t i = 0; i < propertyCount; i++) {
+        if ((properties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0) {
+            queueFamilyIndexGRAPHICS = i;
+            cntGr = properties[i].queueCount;
+            break;
+        }
+    }
+    for (uint32_t i = 0; i < propertyCount; i++) {
+        if ((properties[i].queueFlags & VK_QUEUE_COMPUTE_BIT) != 0) {
+            queueFamilyIndexCOMPUTE = i;
+            cntCo = properties[i].queueCount;
+            break;
+        }
+    }
+
+    if (queueFamilyIndexGRAPHICS == uintMax) {
+        throw std::runtime_error("No Graphics queues available on current device.");
+    }
+
+    const char* layers[] = { "VK_LAYER_KHRONOS_validation" };
+    std::vector<const char*> extensions = { "VK_KHR_swapchain" };//スワップチェーンで必須
+
+    if (requiredExtensions) {
+        for (auto& e : (*requiredExtensions)) {
+            extensions.push_back(e);
+        }
+    }
+
+    if (NumGraphicsQueue <= 0) {
+        throw std::runtime_error("graphicsQueue.size() is less than or equal to 0.");
+    }
+
+    if (NumGraphicsQueue > cntGr) {
+        throw std::runtime_error("graphicsQueue.size() is too large.");
+    }
+    if (NumComputeQueue > cntCo) {
+        throw std::runtime_error("computeQueue.size() is too large.");
+    }
+
+    float* qPrioritiesGr = new float[NumGraphicsQueue];//優先度配列 max1.0f
+    float step = 1.0f / (float)NumGraphicsQueue;
+    float cnt = 1.0f;
+    for (size_t i = 0; i < NumGraphicsQueue; i++) {
+        qPrioritiesGr[i] = cnt;
+        cnt -= step;
+    }
+
+    float* qPrioritiesCo = nullptr;
+    if (NumComputeQueue > 0) {
+        qPrioritiesCo = new float[NumComputeQueue];//優先度配列 max1.0f
+        float step = 1.0f / (float)NumComputeQueue;
+        float cnt = 1.0f;
+        for (size_t i = 0; i < NumComputeQueue; i++) {
+            qPrioritiesCo[i] = cnt;
+            cnt -= step;
+        }
+    }
+
+    queueInfo[0].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    queueInfo[0].pNext = nullptr;
+    queueInfo[0].queueCount = (uint32_t)NumGraphicsQueue;
+    queueInfo[0].queueFamilyIndex = queueFamilyIndexGRAPHICS;
+    queueInfo[0].pQueuePriorities = qPrioritiesGr;
+
+    queueInfo[1].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    queueInfo[1].pNext = nullptr;
+    queueInfo[1].queueCount = (uint32_t)NumComputeQueue;
+    queueInfo[1].queueFamilyIndex = queueFamilyIndexCOMPUTE;
+    queueInfo[1].pQueuePriorities = qPrioritiesCo;
+
+    uint32_t InfoCount = 1;
+    if (NumComputeQueue > 0)InfoCount = 2;
+
+    devInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    devInfo.pNext = pNext;
+    devInfo.queueCreateInfoCount = InfoCount;
+    devInfo.pQueueCreateInfos = queueInfo;
+    devInfo.enabledLayerCount = (uint32_t)COUNTOF(layers);
+    devInfo.ppEnabledLayerNames = layers;
+    devInfo.enabledExtensionCount = (uint32_t)extensions.size();
+    devInfo.ppEnabledExtensionNames = extensions.data();
+    devInfo.pEnabledFeatures = nullptr;
+
+    //論理デバイス生成,キューも生成される
+    auto res = vkCreateDevice(pDev, &devInfo, nullptr, &device);
+    vkUtil::checkError(res);
+    //キュー取得
+    commandObj.resize(NumAllQueue);
+    for (uint32_t i = 0; i < NumGraphicsQueue; i++) {
+        CommandObj* Gr = &commandObj[i];
+        vkGetDeviceQueue(device, queueFamilyIndexGRAPHICS, i, &Gr->devQueue);
+        Gr->queueFamilyIndex = queueFamilyIndexGRAPHICS;
+    }
+    for (uint32_t i = 0; i < NumComputeQueue; i++) {
+        CommandObj* Co = &commandObj[i + NumGraphicsQueue];
+        vkGetDeviceQueue(device, queueFamilyIndexCOMPUTE, i, &Co->devQueue);
+        Co->queueFamilyIndex = queueFamilyIndexCOMPUTE;
+    }
+    //VRAMプロパティ取得:頂点バッファ取得時使用
+    vkGetPhysicalDeviceMemoryProperties(pDev, &memProps);
+
+    vkUtil::ARR_DELETE(qPrioritiesGr);
+    vkUtil::ARR_DELETE(qPrioritiesCo);
 }
 
 VkResult VulkanDevice::waitForFence(VkFence fence) {
@@ -236,7 +346,7 @@ void VulkanDevice::resetFence(VkFence fence) {
     vkUtil::checkError(res);
 }
 
-void VulkanDevice::barrierResource(uint32_t comBufindex, VkImage image,
+void VulkanDevice::barrierResource(uint32_t QueueIndex, uint32_t comBufindex, VkImage image,
     VkImageLayout srcImageLayout, VkImageLayout dstImageLayout, VkImageAspectFlagBits mask) {
 
     VkImageMemoryBarrier barrier = {};
@@ -294,13 +404,15 @@ void VulkanDevice::barrierResource(uint32_t comBufindex, VkImage image,
         break;
     }
 
-    vkCmdPipelineBarrier(commandBuffer[comBufindex], srcStage, dstStage,
+    vkCmdPipelineBarrier(commandObj[QueueIndex].commandBuffer[comBufindex], srcStage, dstStage,
         0, 0, nullptr,
         0, nullptr,
         1, &barrier);
 }
 
-void VulkanDevice::copyBufferToImage(uint32_t comBufindex,
+void VulkanDevice::copyBufferToImage(
+    uint32_t QueueIndex,
+    uint32_t comBufindex,
     VkBuffer buffer,
     VkImage image, uint32_t width, uint32_t height,
     VkImageAspectFlagBits mask) {
@@ -320,13 +432,15 @@ void VulkanDevice::copyBufferToImage(uint32_t comBufindex,
             1
     };
 
-    vkCmdCopyBufferToImage(commandBuffer[comBufindex],
+    vkCmdCopyBufferToImage(commandObj[QueueIndex].commandBuffer[comBufindex],
         buffer,
         image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
         1, &region);
 }
 
-void VulkanDevice::copyImageToBuffer(uint32_t comBufindex,
+void VulkanDevice::copyImageToBuffer(
+    uint32_t QueueIndex,
+    uint32_t comBufindex,
     VkImage image, uint32_t width, uint32_t height,
     VkBuffer buffer,
     VkImageAspectFlagBits mask) {
@@ -346,7 +460,7 @@ void VulkanDevice::copyImageToBuffer(uint32_t comBufindex,
             1
     };
 
-    vkCmdCopyImageToBuffer(commandBuffer[comBufindex],
+    vkCmdCopyImageToBuffer(commandObj[QueueIndex].commandBuffer[comBufindex],
         image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
         buffer, 1, &region);
 }
@@ -382,7 +496,7 @@ void VulkanDevice::createImage(uint32_t width, uint32_t height, VkFormat format,
     vkUtil::checkError(res);
 }
 
-auto VulkanDevice::createTextureImage(uint32_t comBufindex, Texture& inByte) {
+auto VulkanDevice::createTextureImage(uint32_t QueueIndex, uint32_t comBufindex, Texture& inByte) {
 
     VkDeviceSize imageSize = inByte.width * inByte.height * 4;
 
@@ -399,17 +513,19 @@ auto VulkanDevice::createTextureImage(uint32_t comBufindex, Texture& inByte) {
     texture.createImage(inByte.width, inByte.height, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
         VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-    beginCommand(comBufindex);
+    CommandObj* com = &commandObj[QueueIndex];
 
-    texture.barrierResource(comBufindex, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    com->beginCommand(comBufindex);
 
-    copyBufferToImage(comBufindex, stagingBuffer.getBuffer(), texture.getImage(),
+    texture.barrierResource(QueueIndex, comBufindex, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+    copyBufferToImage(QueueIndex, comBufindex, stagingBuffer.getBuffer(), texture.getImage(),
         static_cast<uint32_t>(inByte.width), static_cast<uint32_t>(inByte.height), VK_IMAGE_ASPECT_COLOR_BIT);
 
-    texture.barrierResource(comBufindex, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    texture.barrierResource(QueueIndex, comBufindex, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-    vkEndCommandBuffer(commandBuffer[comBufindex]);
-    submitCommandsDoNotRender(comBufindex);
+    vkEndCommandBuffer(com->commandBuffer[comBufindex]);
+    com->submitCommandsDoNotRender();
 
     stagingBuffer.destroy();
 
@@ -522,17 +638,19 @@ void VulkanDevice::createDefaultBuffer(VkDeviceSize size, VkBufferUsageFlags usa
         buffer, bufferMemory, allocateMemory_add_pNext);
 }
 
-void VulkanDevice::copyBuffer(uint32_t comBufindex, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
+void VulkanDevice::copyBuffer(uint32_t QueueIndex, uint32_t comBufindex, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
 
-    beginCommand(comBufindex);
+    CommandObj* com = &commandObj[QueueIndex];
+
+    com->beginCommand(comBufindex);
 
     VkBufferCopy copyRegion = {};
     copyRegion.size = size;
-    vkCmdCopyBuffer(commandBuffer[comBufindex], srcBuffer, dstBuffer, 1, &copyRegion);
+    vkCmdCopyBuffer(com->commandBuffer[comBufindex], srcBuffer, dstBuffer, 1, &copyRegion);
 
-    auto res = vkEndCommandBuffer(commandBuffer[comBufindex]);
+    auto res = vkEndCommandBuffer(com->commandBuffer[comBufindex]);
     vkUtil::checkError(res);
-    submitCommandsDoNotRender(comBufindex);
+    com->submitCommandsDoNotRender();
 }
 
 uint32_t VulkanDevice::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
@@ -665,9 +783,9 @@ void VulkanDevice::createDevice(
     std::vector<VkDescriptorPoolSize>* add_poolSize, uint32_t maxDescriptorSets) {
 
     create(requiredExtensions, pNext);
-    createCommandPool();
-    createSFence();
-    createCommandBuffers();
+    for (size_t i = 0; i < commandObj.size(); i++) {
+        commandObj[i].create(commandBufferCount);
+    }
     createDescriptorPool(add_poolSize, maxDescriptorSets);
 
     //ダミーテクスチャ生成(テクスチャーが無い場合に代わりに入れる)
@@ -690,43 +808,45 @@ void VulkanDevice::createDevice(
     vkUtil::ARR_DELETE(dummyDifSpe);
 }
 
-void VulkanDevice::createVkTexture(ImageSet& tex, uint32_t comBufindex, Texture& inByte) {
-    tex = createTextureImage(comBufindex, inByte);
+void VulkanDevice::createVkTexture(ImageSet& tex, uint32_t QueueIndex, uint32_t comBufindex, Texture& inByte) {
+    tex = createTextureImage(QueueIndex, comBufindex, inByte);
     tex.createImageView(VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT);
     createTextureSampler(tex.info.sampler);
 }
 
-void VulkanDevice::createTextureSet(uint32_t comIndex, textureIdSet& texSet) {
+void VulkanDevice::createTextureSet(uint32_t QueueIndex, uint32_t comIndex, textureIdSet& texSet) {
     VulkanDevice* d = VulkanDevice::GetInstance();
     if (texSet.diffuseId < 0) {
-        d->createVkTexture(texSet.difTex, comIndex,
+        d->createVkTexture(texSet.difTex, QueueIndex, comIndex,
             d->texture[d->numTextureMax + 1]);
     }
     else {
-        d->createVkTexture(texSet.difTex, comIndex,
+        d->createVkTexture(texSet.difTex, QueueIndex, comIndex,
             d->texture[texSet.diffuseId]);
     }
 
     if (texSet.normalId < 0) {
-        d->createVkTexture(texSet.norTex, comIndex,
+        d->createVkTexture(texSet.norTex, QueueIndex, comIndex,
             d->texture[d->numTextureMax]);
     }
     else {
-        d->createVkTexture(texSet.norTex, comIndex,
+        d->createVkTexture(texSet.norTex, QueueIndex, comIndex,
             d->texture[texSet.normalId]);
     }
 
     if (texSet.specularId < 0) {
-        d->createVkTexture(texSet.speTex, comIndex,
+        d->createVkTexture(texSet.speTex, QueueIndex, comIndex,
             d->texture[d->numTextureMax + 1]);
     }
     else {
-        d->createVkTexture(texSet.speTex, comIndex,
+        d->createVkTexture(texSet.speTex, QueueIndex, comIndex,
             d->texture[texSet.specularId]);
     }
 }
 
-void VulkanDevice::GetTexture(uint32_t comBufindex, char* fileName, unsigned char* byteArr, uint32_t width, uint32_t height) {
+void VulkanDevice::GetTexture(
+    char* fileName, unsigned char* byteArr,
+    uint32_t width, uint32_t height) {
     //ファイル名登録
     char* filename = vkUtil::getNameFromPass(fileName);
     if (strlen(filename) >= (size_t)numTexFileNamelenMax)
@@ -762,27 +882,18 @@ void VulkanDevice::updateView(CoordTf::VECTOR3 vi, CoordTf::VECTOR3 gaze, CoordT
     viewPos.as(vi.x, vi.y, vi.z, 0.0f);
 }
 
-void VulkanDevice::endCommand(uint32_t comBufindex) {
-    vkEndCommandBuffer(commandBuffer[comBufindex]);
-}
-
-void VulkanDevice::submitCommandsDoNotRender(uint32_t comBufindex) {
-    submitCommands(comBufindex, sFence, false,
-        0, nullptr,
-        0, nullptr);
-    waitForFence(sFence);
-    resetFence(sFence);
-}
-
 void VulkanDevice::DeviceWaitIdle() {
     vkDeviceWaitIdle(device);
 }
 
-void VulkanDevice::InstanceCreate(VkPhysicalDevice pd,
+void VulkanDevice::InstanceCreate(
+    VkPhysicalDevice pd,
     uint32_t apiVersion,
-    uint32_t numCommandBuffer) {
+    uint32_t numCommandBuffer,
+    uint32_t numGraphicsQueue,
+    uint32_t numComputeQueue) {
 
-    if (DevicePointer == nullptr)DevicePointer = new VulkanDevice(pd, numCommandBuffer);
+    if (DevicePointer == nullptr)DevicePointer = new VulkanDevice(pd, numCommandBuffer, numGraphicsQueue, numComputeQueue);
     ApiVersion = apiVersion;
 }
 

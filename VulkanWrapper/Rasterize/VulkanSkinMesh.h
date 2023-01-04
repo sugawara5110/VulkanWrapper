@@ -67,7 +67,7 @@ public:
 	void setFbxInByteArray(char* byteArray, unsigned int size, float endframe);
 	void additionalAnimation(char* pass, float endframe);
 	void additionalAnimationInByteArray(char* byteArray, unsigned int size, float endframe);
-	void create(uint32_t comIndex, bool useAlpha);
+	void create(uint32_t QueueIndex, uint32_t comIndex, bool useAlpha);
 
 	void setMaterialParameter(uint32_t swapIndex, uint32_t meshIndex, uint32_t materialIndex,
 		CoordTf::VECTOR3 diffuse, CoordTf::VECTOR3 specular, CoordTf::VECTOR3 ambient);
@@ -82,7 +82,7 @@ public:
 	bool autoUpdate(uint32_t swapIndex, uint32_t animationIndex, float pitchTime, CoordTf::VECTOR3 pos = { 0.0f,0.0f,0.0f },
 		CoordTf::VECTOR3 theta = { 0.0f,0.0f,0.0f }, CoordTf::VECTOR3 scale = { 1.0f,1.0f,1.0f });
 
-	void draw(uint32_t swapIndex, uint32_t comIndex);
+	void draw(uint32_t swapIndex, uint32_t QueueIndex, uint32_t comIndex);
 };
 
 #endif

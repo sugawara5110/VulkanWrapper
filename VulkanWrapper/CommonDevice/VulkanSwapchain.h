@@ -38,26 +38,30 @@ private:
     VkSemaphore renderCompletedSem, presentCompletedSem;
 
     void createSemaphore();
-    void createswapchain(VkPhysicalDevice pd, VkSurfaceKHR surface, bool V_SYNC);
+
+    void createswapchain(uint32_t QueueIndex, uint32_t comBufindex,
+        VkPhysicalDevice pd, VkSurfaceKHR surface, bool V_SYNC);
+
     void createDepth(VkPhysicalDevice pd);
     void createFence();
     void createRenderPass(bool clearBackBuffer);
     void createFramebuffers();
 
     void acquireNextImageAndWait();
-    void present();
+    void present(uint32_t QueueIndex);
 
 public:
     static void InstanceCreate();
     static VulkanSwapchain* GetInstance();
     static void DeleteInstance();
 
-    void create(VkPhysicalDevice pd, VkSurfaceKHR surface, bool clearBackBuffer, bool V_SYNC = false);
+    void create(uint32_t QueueIndex, uint32_t comBufindex,
+        VkPhysicalDevice pd, VkSurfaceKHR surface, bool clearBackBuffer, bool V_SYNC = false);
 
-    void beginCommandNextImage(uint32_t comBufindex);
-    void beginDraw(uint32_t comBufindex);
-    void endDraw(uint32_t comBufindex);
-    void Present(uint32_t comBufindex);
+    void beginCommandNextImage(uint32_t QueueIndex, uint32_t comBufindex);
+    void beginDraw(uint32_t QueueIndex, uint32_t comBufindex);
+    void endDraw(uint32_t QueueIndex, uint32_t comBufindex);
+    void Present(uint32_t QueueIndex, uint32_t comBufindex);
 
     const VkSurfaceFormatKHR getBackBufferFormat(uint32_t index) { return BackBufferFormat[index]; }
     const VkImage getCurrentImage() { return images[currentFrameIndex]; }

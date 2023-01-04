@@ -27,7 +27,7 @@ private:
     VkAccelerationStructureGeometryKHR Geometry;
     VkAccelerationStructureBuildRangeInfoKHR BuildRangeInfo;
 
-    void build(uint32_t comIndex,
+    void build(uint32_t QueueIndex, uint32_t comIndex,
         VkAccelerationStructureBuildGeometryInfoKHR BuildGeometryInfo,
         VkAccelerationStructureBuildRangeInfoKHR BuildRangeInfo);
 
@@ -35,13 +35,13 @@ public:
     void destroy();
     void destroyScratchBuffer();
 
-    void buildAS(uint32_t comIndex,
+    void buildAS(uint32_t QueueIndex, uint32_t comIndex,
         VkAccelerationStructureTypeKHR type,
         VkAccelerationStructureGeometryKHR geometry,
         VkAccelerationStructureBuildRangeInfoKHR buildRangeInfo,
         VkBuildAccelerationStructureFlagsKHR buildFlags);
 
-    void update(uint32_t comIndex,
+    void update(uint32_t QueueIndex, uint32_t comIndex,
         VkAccelerationStructureTypeKHR type,
         VkBuildAccelerationStructureFlagsKHR buildFlags);
 

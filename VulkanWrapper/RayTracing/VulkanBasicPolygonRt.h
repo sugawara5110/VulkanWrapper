@@ -69,12 +69,12 @@ private:
 	bool rdataCreateF = false;
 	uint32_t InstanceCnt = 0;
 
-	void createVertexBuffer(uint32_t comIndex, Vertex3D_t* ver, uint32_t num);
-	void createIndexBuffer(RtData& rdata, uint32_t comIndex, uint32_t* ind, uint32_t indNum);
-	void createBLAS(RtData& rdata, uint32_t comIndex);
+	void createVertexBuffer(uint32_t QueueIndex, uint32_t comIndex, Vertex3D_t* ver, uint32_t num);
+	void createIndexBuffer(RtData& rdata, uint32_t QueueIndex, uint32_t comIndex, uint32_t* ind, uint32_t indNum);
+	void createBLAS(RtData& rdata, uint32_t QueueIndex, uint32_t comIndex);
 	void updateInstance(RtData& rdata);
-	void createTexture(RtData& rdata, uint32_t comIndex, VulkanDevice::textureIdSetInput& texId);
-	void updateBLAS(RtData& rdata, uint32_t comIndex);
+	void createTexture(RtData& rdata, uint32_t QueueIndex, uint32_t comIndex, VulkanDevice::textureIdSetInput& texId);
+	void updateBLAS(RtData& rdata, uint32_t QueueIndex, uint32_t comIndex);
 
 public:
 	std::vector<RtData> Rdata;
@@ -82,7 +82,7 @@ public:
 	VulkanBasicPolygonRt();
 	~VulkanBasicPolygonRt();
 
-	void createMultipleMaterials(uint32_t comIndex, bool useAlpha, uint32_t numMat,
+	void createMultipleMaterials(uint32_t QueueIndex, uint32_t comIndex, bool useAlpha, uint32_t numMat,
 		Vertex3D_t* ver, uint32_t num, uint32_t** ind, uint32_t* indNum,
 		VulkanDevice::textureIdSetInput* texid, uint32_t numInstance);
 
@@ -91,7 +91,7 @@ public:
 	void LightOn(bool on, uint32_t InstanceIndex, uint32_t matIndex,
 		float range = 100.0f, float att1 = 0.1f, float att2 = 0.001f, float att3 = 0.001f);
 
-	void create(uint32_t comIndex, bool useAlpha,
+	void create(uint32_t QueueIndex, uint32_t comIndex, bool useAlpha,
 		VulkanDevice::Vertex3D* ver, uint32_t num, uint32_t* ind, uint32_t indNum,
 		int32_t difTexInd, int32_t norTexInd, int32_t speTexInd, uint32_t numInstance);
 
@@ -103,8 +103,8 @@ public:
 	void setMaterialRefractiveIndex(float RefractiveIndex, uint32_t materialIndex = 0);
 
 	void instancing(CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale);
-	void instancingUpdate(uint32_t comIndex);
-	void update(uint32_t comIndex, CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale);
+	void instancingUpdate(uint32_t QueueIndex, uint32_t comIndex);
+	void update(uint32_t QueueIndex, uint32_t comIndex, CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale);
 };
 
 #endif

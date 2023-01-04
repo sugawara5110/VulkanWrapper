@@ -32,6 +32,7 @@ void VulkanBasicPolygonRt::LightOn(bool on, uint32_t InstanceIndex, uint32_t mat
 }
 
 void VulkanBasicPolygonRt::createVertexBuffer(
+    uint32_t QueueIndex,
     uint32_t comIndex,
     Vertex3D_t* ver, uint32_t num) {
 
@@ -64,14 +65,16 @@ void VulkanBasicPolygonRt::createVertexBuffer(
     memoryAllocateFlagsInfo.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR;
     void* pNext = &memoryAllocateFlagsInfo;
 
-    vertexBuf.createVertexBuffer(comIndex, v, num, false, pNext, &usageForRT);
+    vertexBuf.createVertexBuffer(QueueIndex, comIndex, v, num, false, pNext, &usageForRT);
     vkUtil::ARR_DELETE(v);
     vertexStride = sizeof(Vertex3Dvec4);
     vertexCount = num;
 }
 
 void VulkanBasicPolygonRt::createIndexBuffer(
-    RtData& rdata, uint32_t comIndex,
+    RtData& rdata,
+    uint32_t QueueIndex,
+    uint32_t comIndex,
     uint32_t* ind, uint32_t indNum) {
 
     VkBufferUsageFlags usageForRT =
@@ -85,11 +88,11 @@ void VulkanBasicPolygonRt::createIndexBuffer(
     memoryAllocateFlagsInfo.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR;
     void* pNext = &memoryAllocateFlagsInfo;
 
-    rdata.indexBuf.createVertexBuffer(comIndex, ind, indNum, true, pNext, &usageForRT);
+    rdata.indexBuf.createVertexBuffer(QueueIndex, comIndex, ind, indNum, true, pNext, &usageForRT);
     rdata.indexCount = indNum;
 }
 
-void VulkanBasicPolygonRt::createBLAS(RtData& rdata, uint32_t comIndex) {
+void VulkanBasicPolygonRt::createBLAS(RtData& rdata, uint32_t QueueIndex, uint32_t comIndex) {
     VkAccelerationStructureGeometryKHR Geometry{
            VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR
     };
@@ -120,19 +123,20 @@ void VulkanBasicPolygonRt::createBLAS(RtData& rdata, uint32_t comIndex) {
     buildFlags |= VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
     buildFlags |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR;
 
-    rdata.BLAS.buildAS(comIndex, VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
+    rdata.BLAS.buildAS(QueueIndex, comIndex, VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
         Geometry,
         BuildRangeInfo,
         buildFlags);
     rdata.BLAS.destroyScratchBuffer();
 }
 
-void VulkanBasicPolygonRt::updateBLAS(RtData& rdata, uint32_t comIndex) {
+void VulkanBasicPolygonRt::updateBLAS(RtData& rdata, uint32_t QueueIndex, uint32_t comIndex) {
 
     VkBuildAccelerationStructureFlagsKHR buildFlags = 0;
     buildFlags |= VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
     buildFlags |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR;
     rdata.BLAS.update(
+        QueueIndex,
         comIndex,
         VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
         buildFlags);
@@ -156,16 +160,16 @@ void VulkanBasicPolygonRt::updateInstance(RtData& rdata) {
     }
 }
 
-void VulkanBasicPolygonRt::createTexture(RtData& rdata, uint32_t comIndex, VulkanDevice::textureIdSetInput& tId) {
+void VulkanBasicPolygonRt::createTexture(RtData& rdata, uint32_t QueueIndex, uint32_t comIndex, VulkanDevice::textureIdSetInput& tId) {
     rdata.texId.diffuseId = tId.diffuseId;
     rdata.texId.normalId = tId.normalId;
     rdata.texId.specularId = tId.specularId;
 
     VulkanDevice* d = VulkanDevice::GetInstance();
-    d->createTextureSet(comIndex, rdata.texId);
+    d->createTextureSet(QueueIndex, comIndex, rdata.texId);
 }
 
-void VulkanBasicPolygonRt::createMultipleMaterials(uint32_t comIndex, bool useAlpha, uint32_t numMat,
+void VulkanBasicPolygonRt::createMultipleMaterials(uint32_t QueueIndex, uint32_t comIndex, bool useAlpha, uint32_t numMat,
     Vertex3D_t* ver, uint32_t num, uint32_t** ind, uint32_t* indNum,
     VulkanDevice::textureIdSetInput* texid, uint32_t numInstance) {
 
@@ -173,16 +177,16 @@ void VulkanBasicPolygonRt::createMultipleMaterials(uint32_t comIndex, bool useAl
         ver, ind, sizeof(Vertex3D_t), 0, 3 * 4, 9 * 4, 6 * 4);
 
     Rdata.resize(numMat);
-    createVertexBuffer(comIndex, ver, num);
+    createVertexBuffer(QueueIndex, comIndex, ver, num);
     for (auto i = 0; i < Rdata.size(); i++) {
         Rdata[i].instance.resize((size_t)numInstance);
         Rdata[i].vertexBuf = &vertexBuf;
         Rdata[i].vertexCount = vertexCount;
         Rdata[i].vertexStride = vertexStride;
-        createIndexBuffer(Rdata[i], comIndex, ind[i], indNum[i]);
-        createBLAS(Rdata[i], comIndex);
+        createIndexBuffer(Rdata[i], QueueIndex, comIndex, ind[i], indNum[i]);
+        createBLAS(Rdata[i], QueueIndex, comIndex);
         updateInstance(Rdata[i]);
-        createTexture(Rdata[i], comIndex, texid[i]);
+        createTexture(Rdata[i], QueueIndex, comIndex, texid[i]);
         Rdata[i].mat.useAlpha.x = 0.0f;
         if (useAlpha) {
             Rdata[i].mat.useAlpha.x = 1.0f;
@@ -191,7 +195,7 @@ void VulkanBasicPolygonRt::createMultipleMaterials(uint32_t comIndex, bool useAl
     rdataCreateF = true;
 }
 
-void VulkanBasicPolygonRt::create(uint32_t comIndex, bool useAlpha,
+void VulkanBasicPolygonRt::create(uint32_t QueueIndex, uint32_t comIndex, bool useAlpha,
     VulkanDevice::Vertex3D* ver, uint32_t num, uint32_t* ind, uint32_t indNum,
     int32_t difTexInd, int32_t norTexInd, int32_t speTexInd, uint32_t numInstance) {
 
@@ -210,7 +214,7 @@ void VulkanBasicPolygonRt::create(uint32_t comIndex, bool useAlpha,
     tex[0].normalId = norTexInd;
     tex[0].specularId = speTexInd;
 
-    createMultipleMaterials(comIndex, useAlpha, 1,
+    createMultipleMaterials(QueueIndex, comIndex, useAlpha, 1,
         v3, num, &ind, &indNum,
         tex, numInstance);
 
@@ -266,15 +270,15 @@ void VulkanBasicPolygonRt::instancing(CoordTf::VECTOR3 pos, CoordTf::VECTOR3 the
     InstanceCnt++;
 }
 
-void VulkanBasicPolygonRt::instancingUpdate(uint32_t comIndex) {
+void VulkanBasicPolygonRt::instancingUpdate(uint32_t QueueIndex, uint32_t comIndex) {
     for (auto i = 0; i < Rdata.size(); i++) {
-        updateBLAS(Rdata[i], comIndex);
+        updateBLAS(Rdata[i], QueueIndex, comIndex);
         updateInstance(Rdata[i]);
     }
     InstanceCnt = 0;
 }
 
-void VulkanBasicPolygonRt::update(uint32_t comIndex, CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale) {
+void VulkanBasicPolygonRt::update(uint32_t QueueIndex, uint32_t comIndex, CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale) {
     instancing(pos, theta, scale);
-    instancingUpdate(comIndex);
+    instancingUpdate(QueueIndex, comIndex);
 }

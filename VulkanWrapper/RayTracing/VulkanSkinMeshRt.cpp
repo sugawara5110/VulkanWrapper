@@ -594,7 +594,7 @@ void VulkanSkinMeshRt::LightOn(bool on, uint32_t meshIndex, uint32_t InstanceInd
 	mObj[meshIndex].LightOn(on, InstanceIndex, matIndex, range, att1, att2, att3);
 }
 
-bool VulkanSkinMeshRt::CreateFromFBX(uint32_t comIndex, bool useAlpha, uint32_t numInstance) {
+bool VulkanSkinMeshRt::CreateFromFBX(uint32_t QueueIndex, uint32_t comIndex, bool useAlpha, uint32_t numInstance) {
 
 	FbxLoader* fbL = fbx[0].fbxL;
 
@@ -604,7 +604,7 @@ bool VulkanSkinMeshRt::CreateFromFBX(uint32_t comIndex, bool useAlpha, uint32_t 
 
 		VulkanBasicPolygonRt& o = mObj[i];
 
-		o.createMultipleMaterials(comIndex, useAlpha, (uint32_t)mesh->getNumMaterial(),
+		o.createMultipleMaterials(QueueIndex, comIndex, useAlpha, (uint32_t)mesh->getNumMaterial(),
 			pvVBM[i], mesh->getNumPolygonVertices(), newIndex[i], NumNewIndex[i],
 			textureId[i], numInstance);
 
@@ -612,7 +612,7 @@ bool VulkanSkinMeshRt::CreateFromFBX(uint32_t comIndex, bool useAlpha, uint32_t 
 			vkUtil::createTangent((uint32_t)mesh->getNumMaterial(), NumNewIndex[i],
 				pvVB[i], newIndex[i], sizeof(MY_VERTEX_S), 0, 3 * 4, 9 * 4, 6 * 4);
 
-			sk[i].createVertexBuffer(comIndex, pvVB[i], mesh->getNumPolygonVertices());
+			sk[i].createVertexBuffer(QueueIndex, comIndex, pvVB[i], mesh->getNumPolygonVertices());
 			sk[i].CreateLayouts();
 			sk[i].CreateComputePipeline();
 			sk[i].CreateDescriptorSets(&o.Rdata[0].vertexBuf->info, &mObject_BONES->getBufferSet()->info);
@@ -882,7 +882,7 @@ void VulkanSkinMeshRt::Instancing(CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, 
 	}
 }
 
-bool VulkanSkinMeshRt::InstancingUpdate(uint32_t comIndex, int AnimationIndex, float ti, int InternalAnimationIndex) {
+bool VulkanSkinMeshRt::InstancingUpdate(uint32_t QueueIndex, uint32_t comIndex, int AnimationIndex, float ti, int InternalAnimationIndex) {
 
 	bool frame_end = false;
 	int insnum = 0;
@@ -893,21 +893,21 @@ bool VulkanSkinMeshRt::InstancingUpdate(uint32_t comIndex, int AnimationIndex, f
 
 	for (int i = 0; i < numMesh; i++) {
 		if (!noUseMesh[i]) {
-			if (sk)sk[i].Skinned(comIndex);
-			mObj[i].instancingUpdate(comIndex);
+			if (sk)sk[i].Skinned(QueueIndex, comIndex);
+			mObj[i].instancingUpdate(QueueIndex, comIndex);
 		}
 	}
 
 	return frame_end;
 }
 
-bool VulkanSkinMeshRt::Update(uint32_t comIndex,
+bool VulkanSkinMeshRt::Update(uint32_t QueueIndex, uint32_t comIndex,
 	int AnimationIndex, float time,
 	CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale,
 	int InternalAnimationIndex) {
 
 	Instancing(pos, theta, scale);
-	return InstancingUpdate(comIndex, AnimationIndex, time, InternalAnimationIndex);
+	return InstancingUpdate(QueueIndex, comIndex, AnimationIndex, time, InternalAnimationIndex);
 }
 
 void VulkanSkinMeshRt::setMaterialColor(CoordTf::VECTOR3 diffuse, CoordTf::VECTOR3 specular, CoordTf::VECTOR3 ambient,
@@ -940,7 +940,7 @@ VulkanSkinMeshRt::SkinningCom::~SkinningCom() {
 	dev->DeallocateDescriptorSet(descriptorSetCompute);
 }
 
-void VulkanSkinMeshRt::SkinningCom::createVertexBuffer(uint32_t comIndex, MY_VERTEX_S* ver, uint32_t num) {
+void VulkanSkinMeshRt::SkinningCom::createVertexBuffer(uint32_t QueueIndex, uint32_t comIndex, MY_VERTEX_S* ver, uint32_t num) {
 
 	struct MY_VERTEX_S_4 {
 		CoordTf::VECTOR4 vPos = {};
@@ -979,7 +979,7 @@ void VulkanSkinMeshRt::SkinningCom::createVertexBuffer(uint32_t comIndex, MY_VER
 	memoryAllocateFlagsInfo.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR;
 	void* pNext = &memoryAllocateFlagsInfo;
 
-	Buf.createVertexBuffer(comIndex, v, num, false, pNext, &usageForRT);
+	Buf.createVertexBuffer(QueueIndex, comIndex, v, num, false, pNext, &usageForRT);
 	vkUtil::ARR_DELETE(v);
 }
 
@@ -1077,10 +1077,10 @@ void VulkanSkinMeshRt::SkinningCom::CreateDescriptorSets(VkDescriptorBufferInfo*
 	vkUpdateDescriptorSets(dev->getDevice(), uint32_t(writeSets.size()), writeSets.data(), 0, nullptr);
 }
 
-void VulkanSkinMeshRt::SkinningCom::Skinned(uint32_t comIndex) {
+void VulkanSkinMeshRt::SkinningCom::Skinned(uint32_t QueueIndex, uint32_t comIndex) {
 
 	VulkanDevice* dev = VulkanDevice::GetInstance();
-	auto command = dev->getCommandBuffer(comIndex);
+	auto command = dev->getCommandObj(QueueIndex)->getCommandBuffer(comIndex);
 
 	vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_COMPUTE, computeSkiningPipeline);
 	vkCmdBindDescriptorSets(

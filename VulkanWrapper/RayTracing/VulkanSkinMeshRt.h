@@ -116,11 +116,11 @@ protected:
 
 	public:
 		~SkinningCom();
-		void createVertexBuffer(uint32_t comIndex, MY_VERTEX_S* ver, uint32_t num);
+		void createVertexBuffer(uint32_t QueueIndex, uint32_t comIndex, MY_VERTEX_S* ver, uint32_t num);
 		void CreateLayouts();
 		void CreateComputePipeline();
 		void CreateDescriptorSets(VkDescriptorBufferInfo* output, VkDescriptorBufferInfo* bone);
-		void Skinned(uint32_t comIndex);
+		void Skinned(uint32_t QueueIndex, uint32_t comIndex);
 	};
 	SkinningCom* sk = nullptr;
 
@@ -148,7 +148,7 @@ public:
 	void LightOn(bool on, uint32_t meshIndex, uint32_t InstanceIndex, uint32_t matIndex,
 		float range = 100.0f, float att1 = 0.1f, float att2 = 0.001f, float att3 = 0.001f);
 
-	bool CreateFromFBX(uint32_t comIndex, bool useAlpha, uint32_t numInstance);
+	bool CreateFromFBX(uint32_t QueueIndex, uint32_t comIndex, bool useAlpha, uint32_t numInstance);
 	void SetFbxSub(char* szFileName, int ind);
 	void CreateBuffer_Sub(int ind, int num_end_frame, float* end_frame);
 	void CreateBuffer_Sub(int ind, float end_frame);
@@ -156,9 +156,9 @@ public:
 
 	void Instancing(CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale);
 
-	bool InstancingUpdate(uint32_t comIndex, int AnimationIndex, float time, int InternalAnimationIndex = 0);
+	bool InstancingUpdate(uint32_t QueueIndex, uint32_t comIndex, int AnimationIndex, float time, int InternalAnimationIndex = 0);
 
-	bool Update(uint32_t comIndex,
+	bool Update(uint32_t QueueIndex, uint32_t comIndex,
 		int AnimationIndex, float time,
 		CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale,
 		int InternalAnimationIndex = 0);

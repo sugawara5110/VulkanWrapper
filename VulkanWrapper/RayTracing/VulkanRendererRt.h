@@ -84,9 +84,9 @@ private:
 
     bool testMode[3] = { false,false,false };
 
-    void CreateTLAS(uint32_t comIndex);
+    void CreateTLAS(uint32_t QueueIndex, uint32_t comIndex);
 
-    void CreateRaytracedBuffer(uint32_t comIndex);
+    void CreateRaytracedBuffer(uint32_t QueueIndex, uint32_t comIndex);
 
     void CreateRaytracePipeline();
 
@@ -96,15 +96,15 @@ private:
 
     void CreateDescriptorSets();
 
-    void UpdateTLAS(uint32_t comIndex);
+    void UpdateTLAS(uint32_t QueueIndex, uint32_t comIndex);
 
     void writeSBTDataAndHit(VulkanBasicPolygonRt::RtData* rt,
         void* dst, uint64_t hitShaderEntrySize,
         void* hit, uint32_t handleSizeAligned, uint32_t hitHandleSize);
 
-    void DepthMapWrite(uint32_t comIndex);
+    void DepthMapWrite(uint32_t QueueIndex, uint32_t comIndex);
 
-    void DepthMapUpdate(uint32_t comIndex);
+    void DepthMapUpdate(uint32_t QueueIndex, uint32_t comIndex);
 
 public:
     enum TestMode {
@@ -115,7 +115,7 @@ public:
 
     void TestModeOn(TestMode mode);
 
-    void Init(uint32_t comIndex, std::vector<VulkanBasicPolygonRt::RtData*> rt);
+    void Init(uint32_t QueueIndex, uint32_t comIndex, std::vector<VulkanBasicPolygonRt::RtData*> rt);
     void destroy();
 
     void setDirectionLight(bool on, CoordTf::VECTOR3 Color = { 1.0f,1.0f,1.0f }, CoordTf::VECTOR3 Direction = { -0.2f, -1.0f, -1.0f });
@@ -123,7 +123,7 @@ public:
     void setGlobalAmbientColor(CoordTf::VECTOR3 Color);
 
     void Update(int maxRecursion);
-    void Render(uint32_t comIndex, bool depthUpdate = false);
+    void Render(uint32_t QueueIndex, uint32_t comIndex, bool depthUpdate = false);
 
     VulkanDevice::ImageSet* getInstanceIdMap() {
         return &instanceIdMap;

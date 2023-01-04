@@ -26,22 +26,22 @@ Vulkan2D::~Vulkan2D() {
 	index.destroy();
 }
 
-void Vulkan2D::createColor(uint32_t comIndex, Vertex2D* ver, uint32_t num, uint32_t* ind, uint32_t indNum) {
+void Vulkan2D::createColor(uint32_t QueueIndex, uint32_t comIndex, Vertex2D* ver, uint32_t num, uint32_t* ind, uint32_t indNum) {
 	static VkVertexInputAttributeDescription attrDescs[] =
 	{
 		{ 0, 0, VK_FORMAT_R32G32_SFLOAT, 0 },
 		{ 1, 0, VK_FORMAT_R32G32B32A32_SFLOAT, sizeof(float) * 2 }
 	};
-	create(comIndex, ver, num, ind, indNum, attrDescs, 2, vsShader2D, fsShader2D, -1);
+	create(QueueIndex, comIndex, ver, num, ind, indNum, attrDescs, 2, vsShader2D, fsShader2D, -1);
 }
 
-void Vulkan2D::createTexture(uint32_t comIndex, Vertex2DTex* ver, uint32_t num, uint32_t* ind, uint32_t indNum, int textureId) {
+void Vulkan2D::createTexture(uint32_t QueueIndex, uint32_t comIndex, Vertex2DTex* ver, uint32_t num, uint32_t* ind, uint32_t indNum, int textureId) {
 	static VkVertexInputAttributeDescription attrDescs[] =
 	{
 		{ 0, 0, VK_FORMAT_R32G32_SFLOAT, 0 },
 		{ 1, 0, VK_FORMAT_R32G32_SFLOAT, sizeof(float) * 2 }
 	};
-	create(comIndex, ver, num, ind, indNum, attrDescs, 2, vsShader2DTex, fsShader2DTex, textureId);
+	create(QueueIndex, comIndex, ver, num, ind, indNum, attrDescs, 2, vsShader2DTex, fsShader2DTex, textureId);
 }
 
 void Vulkan2D::update(uint32_t swapIndex, CoordTf::VECTOR2 pos) {
@@ -50,7 +50,7 @@ void Vulkan2D::update(uint32_t swapIndex, CoordTf::VECTOR2 pos) {
 	uniform[swapIndex]->update(0, &mat2d[swapIndex]);
 }
 
-void Vulkan2D::draw(uint32_t swapIndex, uint32_t comIndex) {
+void Vulkan2D::draw(uint32_t swapIndex, uint32_t QueueIndex, uint32_t comIndex) {
 	VulkanDevice* device = VulkanDevice::GetInstance();
 	VulkanSwapchain* sw = VulkanSwapchain::GetInstance();
 	uint32_t width = sw->getSize().width;
@@ -59,7 +59,7 @@ void Vulkan2D::draw(uint32_t swapIndex, uint32_t comIndex) {
 	static VkRect2D sc = { { 0, 0 }, { width, height } };
 	static VkDeviceSize offsets[] = { 0 };
 
-	VkCommandBuffer comb = device->getCommandBuffer(comIndex);
+	VkCommandBuffer comb = device->getCommandObj(QueueIndex)->getCommandBuffer(comIndex);
 
 	vkCmdBindPipeline(comb, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 	vkCmdSetViewport(comb, 0, 1, &vp);

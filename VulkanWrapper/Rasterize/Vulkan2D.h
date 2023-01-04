@@ -38,7 +38,7 @@ private:
 	RasterizeDescriptor::MatrixSet2D mat2d[numSwap] = {};
 
 	template<typename T>
-	void create(uint32_t comIndex, T* ver, uint32_t num, uint32_t* ind, uint32_t indNum,
+	void create(uint32_t QueueIndex, uint32_t comIndex, T* ver, uint32_t num, uint32_t* ind, uint32_t indNum,
 		VkVertexInputAttributeDescription* attrDescs, uint32_t numAttr, char* vs, char* fs, int textureId) {
 
 		bool useTexture = false;
@@ -56,8 +56,8 @@ private:
 		VkPipelineShaderStageCreateInfo vsInfo = device->createShaderModule("2Dvs", vs, VK_SHADER_STAGE_VERTEX_BIT);
 		VkPipelineShaderStageCreateInfo fsInfo = device->createShaderModule("2Dfs", fs, VK_SHADER_STAGE_FRAGMENT_BIT);
 
-		vertices = device->createVertexBuffer<T>(comIndex, ver, sizeof(T) * num, false, nullptr, nullptr);
-		index = device->createVertexBuffer<uint32_t>(comIndex, ind, sizeof(uint32_t) * indNum,
+		vertices = device->createVertexBuffer<T>(QueueIndex, comIndex, ver, sizeof(T) * num, false, nullptr, nullptr);
+		index = device->createVertexBuffer<uint32_t>(QueueIndex, comIndex, ind, sizeof(uint32_t) * indNum,
 			true, nullptr, nullptr);
 
 		rd->descriptorAndPipelineLayouts2D(useTexture, pipelineLayout, descSetLayout);
@@ -65,11 +65,11 @@ private:
 		for (uint32_t i = 0; i < numSwap; i++) {
 			uniform[i] = new VulkanDevice::Uniform<RasterizeDescriptor::MatrixSet2D>(1);
 			if (textureId < 0) {
-				if (i == 0)device->createVkTexture(texture, comIndex, device->getTexture(device->numTextureMax));
+				if (i == 0)device->createVkTexture(texture, QueueIndex, comIndex, device->getTexture(device->numTextureMax));
 				//-1の場合テクスチャー無いので, ダミーを入れる
 			}
 			else {
-				if (i == 0)device->createVkTexture(texture, comIndex, device->getTexture(textureId));
+				if (i == 0)device->createVkTexture(texture, QueueIndex, comIndex, device->getTexture(textureId));
 			}
 			descSetCnt = rd->upDescriptorSet2D(useTexture, texture, uniform[i], descSet[i], descSetLayout);
 		}
@@ -85,10 +85,10 @@ private:
 public:
 	Vulkan2D();
 	~Vulkan2D();
-	void createColor(uint32_t comIndex, Vertex2D* ver, uint32_t num, uint32_t* ind, uint32_t indNum);
-	void createTexture(uint32_t comIndex, Vertex2DTex* ver, uint32_t num, uint32_t* ind, uint32_t indNum, int textureId);
+	void createColor(uint32_t QueueIndex, uint32_t comIndex, Vertex2D* ver, uint32_t num, uint32_t* ind, uint32_t indNum);
+	void createTexture(uint32_t QueueIndex, uint32_t comIndex, Vertex2DTex* ver, uint32_t num, uint32_t* ind, uint32_t indNum, int textureId);
 	void update(uint32_t swapIndex, CoordTf::VECTOR2 pos = { 0.0f,0.0f });
-	void draw(uint32_t swapIndex, uint32_t comIndex);
+	void draw(uint32_t swapIndex, uint32_t QueueIndex, uint32_t comIndex);
 };
 
 #endif

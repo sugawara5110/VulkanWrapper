@@ -40,7 +40,7 @@ VulkanBasicPolygon::~VulkanBasicPolygon() {
 	vkUtil::ARR_DELETE(texId);
 }
 
-void VulkanBasicPolygon::create(uint32_t comIndex, bool useAlpha, int32_t difTexInd, int32_t norTexInd, int32_t speTexInd, VulkanDevice::Vertex3D* ver, uint32_t num, uint32_t* ind, uint32_t indNum) {
+void VulkanBasicPolygon::create(uint32_t QueueIndex, uint32_t comIndex, bool useAlpha, int32_t difTexInd, int32_t norTexInd, int32_t speTexInd, VulkanDevice::Vertex3D* ver, uint32_t num, uint32_t* ind, uint32_t indNum) {
 
 	static VkVertexInputAttributeDescription attrDescs[] =
 	{
@@ -56,7 +56,7 @@ void VulkanBasicPolygon::create(uint32_t comIndex, bool useAlpha, int32_t difTex
 	tex[0].normalId = norTexInd;
 	tex[0].specularId = speTexInd;
 	float sw[1] = {};
-	create0<VulkanDevice::Vertex3D>(comIndex, useAlpha, numMaterial, tex, sw, ver, num, &ind, &indNum,
+	create0<VulkanDevice::Vertex3D>(QueueIndex, comIndex, useAlpha, numMaterial, tex, sw, ver, num, &ind, &indNum,
 		attrDescs, 4, vsShaderBasicPolygon, fsShaderBasicPolygon);
 }
 
@@ -107,7 +107,7 @@ void VulkanBasicPolygon::update(uint32_t swapIndex,
 	update0(swapIndex, pos, theta, scale, nullptr, 0);
 }
 
-void VulkanBasicPolygon::draw(uint32_t swapIndex, uint32_t comIndex) {
+void VulkanBasicPolygon::draw(uint32_t swapIndex, uint32_t QueueIndex, uint32_t comIndex) {
 	VulkanDevice* device = VulkanDevice::GetInstance();
 	VulkanSwapchain* sw = VulkanSwapchain::GetInstance();
 	uint32_t width = sw->getSize().width;
@@ -116,7 +116,7 @@ void VulkanBasicPolygon::draw(uint32_t swapIndex, uint32_t comIndex) {
 	static VkRect2D sc = { { 0, 0 }, { width, height } };
 	static VkDeviceSize offsets[] = { 0 };
 
-	VkCommandBuffer comb = device->getCommandBuffer(comIndex);
+	VkCommandBuffer comb = device->getCommandObj(QueueIndex)->getCommandBuffer(comIndex);
 
 	vkCmdBindPipeline(comb, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 	vkCmdSetViewport(comb, 0, 1, &vp);

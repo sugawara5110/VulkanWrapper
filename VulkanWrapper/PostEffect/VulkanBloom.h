@@ -65,8 +65,8 @@ private:
 		BloomParam bParam = {};
 		VulkanDevice::Uniform<BloomParam>* bParamUBO = nullptr;
 
-		void createGaussianFilter(uint32_t comIndex, float sigma);
-		void createBuffer(uint32_t comIndex);
+		void createGaussianFilter(uint32_t QueueIndex, uint32_t comIndex, float sigma);
+		void createBuffer(uint32_t QueueIndex, uint32_t comIndex);
 		void createLayouts();
 		void createPipeline();
 		void createDescriptorSets();
@@ -80,9 +80,9 @@ private:
 			InstanceParam instanceParam,
 			std::vector<uint32_t> gausSize = { 512,256,128,64,32 });
 
-		void Create(uint32_t comIndex, float sigma = 10.0f);
+		void Create(uint32_t QueueIndex, uint32_t comIndex, float sigma = 10.0f);
 
-		void Compute(uint32_t comIndex);
+		void Compute(uint32_t QueueIndex, uint32_t comIndex);
 
 		VulkanDevice::ImageSet* getOutput() {
 			return &Output;
@@ -108,7 +108,7 @@ private:
 	std::vector<VkDescriptorImageInfo> blOutput_Info;
 	VulkanDevice::ImageSet Output;
 
-	void createBuffer(uint32_t comIndex);
+	void createBuffer(uint32_t QueueIndex, uint32_t comIndex);
 	void createLayouts();
 	void createPipeline();
 	void createDescriptorSets();
@@ -122,9 +122,9 @@ public:
 		std::vector<InstanceParam> instanceParams,
 		std::vector<std::vector<uint32_t>>* gausSizes = nullptr);
 
-	void Create(uint32_t comIndex, std::vector<float>* sigma = nullptr);
+	void Create(uint32_t QueueIndex, uint32_t comIndex, std::vector<float>* sigma = nullptr);
 
-	void Compute(uint32_t comIndex);
+	void Compute(uint32_t QueueIndex, uint32_t comIndex);
 };
 
 #endif

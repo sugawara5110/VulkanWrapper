@@ -18,6 +18,7 @@ void AccelerationStructure::destroyScratchBuffer() {
 }
 
 void AccelerationStructure::buildAS(
+    uint32_t QueueIndex,
     uint32_t comIndex,
     VkAccelerationStructureTypeKHR type,
     VkAccelerationStructureGeometryKHR geometry,
@@ -90,10 +91,12 @@ void AccelerationStructure::buildAS(
 
     asBuildGeometryInfo.dstAccelerationStructure = accelerationStructure.handle;
     asBuildGeometryInfo.scratchData.deviceAddress = scratchBuffer.getDeviceAddress();
-    build(comIndex, asBuildGeometryInfo, BuildRangeInfo);
+    build(QueueIndex, comIndex, asBuildGeometryInfo, BuildRangeInfo);
 }
 
-void AccelerationStructure::update(uint32_t comIndex,
+void AccelerationStructure::update(
+    uint32_t QueueIndex,
+    uint32_t comIndex,
     VkAccelerationStructureTypeKHR type,
     VkBuildAccelerationStructureFlagsKHR buildFlags) {
 
@@ -112,7 +115,7 @@ void AccelerationStructure::update(uint32_t comIndex,
     accelerationStructureBuildGeometryInfo.scratchData.deviceAddress = updateBuffer.getDeviceAddress();
 
     VulkanDevice* dev = VulkanDevice::GetInstance();
-    auto command = dev->getCommandBuffer(comIndex);
+    auto command = dev->getCommandObj(QueueIndex)->getCommandBuffer(comIndex);
 
     VkAccelerationStructureBuildRangeInfoKHR* BuildRangeInfoArr[1] = { &BuildRangeInfo };
 
@@ -133,15 +136,19 @@ void AccelerationStructure::update(uint32_t comIndex,
         0, nullptr);
 }
 
-void AccelerationStructure::build(uint32_t comIndex,
+void AccelerationStructure::build(
+    uint32_t QueueIndex,
+    uint32_t comIndex,
     VkAccelerationStructureBuildGeometryInfoKHR BuildGeometryInfo,
     VkAccelerationStructureBuildRangeInfoKHR BuildRangeInfo) {
 
     VkAccelerationStructureBuildRangeInfoKHR* asBuildRangeInfoPtrs[1] = { &BuildRangeInfo };
 
     VulkanDevice* dev = VulkanDevice::GetInstance();
-    auto command = dev->getCommandBuffer(comIndex);
-    dev->beginCommand(comIndex);
+    VulkanDevice::CommandObj* com = dev->getCommandObj(QueueIndex);
+    auto command = com->getCommandBuffer(comIndex);
+
+    com->beginCommand(comIndex);
 
     vkCmdBuildAccelerationStructuresKHR(
         command, 1, &BuildGeometryInfo, asBuildRangeInfoPtrs
@@ -160,7 +167,7 @@ void AccelerationStructure::build(uint32_t comIndex,
         0, nullptr,
         0, nullptr
     );
-    dev->endCommand(comIndex);
-    dev->submitCommandsDoNotRender(comIndex);
+    com->endCommand(comIndex);
+    com->submitCommandsDoNotRender();
 }
 

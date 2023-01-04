@@ -105,7 +105,7 @@ void VulkanBloom::setImage(
 	}
 }
 
-void VulkanBloom::createBuffer(uint32_t comIndex) {
+void VulkanBloom::createBuffer(uint32_t QueueIndex, uint32_t comIndex) {
 
 	VulkanDevice* dev = VulkanDevice::GetInstance();
 	VulkanSwapchain* sw = VulkanSwapchain::GetInstance();
@@ -118,14 +118,16 @@ void VulkanBloom::createBuffer(uint32_t comIndex) {
 
 	VkMemoryPropertyFlags devMemProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
-	dev->beginCommand(comIndex);
+	auto com = dev->getCommandObj(QueueIndex);
+
+	com->beginCommand(comIndex);
 
 	Output.createImage(Width, Height, format, VK_IMAGE_TILING_OPTIMAL, usage, devMemProps);
 	Output.createImageView(format, VK_IMAGE_ASPECT_COLOR_BIT);
-	Output.barrierResource(comIndex, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
+	Output.barrierResource(QueueIndex, comIndex, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
-	dev->endCommand(comIndex);
-	dev->submitCommandsDoNotRender(comIndex);
+	com->endCommand(comIndex);
+	com->submitCommandsDoNotRender();
 
 	bParamUBO = new VulkanDevice::Uniform<BloomParam>(1);
 	bParam.numInstance = (int)bloom.size();
@@ -197,31 +199,31 @@ void VulkanBloom::createDescriptorSets() {
 	vkUpdateDescriptorSets(dev->getDevice(), uint32_t(write.size()), write.data(), 0, nullptr);
 }
 
-void VulkanBloom::Create(uint32_t comIndex, std::vector<float>* sigma) {
+void VulkanBloom::Create(uint32_t QueueIndex, uint32_t comIndex, std::vector<float>* sigma) {
 	for (size_t i = 0; i < bloom.size(); i++) {
 		if (sigma) {
-			bloom[i].Create(comIndex, (*sigma)[i]);
+			bloom[i].Create(QueueIndex, comIndex, (*sigma)[i]);
 		}
 		else {
-			bloom[i].Create(comIndex);
+			bloom[i].Create(QueueIndex, comIndex);
 		}
 	}
 
-	createBuffer(comIndex);
+	createBuffer(QueueIndex, comIndex);
 	createLayouts();
 	createPipeline();
 	createDescriptorSets();
 }
 
-void VulkanBloom::Compute(uint32_t comIndex) {
+void VulkanBloom::Compute(uint32_t QueueIndex, uint32_t comIndex) {
 
 	for (size_t i = 0; i < bloom.size(); i++) {
-		bloom[i].Compute(comIndex);
+		bloom[i].Compute(QueueIndex, comIndex);
 	}
 
 	VulkanDevice* dev = VulkanDevice::GetInstance();
 	VulkanSwapchain* sw = VulkanSwapchain::GetInstance();
-	auto command = dev->getCommandBuffer(comIndex);
+	auto command = dev->getCommandObj(QueueIndex)->getCommandBuffer(comIndex);
 
 	vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_COMPUTE, Pipeline);
 	vkCmdBindDescriptorSets(
@@ -251,10 +253,10 @@ void VulkanBloom::Compute(uint32_t comIndex) {
 	region.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
 	region.dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
 
-	Output.barrierResource(comIndex,
+	Output.barrierResource(QueueIndex, comIndex,
 		VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
-	dev->barrierResource(comIndex,
+	dev->barrierResource(QueueIndex, comIndex,
 		sw->getCurrentImage(),
 		VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
 		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
@@ -264,12 +266,12 @@ void VulkanBloom::Compute(uint32_t comIndex) {
 		sw->getCurrentImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 		1, &region);
 
-	dev->barrierResource(comIndex,
+	dev->barrierResource(QueueIndex, comIndex,
 		sw->getCurrentImage(),
 		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 		VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_ASPECT_COLOR_BIT);
 
-	Output.barrierResource(comIndex, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
+	Output.barrierResource(QueueIndex, comIndex, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
 }
 
 VulkanBloom::Bloom::~Bloom() {
@@ -465,7 +467,7 @@ void VulkanBloom::Bloom::createDescriptorSets() {
 	deset(write3);
 }
 
-void VulkanBloom::Bloom::createGaussianFilter(uint32_t comIndex, float sigma) {
+void VulkanBloom::Bloom::createGaussianFilter(uint32_t QueueIndex, uint32_t comIndex, float sigma) {
 
 	float* gaFil = nullptr;
 	int GaussianWid = 0;
@@ -475,17 +477,19 @@ void VulkanBloom::Bloom::createGaussianFilter(uint32_t comIndex, float sigma) {
 	VkImageUsageFlags usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
 
 	GaussianFilter = VulkanDevice::GetInstance()->createDefaultCopiedBuffer(
+		QueueIndex,
 		comIndex, gaFil, GaussianWid,
 		nullptr, &usage);
 
 	vkUtil::ARR_DELETE(gaFil);
 }
 
-void VulkanBloom::Bloom::createBuffer(uint32_t comIndex) {
+void VulkanBloom::Bloom::createBuffer(uint32_t QueueIndex, uint32_t comIndex) {
 
 	VulkanDevice* dev = VulkanDevice::GetInstance();
 	VulkanSwapchain* sw = VulkanSwapchain::GetInstance();
 	VkFormat format = sw->getFormat();
+	auto com = dev->getCommandObj(QueueIndex);
 
 	int numFilter = (int)GausSize.size();//ガウシアンフィルタ計算回数
 	int numFilterDispatch = numGausShader * numFilter;//ガウシアンフィルタのシェーダー実行回数
@@ -502,48 +506,48 @@ void VulkanBloom::Bloom::createBuffer(uint32_t comIndex) {
 		usage | VK_IMAGE_USAGE_SAMPLED_BIT;
 	VkMemoryPropertyFlags devMemProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
-	dev->beginCommand(comIndex);
+	com->beginCommand(comIndex);
 
 	for (size_t i = 0; i < fset.size(); i++) {
 		uint32_t s = GausSize[i];
 		VulkanDevice::ImageSet& Luminance = fset[i].Luminance;
 		Luminance.createImage(s, s, format, VK_IMAGE_TILING_OPTIMAL, usage, devMemProps);
 		Luminance.createImageView(format, VK_IMAGE_ASPECT_COLOR_BIT);
-		Luminance.barrierResource(comIndex, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
+		Luminance.barrierResource(QueueIndex, comIndex, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
 		VulkanDevice::ImageSet& Bloom0 = fset[i].inOutBloom0;
 		Bloom0.createImage(s, s, format, VK_IMAGE_TILING_OPTIMAL, usage, devMemProps);
 		Bloom0.createImageView(format, VK_IMAGE_ASPECT_COLOR_BIT);
-		Bloom0.barrierResource(comIndex, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
+		Bloom0.barrierResource(QueueIndex, comIndex, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
 		VulkanDevice::ImageSet& Bloom1 = fset[i].inOutBloom1;
 		Bloom1.createImage(s, s, format, VK_IMAGE_TILING_OPTIMAL, usage2, devMemProps);
 		Bloom1.createImageView(format, VK_IMAGE_ASPECT_COLOR_BIT);
-		Bloom1.barrierResource(comIndex, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
+		Bloom1.barrierResource(QueueIndex, comIndex, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
 		dev->createTextureSampler(Bloom1.info.sampler);
 		inOutBloom1_Info.push_back(fset[i].inOutBloom1.info);
 	}
 
 	Output.createImage(sw->getSize().width, sw->getSize().height, format, VK_IMAGE_TILING_OPTIMAL, usage, devMemProps);
 	Output.createImageView(format, VK_IMAGE_ASPECT_COLOR_BIT);
-	Output.barrierResource(comIndex, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
+	Output.barrierResource(QueueIndex, comIndex, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
-	dev->endCommand(comIndex);
-	dev->submitCommandsDoNotRender(comIndex);
+	com->endCommand(comIndex);
+	com->submitCommandsDoNotRender();
 
 	bParamUBO = new VulkanDevice::Uniform<BloomParam>(1);
 }
 
-void VulkanBloom::Bloom::Create(uint32_t comIndex, float sigma) {
+void VulkanBloom::Bloom::Create(uint32_t QueueIndex, uint32_t comIndex, float sigma) {
 
-	createGaussianFilter(comIndex, sigma);
-	createBuffer(comIndex);
+	createGaussianFilter(QueueIndex, comIndex, sigma);
+	createBuffer(QueueIndex, comIndex);
 	createLayouts();
 	createPipeline();
 	createDescriptorSets();
 }
 
-void VulkanBloom::Bloom::Compute(uint32_t comIndex) {
+void VulkanBloom::Bloom::Compute(uint32_t QueueIndex, uint32_t comIndex) {
 	VulkanDevice* dev = VulkanDevice::GetInstance();
-	auto command = dev->getCommandBuffer(comIndex);
+	auto command = dev->getCommandObj(QueueIndex)->getCommandBuffer(comIndex);
 
 	bParam.bloomStrength = iParam.bloomStrength;
 	bParam.InstanceID = iParam.EmissiveInstanceId;

@@ -37,7 +37,7 @@ private:
 	char* fs = nullptr;
 
 	template<typename T>
-	void create0(uint32_t comIndex, bool useAlpha,
+	void create0(uint32_t QueueIndex, uint32_t comIndex, bool useAlpha,
 		int32_t numMat, VulkanDevice::textureIdSet* texid, float* uvSw,
 		T* ver, uint32_t num,
 		uint32_t** ind, uint32_t* indNum,
@@ -62,7 +62,7 @@ private:
 		VkPipelineShaderStageCreateInfo vsInfo = device->createShaderModule("BPvs", vs, VK_SHADER_STAGE_VERTEX_BIT);
 		VkPipelineShaderStageCreateInfo fsInfo = device->createShaderModule("BPfs", fs, VK_SHADER_STAGE_FRAGMENT_BIT);
 
-		vertices = device->createVertexBuffer<T>(comIndex, ver, num, false, nullptr, nullptr);
+		vertices = device->createVertexBuffer<T>(QueueIndex, comIndex, ver, num, false, nullptr, nullptr);
 		RasterizeDescriptor* rd = RasterizeDescriptor::GetInstance();
 		rd->descriptorAndPipelineLayouts(true, pipelineLayout, descSetLayout);
 
@@ -76,10 +76,10 @@ private:
 				if (numIndex[m] <= 0)continue;
 				materialset[i][m].UvSwitch.x = uvSw[m];
 				material[i][m]->update(0, &materialset[i][m]);
-				if (i == 0)index[m] = device->createVertexBuffer<uint32_t>(comIndex, ind[m], indNum[m],
+				if (i == 0)index[m] = device->createVertexBuffer<uint32_t>(QueueIndex, comIndex, ind[m], indNum[m],
 					true, nullptr, nullptr);
 
-				if (i == 0)device->createTextureSet(comIndex, texId[m]);
+				if (i == 0)device->createTextureSet(QueueIndex, comIndex, texId[m]);
 
 				descSetCnt = rd->upDescriptorSet(true, texId[m].difTex, texId[m].norTex, texId[m].speTex,
 					uniform[i], material[i][m],
@@ -102,7 +102,7 @@ public:
 	VulkanBasicPolygon();
 	~VulkanBasicPolygon();
 
-	void create(uint32_t comIndex, bool useAlpha, int32_t difTexInd, int32_t norTexInd, int32_t speTexInd,
+	void create(uint32_t QueueIndex, uint32_t comIndex, bool useAlpha, int32_t difTexInd, int32_t norTexInd, int32_t speTexInd,
 		VulkanDevice::Vertex3D* ver, uint32_t num, uint32_t* ind, uint32_t indNum);
 
 	void setMaterialParameter(uint32_t swapIndex, CoordTf::VECTOR3 diffuse, CoordTf::VECTOR3 specular, CoordTf::VECTOR3 ambient,
@@ -111,7 +111,7 @@ public:
 	void update(uint32_t swapIndex, CoordTf::VECTOR3 pos = { 0.0f,0.0f,0.0f },
 		CoordTf::VECTOR3 theta = { 0.0f,0.0f,0.0f }, CoordTf::VECTOR3 scale = { 1.0f,1.0f,1.0f });
 
-	void draw(uint32_t swapIndex, uint32_t comIndex);
+	void draw(uint32_t swapIndex, uint32_t QueueIndex, uint32_t comIndex);
 };
 
 #endif

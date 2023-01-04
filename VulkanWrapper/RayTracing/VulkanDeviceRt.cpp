@@ -20,6 +20,8 @@ void BufferSetRt::createDefaultBuffer(VkDeviceSize size, VkBufferUsageFlags usag
 
 bool VulkanDeviceRt::createDevice(VkInstance ins, VkPhysicalDevice phDev, uint32_t ApiVersion,
     uint32_t numCommandBuffer,
+    uint32_t numGraphicsQueue,
+    uint32_t numComputeQueue,
     std::vector<VkDescriptorPoolSize>* add_poolSize, uint32_t maxDescriptorSets) {
 
     pDeviceRt = this;
@@ -69,7 +71,9 @@ bool VulkanDeviceRt::createDevice(VkInstance ins, VkPhysicalDevice phDev, uint32
     physicalDeviceFeatures2.pNext = &enabledDescriptorIndexingFeatures;
     physicalDeviceFeatures2.features = features;
 
-    VulkanDevice::InstanceCreate(phDev, ApiVersion, numCommandBuffer);
+    VulkanDevice::InstanceCreate(phDev, ApiVersion,
+        numCommandBuffer, numGraphicsQueue, numComputeQueue);
+
     VulkanDevice* vkDev = VulkanDevice::GetInstance();
 
     const void* pNext = &physicalDeviceFeatures2;

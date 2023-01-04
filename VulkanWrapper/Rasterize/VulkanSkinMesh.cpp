@@ -98,7 +98,7 @@ VulkanSkinMesh::~VulkanSkinMesh() {
 	}
 }
 
-void VulkanSkinMesh::create(uint32_t comIndex, bool useAlpha) {
+void VulkanSkinMesh::create(uint32_t QueueIndex, uint32_t comIndex, bool useAlpha) {
 	//各mesh読み込み
 	for (uint32_t mI = 0; mI < numMesh; mI++) {
 		bp[mI] = new VulkanBasicPolygon();
@@ -336,7 +336,7 @@ void VulkanSkinMesh::create(uint32_t comIndex, bool useAlpha) {
 				{4, 0, VK_FORMAT_R32G32B32A32_SFLOAT, sizeof(float) * 10},
 				{5, 0, VK_FORMAT_R32G32B32A32_SFLOAT, sizeof(float) * 14}
 		};
-		bp[mI]->create0<VertexSkin>(comIndex, useAlpha, numMaterial, texId, uvSw, verSkin,
+		bp[mI]->create0<VertexSkin>(QueueIndex, comIndex, useAlpha, numMaterial, texId, uvSw, verSkin,
 			(uint32_t)mesh->getNumPolygonVertices(),
 			newIndex, numNewIndex, attrDescs, numattrDescs, vsShaderSkinMesh,
 			bp[mI]->fs);
@@ -488,8 +488,8 @@ bool VulkanSkinMesh::autoUpdate(uint32_t swapIndex, uint32_t animationIndex, flo
 	return true;
 }
 
-void VulkanSkinMesh::draw(uint32_t swapIndex, uint32_t comIndex) {
+void VulkanSkinMesh::draw(uint32_t swapIndex, uint32_t QueueIndex, uint32_t comIndex) {
 	for (uint32_t i = 0; i < numMesh; i++) {
-		bp[i]->draw(swapIndex, comIndex);
+		bp[i]->draw(swapIndex, QueueIndex, comIndex);
 	}
 }

@@ -25,11 +25,11 @@ public:
     void createDefaultBuffer(VkDeviceSize size, VkBufferUsageFlags usage, void* allocateMemory_add_pNext);
 
     template<typename T>
-    void createVertexBuffer(uint32_t comBufindex, T* ver, int num, bool typeIndex,
+    void createVertexBuffer(uint32_t QueueIndex, uint32_t comBufindex, T* ver, int num, bool typeIndex,
         void* allocateMemory_add_pNext, VkBufferUsageFlags* add_usage) {
 
         VulkanDevice::BufferSet buf =
-            VulkanDevice::GetInstance()->createVertexBuffer(comBufindex, ver, num, typeIndex, allocateMemory_add_pNext, add_usage);
+            VulkanDevice::GetInstance()->createVertexBuffer(QueueIndex, comBufindex, ver, num, typeIndex, allocateMemory_add_pNext, add_usage);
 
         buffer = buf.getBuffer();
         mem = buf.getMemory();
@@ -52,6 +52,8 @@ public:
 
     bool createDevice(VkInstance ins, VkPhysicalDevice phDev, uint32_t ApiVersion,
         uint32_t numCommandBuffer = 1,
+        uint32_t numGraphicsQueue = 1,
+        uint32_t numComputeQueue = 0,
         std::vector<VkDescriptorPoolSize>* add_poolSize = nullptr, uint32_t maxDescriptorSets = 0);
 
     void destroy();

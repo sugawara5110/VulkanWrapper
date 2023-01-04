@@ -95,7 +95,7 @@ namespace {
     }
 }
 
-void VulkanRendererRt::Init(uint32_t comIndex, std::vector<VulkanBasicPolygonRt::RtData*> r) {
+void VulkanRendererRt::Init(uint32_t QueueIndex, uint32_t comIndex, std::vector<VulkanBasicPolygonRt::RtData*> r) {
 
     m_sceneUBO = new VulkanDevice::Uniform<SceneParam>(1);
 
@@ -143,9 +143,9 @@ void VulkanRendererRt::Init(uint32_t comIndex, std::vector<VulkanBasicPolygonRt:
     materialUBO = new VulkanDevice::Uniform<Material>((uint32_t)materialArr.size(), VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, pNext);
     materialUBO->updateArr(materialArr.data());
 
-    CreateTLAS(comIndex);
+    CreateTLAS(QueueIndex, comIndex);
 
-    CreateRaytracedBuffer(comIndex);
+    CreateRaytracedBuffer(QueueIndex, comIndex);
 
     CreateLayouts();
 
@@ -249,7 +249,7 @@ void VulkanRendererRt::Update(int maxRecursion) {
     m_sceneParam.numEmissive.x = (float)emissiveCnt;
 }
 
-void VulkanRendererRt::DepthMapWrite(uint32_t comIndex) {
+void VulkanRendererRt::DepthMapWrite(uint32_t QueueIndex, uint32_t comIndex) {
 
     VulkanDevice* dev = VulkanDevice::GetInstance();
     VulkanSwapchain* sw = VulkanSwapchain::GetInstance();
@@ -257,17 +257,17 @@ void VulkanRendererRt::DepthMapWrite(uint32_t comIndex) {
     uint32_t width = sw->getSize().width;
     uint32_t height = sw->getSize().height;
 
-    sw->getDepthImageSet()->barrierResource(comIndex, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+    sw->getDepthImageSet()->barrierResource(QueueIndex, comIndex, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
         VK_IMAGE_ASPECT_DEPTH_BIT);
 
-    dev->copyBufferToImage(comIndex, depthMapUp.getBuffer(),
+    dev->copyBufferToImage(QueueIndex, comIndex, depthMapUp.getBuffer(),
         sw->getDepthImageSet()->getImage(), width, height, VK_IMAGE_ASPECT_DEPTH_BIT);
 
-    sw->getDepthImageSet()->barrierResource(comIndex, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+    sw->getDepthImageSet()->barrierResource(QueueIndex, comIndex, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
         VK_IMAGE_ASPECT_DEPTH_BIT);
 }
 
-void VulkanRendererRt::DepthMapUpdate(uint32_t comIndex) {
+void VulkanRendererRt::DepthMapUpdate(uint32_t QueueIndex, uint32_t comIndex) {
 
     VulkanDevice* dev = VulkanDevice::GetInstance();
     VulkanSwapchain* sw = VulkanSwapchain::GetInstance();
@@ -275,23 +275,24 @@ void VulkanRendererRt::DepthMapUpdate(uint32_t comIndex) {
     uint32_t width = sw->getSize().width;
     uint32_t height = sw->getSize().height;
 
-    depthMap.barrierResource(comIndex, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+    depthMap.barrierResource(QueueIndex, comIndex, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 
-    dev->copyImageToBuffer(comIndex, depthMap.getImage(), width, height,
+    dev->copyImageToBuffer(QueueIndex, comIndex, depthMap.getImage(), width, height,
         depthMapUp.getBuffer());
 
-    depthMap.barrierResource(comIndex, VK_IMAGE_LAYOUT_GENERAL);
+    depthMap.barrierResource(QueueIndex, comIndex, VK_IMAGE_LAYOUT_GENERAL);
 
-    DepthMapWrite(comIndex);
+    DepthMapWrite(QueueIndex, comIndex);
 }
 
-void VulkanRendererRt::Render(uint32_t comIndex, bool depthUpdate) {
+void VulkanRendererRt::Render(uint32_t QueueIndex, uint32_t comIndex, bool depthUpdate) {
 
     VulkanDevice* dev = VulkanDevice::GetInstance();
     VulkanSwapchain* sw = VulkanSwapchain::GetInstance();
-    auto command = dev->getCommandBuffer(comIndex);
+    VulkanDevice::CommandObj* com = dev->getCommandObj(QueueIndex);
+    auto command = com->getCommandBuffer(comIndex);
 
-    UpdateTLAS(comIndex);
+    UpdateTLAS(QueueIndex, comIndex);
 
     m_sceneUBO->update(0, &m_sceneParam);
     materialUBO->updateArr(materialArr.data());
@@ -318,10 +319,10 @@ void VulkanRendererRt::Render(uint32_t comIndex, bool depthUpdate) {
     region.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
     region.dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
 
-    m_raytracedImage.barrierResource(comIndex,
+    m_raytracedImage.barrierResource(QueueIndex, comIndex,
         VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
-    dev->barrierResource(comIndex,
+    dev->barrierResource(QueueIndex, comIndex,
         sw->getCurrentImage(),
         VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
@@ -331,14 +332,14 @@ void VulkanRendererRt::Render(uint32_t comIndex, bool depthUpdate) {
         sw->getCurrentImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
         1, &region);
 
-    m_raytracedImage.barrierResource(comIndex, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
+    m_raytracedImage.barrierResource(QueueIndex, comIndex, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
     if (depthUpdate) {
-        DepthMapUpdate(comIndex);
+        DepthMapUpdate(QueueIndex, comIndex);
     }
 }
 
-void VulkanRendererRt::CreateTLAS(uint32_t comIndex) {
+void VulkanRendererRt::CreateTLAS(uint32_t QueueIndex, uint32_t comIndex) {
 
     std::vector<VkAccelerationStructureInstanceKHR> asInstances;
 
@@ -380,7 +381,7 @@ void VulkanRendererRt::CreateTLAS(uint32_t comIndex) {
     asBuildRangeInfo.transformOffset = 0;
 
     VkBuildAccelerationStructureFlagsKHR buildFlags = VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR;
-    m_topLevelAS.buildAS(comIndex, VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
+    m_topLevelAS.buildAS(QueueIndex, comIndex, VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
         asGeometry,
         asBuildRangeInfo,
         buildFlags);
@@ -388,7 +389,7 @@ void VulkanRendererRt::CreateTLAS(uint32_t comIndex) {
     m_topLevelAS.destroyScratchBuffer();
 }
 
-void VulkanRendererRt::UpdateTLAS(uint32_t comIndex) {
+void VulkanRendererRt::UpdateTLAS(uint32_t QueueIndex, uint32_t comIndex) {
 
     std::vector<VkAccelerationStructureInstanceKHR> asInstances;
 
@@ -403,12 +404,13 @@ void VulkanRendererRt::UpdateTLAS(uint32_t comIndex) {
     VkBuildAccelerationStructureFlagsKHR buildFlags = 0;
     buildFlags |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR;
     m_topLevelAS.update(
+        QueueIndex,
         comIndex,
         VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
         buildFlags);
 }
 
-void VulkanRendererRt::CreateRaytracedBuffer(uint32_t comIndex) {
+void VulkanRendererRt::CreateRaytracedBuffer(uint32_t QueueIndex, uint32_t comIndex) {
 
     VulkanDevice* dev = VulkanDevice::GetInstance();
     VulkanDeviceRt* devRt = VulkanDeviceRt::getVulkanDeviceRt();
@@ -449,16 +451,18 @@ void VulkanRendererRt::CreateRaytracedBuffer(uint32_t comIndex) {
         VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     depthMapUp.createUploadBuffer(imageSize, usageUp, nullptr);
 
+    VulkanDevice::CommandObj* com = dev->getCommandObj(QueueIndex);
+
     // バッファの状態を変更しておく.
-    auto command = dev->getCommandBuffer(comIndex);
-    dev->beginCommand(comIndex);
+    auto command = com->getCommandBuffer(comIndex);
+    com->beginCommand(comIndex);
 
-    m_raytracedImage.barrierResource(comIndex, VK_IMAGE_LAYOUT_GENERAL);
-    instanceIdMap.barrierResource(comIndex, VK_IMAGE_LAYOUT_GENERAL);
-    depthMap.barrierResource(comIndex, VK_IMAGE_LAYOUT_GENERAL);
+    m_raytracedImage.barrierResource(QueueIndex, comIndex, VK_IMAGE_LAYOUT_GENERAL);
+    instanceIdMap.barrierResource(QueueIndex, comIndex, VK_IMAGE_LAYOUT_GENERAL);
+    depthMap.barrierResource(QueueIndex, comIndex, VK_IMAGE_LAYOUT_GENERAL);
 
-    dev->endCommand(comIndex);
-    dev->submitCommandsDoNotRender(comIndex);
+    com->endCommand(comIndex);
+    com->submitCommandsDoNotRender();
 }
 
 void VulkanRendererRt::CreateRaytracePipeline() {

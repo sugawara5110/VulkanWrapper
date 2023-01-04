@@ -12,9 +12,12 @@
 class VulkanDevice final {
 
 public:
-    static void InstanceCreate(VkPhysicalDevice pd,
+    static void InstanceCreate(
+        VkPhysicalDevice pd,
         uint32_t ApiVersion,
-        uint32_t numCommandBuffer = 1);
+        uint32_t numCommandBuffer = 1,
+        uint32_t numGraphicsQueue = 1,
+        uint32_t numComputeQueue = 0);
 
     static VulkanDevice* GetInstance();
     static void DeleteInstance();
@@ -107,7 +110,8 @@ public:
         VkDeviceMemory getMemory()const { return mem; }
         VkFormat getFormat()const { return format; }
 
-        void barrierResource(uint32_t comBufindex, VkImageLayout dstImageLayout, VkImageAspectFlagBits mask = VK_IMAGE_ASPECT_COLOR_BIT);
+        void barrierResource(uint32_t QueueIndex, uint32_t comBufindex,
+            VkImageLayout dstImageLayout, VkImageAspectFlagBits mask = VK_IMAGE_ASPECT_COLOR_BIT);
 
         void createImage(uint32_t width, uint32_t height, VkFormat format,
             VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties,
@@ -149,22 +153,54 @@ public:
         float speUv[2];
     };
 
+    class CommandObj {
+    private:
+        friend VulkanDevice;
+        VkQueue devQueue = VK_NULL_HANDLE;
+        uint32_t queueFamilyIndex = 0xffffffff;
+        VkCommandPool commandPool = VK_NULL_HANDLE;
+        std::vector<VkCommandBuffer> commandBuffer = {};
+        VkFence fence = VK_NULL_HANDLE;
+
+        void createCommandPool();
+        void createFence();
+        void createCommandBuffers();
+
+        void create(uint32_t numCommand);
+        void destroy();
+
+    public:
+        uint32_t getQueueFamilyIndex();
+
+        VkQueue getQueue();
+
+        void beginCommand(uint32_t comBufindex, VkFramebuffer fb = VkFramebuffer());
+
+        void endCommand(uint32_t comBufindex);
+
+        void submitCommands(VkFence fence, bool useRender,
+            uint32_t waitSemaphoreCount, VkSemaphore* WaitSemaphores,
+            uint32_t signalSemaphoreCount, VkSemaphore* SignalSemaphores);
+
+        void submitCommandsDoNotRender();
+
+        VkCommandBuffer getCommandBuffer(uint32_t comBufindex);
+    };
+
 private:
     static VulkanDevice* DevicePointer;
 
     VkPhysicalDevice pDev = VK_NULL_HANDLE;//VulkanInstanceからポインタを受け取る
     VkPhysicalDeviceProperties physicalDeviceProperties;
     VkDevice device = VK_NULL_HANDLE;
-    VkQueue devQueue = VK_NULL_HANDLE;
-    uint32_t queueFamilyIndex = 0xffffffff;
     VkPhysicalDeviceMemoryProperties memProps = {};
-    VkCommandPool commandPool = VK_NULL_HANDLE;
-    VkFence sFence = VK_NULL_HANDLE;
     VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
 
     uint32_t commandBufferCount = 1;
-    std::unique_ptr<VkCommandBuffer[]> commandBuffer = nullptr;
-
+    uint32_t NumGraphicsQueue = 0;
+    uint32_t NumComputeQueue = 0;
+    uint32_t NumAllQueue = 0;
+    std::vector<CommandObj> commandObj = {};
     CoordTf::MATRIX proj, view;
     CoordTf::VECTOR4 viewPos;
     CoordTf::VECTOR3 upVec = {};
@@ -192,17 +228,11 @@ private:
     VulkanDevice(const VulkanDevice& obj) = delete;  //コピーコンストラクタ禁止
     void operator=(const VulkanDevice& obj) = delete;//代入演算子禁止
 
-    VulkanDevice(VkPhysicalDevice pd, uint32_t numCommandBuffer);
+    VulkanDevice(VkPhysicalDevice pd, uint32_t numCommandBuffer, uint32_t numGraphicsQueue, uint32_t numComputeQueue);
 
     ~VulkanDevice();
 
     void create(std::vector<const char*>* requiredExtensions, const void* pNext);
-
-    void createCommandPool();
-
-    void createSFence();
-
-    void createCommandBuffers();
 
     bool createDescriptorPool(std::vector<VkDescriptorPoolSize>* add_poolSize, uint32_t maxDescriptorSets);
 
@@ -211,37 +241,25 @@ private:
     void AllocateMemory(VkBufferUsageFlags usage, VkMemoryRequirements memRequirements, VkMemoryPropertyFlags properties,
         VkDeviceMemory& bufferMemory, void* add_pNext);
 
-    auto createTextureImage(uint32_t comBufindex, Texture& inByte);
+    auto createTextureImage(uint32_t QueueIndex, uint32_t comBufindex, Texture& inByte);
 
     void destroyTexture();
 
-    void copyBuffer(uint32_t comBufindex, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+    void copyBuffer(uint32_t QueueIndex, uint32_t comBufindex, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 
     uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 
 public:
     VkResult waitForFence(VkFence fence);
 
-    uint32_t getQueueFamilyIndex() {
-        return queueFamilyIndex;
-    }
-
-    VkQueue getDevQueue() {
-        return devQueue;
-    }
-
-    void beginCommand(uint32_t comBufindex, VkFramebuffer fb = VkFramebuffer());
-
-    void submitCommands(uint32_t comBufindex, VkFence fence, bool useRender,
-        uint32_t waitSemaphoreCount, VkSemaphore* WaitSemaphores,
-        uint32_t signalSemaphoreCount, VkSemaphore* SignalSemaphores);
-
-    void copyBufferToImage(uint32_t comBufindex,
+    void copyBufferToImage(
+        uint32_t QueueIndex, uint32_t comBufindex,
         VkBuffer buffer,
         VkImage image, uint32_t width, uint32_t height,
         VkImageAspectFlagBits mask = VK_IMAGE_ASPECT_COLOR_BIT);
 
-    void copyImageToBuffer(uint32_t comBufindex,
+    void copyImageToBuffer(
+        uint32_t QueueIndex, uint32_t comBufindex,
         VkImage image, uint32_t width, uint32_t height,
         VkBuffer buffer,
         VkImageAspectFlagBits mask = VK_IMAGE_ASPECT_COLOR_BIT);
@@ -258,11 +276,11 @@ public:
     VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags mask,
         VkComponentMapping components = { VK_COMPONENT_SWIZZLE_IDENTITY });
 
-    void createVkTexture(ImageSet& tex, uint32_t comBufindex, Texture& inByte);
+    void createVkTexture(ImageSet& tex, uint32_t QueueIndex, uint32_t comBufindex, Texture& inByte);
 
     void createTextureSampler(VkSampler& textureSampler);
 
-    void createTextureSet(uint32_t comBufindex, textureIdSet& texSet);
+    void createTextureSet(uint32_t QueueIndex, uint32_t comBufindex, textureIdSet& texSet);
 
     void memoryMap(void* pData, VkDeviceMemory mem, VkDeviceSize size);
 
@@ -277,7 +295,7 @@ public:
         VkBuffer& buffer, VkDeviceMemory& bufferMemory, void* allocateMemory_add_pNext);
 
     template<typename T>
-    auto createDefaultCopiedBuffer(uint32_t comBufindex, T* data, int num,
+    auto createDefaultCopiedBuffer(uint32_t QueueIndex, uint32_t comBufindex, T* data, int num,
         void* allocateMemory_add_pNext, VkBufferUsageFlags* add_usage) {
 
         VkDeviceSize bufferSize = sizeof(T) * num;
@@ -292,7 +310,7 @@ public:
         if (add_usage)usage = usage | *add_usage;
         defaultBuffer.createDefaultBuffer(bufferSize, usage, allocateMemory_add_pNext);
 
-        copyBuffer(comBufindex, stagingBuffer.getBuffer(), defaultBuffer.getBuffer(), bufferSize);
+        copyBuffer(QueueIndex, comBufindex, stagingBuffer.getBuffer(), defaultBuffer.getBuffer(), bufferSize);
 
         stagingBuffer.destroy();
 
@@ -300,21 +318,24 @@ public:
     }
 
     template<typename T>
-    auto createVertexBuffer(uint32_t comBufindex, T* ver, int num, bool typeIndex,
+    auto createVertexBuffer(uint32_t QueueIndex, uint32_t comBufindex, T* ver, int num, bool typeIndex,
         void* allocateMemory_add_pNext, VkBufferUsageFlags* add_usage) {
 
         VkBufferUsageFlags usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
         if (typeIndex)usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
         if (add_usage)usage = usage | *add_usage;
 
-        return createDefaultCopiedBuffer(comBufindex, ver, num, allocateMemory_add_pNext, &usage);
+        return createDefaultCopiedBuffer(QueueIndex, comBufindex, ver, num, allocateMemory_add_pNext, &usage);
     }
 
     void createDevice(
         std::vector<const char*>* requiredExtensions = nullptr, const void* pNext = nullptr,
         std::vector<VkDescriptorPoolSize>* add_poolSize = nullptr, uint32_t maxDescriptorSets = 0);
 
-    void GetTexture(uint32_t comBufindex, char* fileName, unsigned char* byteArr, uint32_t width,
+    void GetTexture(
+        char* fileName,
+        unsigned char* byteArr,
+        uint32_t width,
         uint32_t height);
 
     int32_t getTextureNo(char* pass);
@@ -323,16 +344,10 @@ public:
 
     void updateView(CoordTf::VECTOR3 view, CoordTf::VECTOR3 gaze, CoordTf::VECTOR3 up = { 0.0f,1.0f,0.0f });
 
-    void barrierResource(uint32_t comBufindex, VkImage image,
+    void barrierResource(uint32_t QueueIndex, uint32_t comBufindex, VkImage image,
         VkImageLayout srcImageLayout, VkImageLayout dstImageLayout, VkImageAspectFlagBits mask);
 
-    void endCommand(uint32_t comBufindex);
-
-    void submitCommandsDoNotRender(uint32_t comBufindex);
-
     VkDevice getDevice() { return device; }
-
-    VkCommandBuffer getCommandBuffer(uint32_t comBufindex) { return commandBuffer[comBufindex]; }
 
     void DeviceWaitIdle();
 
@@ -347,6 +362,8 @@ public:
     VkDescriptorSet AllocateDescriptorSet(VkDescriptorSetLayout dsLayout, const void* pNext = nullptr);
 
     void DeallocateDescriptorSet(VkDescriptorSet ds);
+
+    CommandObj* getCommandObj(uint32_t index) { return &commandObj[index]; }
 };
 
 #endif
