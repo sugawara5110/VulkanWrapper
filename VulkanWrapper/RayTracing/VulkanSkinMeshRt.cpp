@@ -36,7 +36,9 @@ VulkanSkinMeshRt::VulkanSkinMeshRt() {
 
 VulkanSkinMeshRt::~VulkanSkinMeshRt() {
 
-	vkUtil::ARR_DELETE(sk);
+	for (uint32_t i = 0; i < VulkanBasicPolygonRt::numSwap; i++) {
+		vkUtil::ARR_DELETE(sk[i]);
+	}
 	if (pvVB) {
 		for (int i = 0; i < numMesh; i++) {
 			vkUtil::ARR_DELETE(pvVB[i]);
@@ -220,7 +222,9 @@ void VulkanSkinMeshRt::CreateBuffer(int num_end_frame, float* end_frame, bool si
 	pvVBM = new VulkanBasicPolygonRt::Vertex3D_t * [numMesh];
 	mObj = new VulkanBasicPolygonRt[numMesh];
 	if (deformer) {
-		sk = new SkinningCom[numMesh];
+		for (uint32_t i = 0; i < VulkanBasicPolygonRt::numSwap; i++) {
+			sk[i] = new SkinningCom[numMesh];
+		}
 	}
 }
 
@@ -608,14 +612,16 @@ bool VulkanSkinMeshRt::CreateFromFBX(uint32_t QueueIndex, uint32_t comIndex, boo
 			pvVBM[i], mesh->getNumPolygonVertices(), newIndex[i], NumNewIndex[i],
 			textureId[i], numInstance);
 
-		if (sk) {
+		if (sk[0]) {
 			vkUtil::createTangent((uint32_t)mesh->getNumMaterial(), NumNewIndex[i],
 				pvVB[i], newIndex[i], sizeof(MY_VERTEX_S), 0, 3 * 4, 9 * 4, 6 * 4);
 
-			sk[i].createVertexBuffer(QueueIndex, comIndex, pvVB[i], mesh->getNumPolygonVertices());
-			sk[i].CreateLayouts();
-			sk[i].CreateComputePipeline();
-			sk[i].CreateDescriptorSets(&o.Rdata[0].vertexBuf->info, &mObject_BONES->getBufferSet()->info);
+			for (uint32_t i1 = 0; i1 < VulkanBasicPolygonRt::numSwap; i1++) {
+				sk[i1][i].createVertexBuffer(QueueIndex, comIndex, pvVB[i], mesh->getNumPolygonVertices());
+				sk[i1][i].CreateLayouts();
+				sk[i1][i].CreateComputePipeline();
+				sk[i1][i].CreateDescriptorSets(&o.Rdata[0].vertexBuf[i1]->info, &mObject_BONES->getBufferSet()->info);
+			}
 		}
 
 		if (pvVB_delete_f) {
@@ -882,32 +888,32 @@ void VulkanSkinMeshRt::Instancing(CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, 
 	}
 }
 
-bool VulkanSkinMeshRt::InstancingUpdate(uint32_t QueueIndex, uint32_t comIndex, int AnimationIndex, float ti, int InternalAnimationIndex) {
+bool VulkanSkinMeshRt::InstancingUpdate(uint32_t swapIndex, uint32_t QueueIndex, uint32_t comIndex, int AnimationIndex, float ti, int InternalAnimationIndex) {
 
 	bool frame_end = false;
 	int insnum = 0;
 	if (ti != -1.0f)frame_end = SetNewPoseMatrices(ti, AnimationIndex, InternalAnimationIndex);
 	MatrixMap_Bone(&sgb[0]);//Œã‚ÅØ‚è‘Ö‚¦‚é‚æ‚¤‚É•ÏX
 
-	if (sk)mObject_BONES->update(0, &sgb[0]);
+	if (sk[swapIndex])mObject_BONES->update(0, &sgb[0]);
 
 	for (int i = 0; i < numMesh; i++) {
 		if (!noUseMesh[i]) {
-			if (sk)sk[i].Skinned(QueueIndex, comIndex);
-			mObj[i].instancingUpdate(QueueIndex, comIndex);
+			if (sk[swapIndex])sk[swapIndex][i].Skinned(QueueIndex, comIndex);
+			mObj[i].instancingUpdate(swapIndex, QueueIndex, comIndex);
 		}
 	}
 
 	return frame_end;
 }
 
-bool VulkanSkinMeshRt::Update(uint32_t QueueIndex, uint32_t comIndex,
+bool VulkanSkinMeshRt::Update(uint32_t swapIndex, uint32_t QueueIndex, uint32_t comIndex,
 	int AnimationIndex, float time,
 	CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale,
 	int InternalAnimationIndex) {
 
 	Instancing(pos, theta, scale);
-	return InstancingUpdate(QueueIndex, comIndex, AnimationIndex, time, InternalAnimationIndex);
+	return InstancingUpdate(swapIndex, QueueIndex, comIndex, AnimationIndex, time, InternalAnimationIndex);
 }
 
 void VulkanSkinMeshRt::setMaterialColor(CoordTf::VECTOR3 diffuse, CoordTf::VECTOR3 specular, CoordTf::VECTOR3 ambient,

@@ -192,10 +192,21 @@ void VulkanDevice::CommandObj::submitCommands(VkFence fence, bool useRender,
     vkUtil::checkError(res);
 }
 
-void VulkanDevice::CommandObj::submitCommandsDoNotRender() {
+void VulkanDevice::CommandObj::submitCommandsAndWait() {
     submitCommands(fence, false,
         0, nullptr,
         0, nullptr);
+    VulkanDevice::GetInstance()->waitForFence(fence);
+    VulkanDevice::GetInstance()->resetFence(fence);
+}
+
+void VulkanDevice::CommandObj::submitCommands() {
+    submitCommands(fence, false,
+        0, nullptr,
+        0, nullptr);
+}
+
+void VulkanDevice::CommandObj::Wait() {
     VulkanDevice::GetInstance()->waitForFence(fence);
     VulkanDevice::GetInstance()->resetFence(fence);
 }
@@ -540,7 +551,7 @@ auto VulkanDevice::createTextureImage(uint32_t QueueIndex, uint32_t comBufindex,
     texture.barrierResource(QueueIndex, comBufindex, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     com->endCommand(comBufindex);
-    com->submitCommandsDoNotRender();
+    com->submitCommandsAndWait();
 
     stagingBuffer.destroy();
 
@@ -664,7 +675,7 @@ void VulkanDevice::copyBuffer(uint32_t QueueIndex, uint32_t comBufindex, VkBuffe
     vkCmdCopyBuffer(com->commandBuffer[comBufindex], srcBuffer, dstBuffer, 1, &copyRegion);
 
     com->endCommand(comBufindex);
-    com->submitCommandsDoNotRender();
+    com->submitCommandsAndWait();
 }
 
 uint32_t VulkanDevice::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {

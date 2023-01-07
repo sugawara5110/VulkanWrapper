@@ -168,6 +168,6 @@ void AccelerationStructure::build(
         0, nullptr
     );
     com->endCommand(comIndex);
-    com->submitCommandsDoNotRender();
+    com->submitCommandsAndWait();
 }
 

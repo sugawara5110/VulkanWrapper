@@ -170,24 +170,27 @@ void VulkanRendererRt::destroy() {
 
     vkUtil::S_DELETE(m_sceneUBO);
     vkUtil::S_DELETE(materialUBO);
-    m_instancesBuffer.destroy();
-    m_topLevelAS.destroy();
 
-    m_raytracedImage.destroy();
-    m_shaderBindingTable.destroy();
     instanceIdMap.destroy();
     depthMap.destroy();
     depthMapUp.destroy();
+    m_raytracedImage.destroy();
 
-    auto device = VulkanDevice::GetInstance()->getDevice();
-    vkDestroyPipeline(device, m_raytracePipeline, nullptr);
-    vkDestroyPipelineLayout(device, m_pipelineLayout, nullptr);
+    for (uint32_t j = 0; j < VulkanBasicPolygonRt::numSwap; j++) {
+        m_instancesBuffer[j].destroy();
+        m_topLevelAS[j].destroy();
+        m_shaderBindingTable[j].destroy();
 
-    VulkanDevice* dev = VulkanDevice::GetInstance();
+        auto device = VulkanDevice::GetInstance()->getDevice();
+        vkDestroyPipeline(device, m_raytracePipeline[j], nullptr);
+        vkDestroyPipelineLayout(device, m_pipelineLayout[j], nullptr);
 
-    for (int i = 0; i < numDescriptorSet; i++) {
-        vkDestroyDescriptorSetLayout(device, m_dsLayout[i], nullptr);
-        vkFreeDescriptorSets(device, dev->GetDescriptorPool(), 1, &m_descriptorSet[i]);
+        VulkanDevice* dev = VulkanDevice::GetInstance();
+
+        for (int i = 0; i < numDescriptorSet; i++) {
+            vkDestroyDescriptorSetLayout(device, m_dsLayout[j][i], nullptr);
+            vkFreeDescriptorSets(device, dev->GetDescriptorPool(), 1, &m_descriptorSet[j][i]);
+        }
     }
 }
 
@@ -285,21 +288,19 @@ void VulkanRendererRt::DepthMapUpdate(uint32_t QueueIndex, uint32_t comIndex) {
     DepthMapWrite(QueueIndex, comIndex);
 }
 
-void VulkanRendererRt::Render(uint32_t QueueIndex, uint32_t comIndex, bool depthUpdate) {
+void VulkanRendererRt::Render(uint32_t swapIndex, uint32_t QueueIndex, uint32_t comIndex, bool depthUpdate) {
 
     VulkanDevice* dev = VulkanDevice::GetInstance();
     VulkanSwapchain* sw = VulkanSwapchain::GetInstance();
     VulkanDevice::CommandObj* com = dev->getCommandObj(QueueIndex);
     auto command = com->getCommandBuffer(comIndex);
 
-    UpdateTLAS(QueueIndex, comIndex);
-
     m_sceneUBO->update(0, &m_sceneParam);
     materialUBO->updateArr(materialArr.data());
 
-    vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_raytracePipeline);
-    vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_pipelineLayout, 0,
-        numDescriptorSet, m_descriptorSet, 0, nullptr);
+    vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_raytracePipeline[swapIndex]);
+    vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_pipelineLayout[swapIndex], 0,
+        numDescriptorSet, m_descriptorSet[swapIndex], 0, nullptr);
 
     uint32_t width = sw->getSize().width;
     uint32_t height = sw->getSize().height;
@@ -307,9 +308,9 @@ void VulkanRendererRt::Render(uint32_t QueueIndex, uint32_t comIndex, bool depth
     VkStridedDeviceAddressRegionKHR callable_shader_sbt_entry{};
     vkCmdTraceRaysKHR(
         command,
-        &m_sbtInfo.rgen,
-        &m_sbtInfo.miss,
-        &m_sbtInfo.hit,
+        &m_sbtInfo[swapIndex].rgen,
+        &m_sbtInfo[swapIndex].miss,
+        &m_sbtInfo[swapIndex].hit,
         &callable_shader_sbt_entry,
         width, height, 1);
 
@@ -341,69 +342,76 @@ void VulkanRendererRt::Render(uint32_t QueueIndex, uint32_t comIndex, bool depth
 
 void VulkanRendererRt::CreateTLAS(uint32_t QueueIndex, uint32_t comIndex) {
 
-    std::vector<VkAccelerationStructureInstanceKHR> asInstances;
+    auto tlas = [this](uint32_t sIndex, uint32_t QueueIndex, uint32_t comIndex) {
 
-    for (int i = 0; i < rt.size(); i++) {
-        for (int j = 0; j < rt[i]->instance.size(); j++) {
-            asInstances.push_back(rt[i]->instance[j].vkInstance);
+        std::vector<VkAccelerationStructureInstanceKHR> asInstances;
+
+        for (int i = 0; i < rt.size(); i++) {
+            for (int j = 0; j < rt[i]->instance.size(); j++) {
+                asInstances.push_back(rt[i]->instance[j].vkInstance[sIndex]);
+            }
         }
-    }
 
-    auto instancesBufferSize = sizeof(VkAccelerationStructureInstanceKHR) * asInstances.size();
-    auto usage = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+        auto instancesBufferSize = sizeof(VkAccelerationStructureInstanceKHR) * asInstances.size();
+        auto usage = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 
-    VkMemoryAllocateFlagsInfo memoryAllocateFlagsInfo{
-  VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO,
-  nullptr,
+        VkMemoryAllocateFlagsInfo memoryAllocateFlagsInfo{
+      VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO,
+      nullptr,
+        };
+        memoryAllocateFlagsInfo.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR;
+        void* pNext = &memoryAllocateFlagsInfo;
+
+        m_instancesBuffer[sIndex].createUploadBuffer(instancesBufferSize, usage, pNext);
+
+        m_instancesBuffer[sIndex].memoryMap(asInstances.data());
+
+        VkDeviceOrHostAddressConstKHR instanceDataDeviceAddress{};
+        instanceDataDeviceAddress.deviceAddress = m_instancesBuffer[sIndex].getDeviceAddress();
+
+        VkAccelerationStructureGeometryKHR asGeometry{};
+        asGeometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
+        asGeometry.geometryType = VK_GEOMETRY_TYPE_INSTANCES_KHR;
+        asGeometry.flags = 0;//AnyHitを使う場合0
+        asGeometry.geometry.instances.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR;
+        asGeometry.geometry.instances.arrayOfPointers = VK_FALSE;
+        asGeometry.geometry.instances.data = instanceDataDeviceAddress;
+
+        VkAccelerationStructureBuildRangeInfoKHR asBuildRangeInfo{};
+        asBuildRangeInfo.primitiveCount = uint32_t(asInstances.size());
+        asBuildRangeInfo.primitiveOffset = 0;
+        asBuildRangeInfo.firstVertex = 0;
+        asBuildRangeInfo.transformOffset = 0;
+
+        VkBuildAccelerationStructureFlagsKHR buildFlags = VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR;
+        m_topLevelAS[sIndex].buildAS(QueueIndex, comIndex, VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
+            asGeometry,
+            asBuildRangeInfo,
+            buildFlags);
+
+        m_topLevelAS[sIndex].destroyScratchBuffer();
     };
-    memoryAllocateFlagsInfo.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR;
-    void* pNext = &memoryAllocateFlagsInfo;
 
-    m_instancesBuffer.createUploadBuffer(instancesBufferSize, usage, pNext);
-
-    m_instancesBuffer.memoryMap(asInstances.data());
-
-    VkDeviceOrHostAddressConstKHR instanceDataDeviceAddress{};
-    instanceDataDeviceAddress.deviceAddress = m_instancesBuffer.getDeviceAddress();
-
-    VkAccelerationStructureGeometryKHR asGeometry{};
-    asGeometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
-    asGeometry.geometryType = VK_GEOMETRY_TYPE_INSTANCES_KHR;
-    asGeometry.flags = 0;//AnyHitを使う場合0
-    asGeometry.geometry.instances.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR;
-    asGeometry.geometry.instances.arrayOfPointers = VK_FALSE;
-    asGeometry.geometry.instances.data = instanceDataDeviceAddress;
-
-    VkAccelerationStructureBuildRangeInfoKHR asBuildRangeInfo{};
-    asBuildRangeInfo.primitiveCount = uint32_t(asInstances.size());
-    asBuildRangeInfo.primitiveOffset = 0;
-    asBuildRangeInfo.firstVertex = 0;
-    asBuildRangeInfo.transformOffset = 0;
-
-    VkBuildAccelerationStructureFlagsKHR buildFlags = VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR;
-    m_topLevelAS.buildAS(QueueIndex, comIndex, VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
-        asGeometry,
-        asBuildRangeInfo,
-        buildFlags);
-
-    m_topLevelAS.destroyScratchBuffer();
+    for (uint32_t i = 0; i < VulkanBasicPolygonRt::numSwap; i++) {
+        tlas(i, QueueIndex, comIndex);
+    }
 }
 
-void VulkanRendererRt::UpdateTLAS(uint32_t QueueIndex, uint32_t comIndex) {
+void VulkanRendererRt::UpdateTLAS(uint32_t swapIndex, uint32_t QueueIndex, uint32_t comIndex) {
 
     std::vector<VkAccelerationStructureInstanceKHR> asInstances;
 
     for (int i = 0; i < rt.size(); i++) {
         for (int j = 0; j < rt[i]->instance.size(); j++) {
-            asInstances.push_back(rt[i]->instance[j].vkInstance);
+            asInstances.push_back(rt[i]->instance[j].vkInstance[swapIndex]);
         }
     }
 
-    m_instancesBuffer.memoryMap(asInstances.data());
+    m_instancesBuffer[swapIndex].memoryMap(asInstances.data());
 
     VkBuildAccelerationStructureFlagsKHR buildFlags = 0;
     buildFlags |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR;
-    m_topLevelAS.update(
+    m_topLevelAS[swapIndex].update(
         QueueIndex,
         comIndex,
         VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
@@ -462,7 +470,7 @@ void VulkanRendererRt::CreateRaytracedBuffer(uint32_t QueueIndex, uint32_t comIn
     depthMap.barrierResource(QueueIndex, comIndex, VK_IMAGE_LAYOUT_GENERAL);
 
     com->endCommand(comIndex);
-    com->submitCommandsDoNotRender();
+    com->submitCommandsAndWait();
 }
 
 void VulkanRendererRt::CreateRaytracePipeline() {
@@ -576,19 +584,20 @@ void VulkanRendererRt::CreateRaytracePipeline() {
     VulkanDeviceRt* devRt = VulkanDeviceRt::getVulkanDeviceRt();
 
     // レイトレーシングパイプラインの生成.
-    VkRayTracingPipelineCreateInfoKHR rtPipelineCI{};
+    for (uint32_t i = 0; i < VulkanBasicPolygonRt::numSwap; i++) {
+        VkRayTracingPipelineCreateInfoKHR rtPipelineCI{};
 
-    rtPipelineCI.sType = VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR;
-    rtPipelineCI.stageCount = uint32_t(stages.size());
-    rtPipelineCI.pStages = stages.data();
-    rtPipelineCI.groupCount = uint32_t(m_shaderGroups.size());
-    rtPipelineCI.pGroups = m_shaderGroups.data();
-    rtPipelineCI.maxPipelineRayRecursionDepth = devRt->GetRayTracingPipelineProperties().maxRayRecursionDepth;
-    rtPipelineCI.layout = m_pipelineLayout;
-    vkCreateRayTracingPipelinesKHR(
-        devRt->GetDevice(), VK_NULL_HANDLE, VK_NULL_HANDLE,
-        1, &rtPipelineCI, nullptr, &m_raytracePipeline);
-
+        rtPipelineCI.sType = VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR;
+        rtPipelineCI.stageCount = uint32_t(stages.size());
+        rtPipelineCI.pStages = stages.data();
+        rtPipelineCI.groupCount = uint32_t(m_shaderGroups.size());
+        rtPipelineCI.pGroups = m_shaderGroups.data();
+        rtPipelineCI.maxPipelineRayRecursionDepth = devRt->GetRayTracingPipelineProperties().maxRayRecursionDepth;
+        rtPipelineCI.layout = m_pipelineLayout[i];
+        vkCreateRayTracingPipelinesKHR(
+            devRt->GetDevice(), VK_NULL_HANDLE, VK_NULL_HANDLE,
+            1, &rtPipelineCI, nullptr, &m_raytracePipeline[i]);
+    }
     //シェーダーモジュール解放
     for (auto& v : stages) {
         vkDestroyShaderModule(
@@ -598,102 +607,112 @@ void VulkanRendererRt::CreateRaytracePipeline() {
 
 void VulkanRendererRt::CreateShaderBindingTable() {
 
-    VulkanDeviceRt* devRt = VulkanDeviceRt::getVulkanDeviceRt();
+    auto csb = [this](uint32_t sIndex) {
 
-    auto memProps = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
-    auto usage = VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
-    const auto rtPipelineProps = devRt->GetRayTracingPipelineProperties();
+        VulkanDeviceRt* devRt = VulkanDeviceRt::getVulkanDeviceRt();
 
-    //各エントリサイズ shaderGroupHandleAlignment にアライメント
-    const auto handleSize = rtPipelineProps.shaderGroupHandleSize;
-    const auto handleAlignment = rtPipelineProps.shaderGroupHandleAlignment;
-    auto raygenShaderEntrySize = vkUtil::Align(handleSize, handleAlignment);
-    auto missShaderEntrySize = vkUtil::Align(handleSize, handleAlignment);
-    auto hitShaderEntrySize = vkUtil::Align(handleSize + sizeof(uint64_t) * 2, handleAlignment);//IndexBufferアドレスとVertexBufferアドレス込み
+        auto memProps = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+        auto usage = VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+        const auto rtPipelineProps = devRt->GetRayTracingPipelineProperties();
 
-    const uint32_t numHitShader = VulkanDeviceRt::numHitShader;
+        //各エントリサイズ shaderGroupHandleAlignment にアライメント
+        const auto handleSize = rtPipelineProps.shaderGroupHandleSize;
+        const auto handleAlignment = rtPipelineProps.shaderGroupHandleAlignment;
+        auto raygenShaderEntrySize = vkUtil::Align(handleSize, handleAlignment);
+        auto missShaderEntrySize = vkUtil::Align(handleSize, handleAlignment);
+        auto hitShaderEntrySize = vkUtil::Align(handleSize + sizeof(uint64_t) * 2, handleAlignment);//IndexBufferアドレスとVertexBufferアドレス込み
 
-    const auto raygenShaderCount = 1;
-    const auto missShaderCount = numHitShader;
-    const auto hitShaderCount = numHitShader * rt.size();
+        const uint32_t numHitShader = VulkanDeviceRt::numHitShader;
 
-    //各グループのサイズ
-    const auto baseAlign = rtPipelineProps.shaderGroupBaseAlignment;
-    auto RaygenGroupSize = vkUtil::Align(raygenShaderEntrySize * raygenShaderCount, baseAlign);
-    auto MissGroupSize = vkUtil::Align(missShaderEntrySize * missShaderCount, baseAlign);
-    auto HitGroupSize = vkUtil::Align(hitShaderEntrySize * hitShaderCount, baseAlign);
+        const auto raygenShaderCount = 1;
+        const auto missShaderCount = numHitShader;
+        const auto hitShaderCount = numHitShader * rt.size();
 
-    VkMemoryAllocateFlagsInfo memoryAllocateFlagsInfo{
-  VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO,
-  nullptr,
+        //各グループのサイズ
+        const auto baseAlign = rtPipelineProps.shaderGroupBaseAlignment;
+        auto RaygenGroupSize = vkUtil::Align(raygenShaderEntrySize * raygenShaderCount, baseAlign);
+        auto MissGroupSize = vkUtil::Align(missShaderEntrySize * missShaderCount, baseAlign);
+        auto HitGroupSize = vkUtil::Align(hitShaderEntrySize * hitShaderCount, baseAlign);
+
+        VkMemoryAllocateFlagsInfo memoryAllocateFlagsInfo{
+      VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO,
+      nullptr,
+        };
+        memoryAllocateFlagsInfo.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR;
+        void* pNext = &memoryAllocateFlagsInfo;
+
+        m_shaderBindingTable[sIndex].createUploadBuffer(RaygenGroupSize + MissGroupSize + HitGroupSize,
+            usage, pNext);
+
+        //パイプラインのShaderGroupハンドルを取得
+        auto handleSizeAligned = vkUtil::Align(handleSize, handleAlignment);
+        auto handleStorageSize = m_shaderGroups.size() * handleSizeAligned;
+        std::vector<uint8_t> shaderHandleStorage(handleStorageSize);
+        vkGetRayTracingShaderGroupHandlesKHR(devRt->GetDevice(),
+            m_raytracePipeline[sIndex],
+            0, uint32_t(m_shaderGroups.size()),
+            shaderHandleStorage.size(), shaderHandleStorage.data());
+
+        auto device = VulkanDevice::GetInstance()->getDevice();
+        auto deviceAddress = m_shaderBindingTable[sIndex].getDeviceAddress();
+
+        void* p = m_shaderBindingTable[sIndex].Map();
+        auto dst = static_cast<uint8_t*>(p);
+
+        //RayGeneration
+        auto raygen = shaderHandleStorage.data() + handleSizeAligned * GroupRayGenShader;
+        memcpy(dst, raygen, handleSize);
+        dst += RaygenGroupSize;
+        ShaderBindingTableInfo& sbtInfo = m_sbtInfo[sIndex];
+        sbtInfo.rgen.deviceAddress = deviceAddress;
+        //Raygen は size=strideが必要.
+        sbtInfo.rgen.stride = raygenShaderEntrySize;
+        sbtInfo.rgen.size = sbtInfo.rgen.stride;
+
+        //Miss
+        auto miss = shaderHandleStorage.data() + handleSizeAligned * GroupMissShader0;
+        auto dstM = dst;
+        memcpy(dstM, miss, handleSize);//miss0
+        dstM += missShaderEntrySize;
+        miss += handleSizeAligned;
+        memcpy(dstM, miss, handleSize);//miss1
+        dstM += missShaderEntrySize;
+        miss += handleSizeAligned;
+        memcpy(dstM, miss, handleSize);//emMiss0
+        dstM += missShaderEntrySize;
+        miss += handleSizeAligned;
+        memcpy(dstM, miss, handleSize);//emMiss1
+        dst += MissGroupSize;
+        sbtInfo.miss.deviceAddress = deviceAddress + RaygenGroupSize;
+        sbtInfo.miss.size = MissGroupSize;
+        sbtInfo.miss.stride = missShaderEntrySize;
+
+        //Hit
+        //emHitでは頂点データ未使用だがstride揃える関係でとりあえず入れてる
+        auto hit = shaderHandleStorage.data() + handleSizeAligned * GroupHitShader0;
+        auto dstH = dst;
+
+        for (size_t i = 0; i < rt.size(); i++) {
+            rt[i]->hitShaderIndex = numHitShader * (uint32_t)i;
+            writeSBTDataAndHit(sIndex, rt[i], dstH, hitShaderEntrySize, hit, handleSizeAligned, handleSize);
+            dstH += (hitShaderEntrySize * numHitShader);
+        }
+
+        sbtInfo.hit.deviceAddress = deviceAddress + RaygenGroupSize + MissGroupSize;
+        sbtInfo.hit.size = HitGroupSize;
+        sbtInfo.hit.stride = hitShaderEntrySize;
+
+        m_shaderBindingTable[sIndex].UnMap();
     };
-    memoryAllocateFlagsInfo.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR;
-    void* pNext = &memoryAllocateFlagsInfo;
 
-    m_shaderBindingTable.createUploadBuffer(RaygenGroupSize + MissGroupSize + HitGroupSize,
-        usage, pNext);
-
-    //パイプラインのShaderGroupハンドルを取得
-    auto handleSizeAligned = vkUtil::Align(handleSize, handleAlignment);
-    auto handleStorageSize = m_shaderGroups.size() * handleSizeAligned;
-    std::vector<uint8_t> shaderHandleStorage(handleStorageSize);
-    vkGetRayTracingShaderGroupHandlesKHR(devRt->GetDevice(),
-        m_raytracePipeline,
-        0, uint32_t(m_shaderGroups.size()),
-        shaderHandleStorage.size(), shaderHandleStorage.data());
-
-    auto device = VulkanDevice::GetInstance()->getDevice();
-    auto deviceAddress = m_shaderBindingTable.getDeviceAddress();
-
-    void* p = m_shaderBindingTable.Map();
-    auto dst = static_cast<uint8_t*>(p);
-
-    //RayGeneration
-    auto raygen = shaderHandleStorage.data() + handleSizeAligned * GroupRayGenShader;
-    memcpy(dst, raygen, handleSize);
-    dst += RaygenGroupSize;
-    m_sbtInfo.rgen.deviceAddress = deviceAddress;
-    //Raygen は size=strideが必要.
-    m_sbtInfo.rgen.stride = raygenShaderEntrySize;
-    m_sbtInfo.rgen.size = m_sbtInfo.rgen.stride;
-
-    //Miss
-    auto miss = shaderHandleStorage.data() + handleSizeAligned * GroupMissShader0;
-    auto dstM = dst;
-    memcpy(dstM, miss, handleSize);//miss0
-    dstM += missShaderEntrySize;
-    miss += handleSizeAligned;
-    memcpy(dstM, miss, handleSize);//miss1
-    dstM += missShaderEntrySize;
-    miss += handleSizeAligned;
-    memcpy(dstM, miss, handleSize);//emMiss0
-    dstM += missShaderEntrySize;
-    miss += handleSizeAligned;
-    memcpy(dstM, miss, handleSize);//emMiss1
-    dst += MissGroupSize;
-    m_sbtInfo.miss.deviceAddress = deviceAddress + RaygenGroupSize;
-    m_sbtInfo.miss.size = MissGroupSize;
-    m_sbtInfo.miss.stride = missShaderEntrySize;
-
-    //Hit
-    //emHitでは頂点データ未使用だがstride揃える関係でとりあえず入れてる
-    auto hit = shaderHandleStorage.data() + handleSizeAligned * GroupHitShader0;
-    auto dstH = dst;
-
-    for (size_t i = 0; i < rt.size(); i++) {
-        rt[i]->hitShaderIndex = numHitShader * (uint32_t)i;
-        writeSBTDataAndHit(rt[i], dstH, hitShaderEntrySize, hit, handleSizeAligned, handleSize);
-        dstH += (hitShaderEntrySize * numHitShader);
+    for (uint32_t i = 0; i < VulkanBasicPolygonRt::numSwap; i++) {
+        csb(i);
     }
-
-    m_sbtInfo.hit.deviceAddress = deviceAddress + RaygenGroupSize + MissGroupSize;
-    m_sbtInfo.hit.size = HitGroupSize;
-    m_sbtInfo.hit.stride = hitShaderEntrySize;
-
-    m_shaderBindingTable.UnMap();
 }
 
-void VulkanRendererRt::writeSBTDataAndHit(VulkanBasicPolygonRt::RtData* rt,
+void VulkanRendererRt::writeSBTDataAndHit(
+    uint32_t SwapIndex,
+    VulkanBasicPolygonRt::RtData* rt,
     void* dst, uint64_t hitShaderEntrySize,
     void* hit, uint32_t handleSizeAligned, uint32_t hitHandleSize) {
 
@@ -715,7 +734,7 @@ void VulkanRendererRt::writeSBTDataAndHit(VulkanBasicPolygonRt::RtData* rt,
         p += sizeof(deviceAddr);
 
         //VertexBuffer
-        deviceAddr = rt->vertexBuf->getDeviceAddress();
+        deviceAddr = rt->vertexBuf[SwapIndex]->getDeviceAddress();
         memcpy(p, &deviceAddr, sizeof(deviceAddr));
         p += sizeof(deviceAddr);
 
@@ -800,139 +819,153 @@ void VulkanRendererRt::CreateLayouts() {
 
     set[4].push_back(layoutMaterialCB);
 
-    VkDescriptorSetLayoutCreateInfo dsLayout[numDescriptorSet] = {};
+    auto cl = [this, set](uint32_t sIndex) {
 
-    VulkanDevice* dev = VulkanDevice::GetInstance();
+        VkDescriptorSetLayoutCreateInfo dsLayout[numDescriptorSet] = {};
 
-    for (int i = 0; i < numDescriptorSet; i++) {
-        dsLayout[i].sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-        dsLayout[i].bindingCount = static_cast<uint32_t>(set[i].size());
-        dsLayout[i].pBindings = set[i].data();
+        VulkanDevice* dev = VulkanDevice::GetInstance();
 
-        vkCreateDescriptorSetLayout(
-            dev->getDevice(), &dsLayout[i], nullptr, &m_dsLayout[i]);
+        for (int i = 0; i < numDescriptorSet; i++) {
+            dsLayout[i].sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+            dsLayout[i].bindingCount = static_cast<uint32_t>(set[i].size());
+            dsLayout[i].pBindings = set[i].data();
 
-        m_descriptorSet[i] = dev->AllocateDescriptorSet(m_dsLayout[i]);
-    }
+            vkCreateDescriptorSetLayout(
+                dev->getDevice(), &dsLayout[i], nullptr, &m_dsLayout[sIndex][i]);
 
-    VkPipelineLayoutCreateInfo pipelineLayoutCI{
-        VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO
+            m_descriptorSet[sIndex][i] = dev->AllocateDescriptorSet(m_dsLayout[sIndex][i]);
+        }
+
+        VkPipelineLayoutCreateInfo pipelineLayoutCI{
+            VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO
+        };
+        pipelineLayoutCI.setLayoutCount = numDescriptorSet;
+        pipelineLayoutCI.pSetLayouts = m_dsLayout[sIndex];
+        vkCreatePipelineLayout(dev->getDevice(),
+            &pipelineLayoutCI, nullptr, &m_pipelineLayout[sIndex]);
     };
-    pipelineLayoutCI.setLayoutCount = numDescriptorSet;
-    pipelineLayoutCI.pSetLayouts = m_dsLayout;
-    vkCreatePipelineLayout(dev->getDevice(),
-        &pipelineLayoutCI, nullptr, &m_pipelineLayout);
+
+    for (uint32_t i = 0; i < VulkanBasicPolygonRt::numSwap; i++) {
+        cl(i);
+    }
 }
 
 void VulkanRendererRt::CreateDescriptorSets() {
 
-    std::vector<VkAccelerationStructureKHR> asHandles = {
-        m_topLevelAS.getHandle()
+    auto cds = [this](uint32_t sIndex) {
+
+        std::vector<VkAccelerationStructureKHR> asHandles = {
+            m_topLevelAS[sIndex].getHandle()
+        };
+
+        VkWriteDescriptorSetAccelerationStructureKHR asDescriptor{
+            VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR
+        };
+        asDescriptor.accelerationStructureCount = (uint32_t)asHandles.size();
+        asDescriptor.pAccelerationStructures = asHandles.data();
+
+        VkWriteDescriptorSet asWrite{
+            VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
+        };
+        asWrite.pNext = &asDescriptor;
+        asWrite.dstSet = m_descriptorSet[sIndex][0];
+        asWrite.dstBinding = 0;
+        asWrite.descriptorCount = 1;
+        asWrite.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+
+        VkWriteDescriptorSet imageWrite{
+            VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
+        };
+        imageWrite.dstSet = m_descriptorSet[sIndex][0];
+        imageWrite.dstBinding = 1;
+        imageWrite.descriptorCount = 1;
+        imageWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        imageWrite.pImageInfo = &m_raytracedImage.info;
+
+        VkWriteDescriptorSet sceneUboWrite{
+            VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
+        };
+        sceneUboWrite.dstSet = m_descriptorSet[sIndex][0];
+        sceneUboWrite.dstBinding = 2;
+        sceneUboWrite.descriptorCount = 1;
+        sceneUboWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        sceneUboWrite.pBufferInfo = &m_sceneUBO->getBufferSet()->info;
+
+        VkWriteDescriptorSet InstanceIdMapWrite{
+            VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
+        };
+        InstanceIdMapWrite.dstSet = m_descriptorSet[sIndex][0];
+        InstanceIdMapWrite.dstBinding = 3;
+        InstanceIdMapWrite.descriptorCount = 1;
+        InstanceIdMapWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        InstanceIdMapWrite.pImageInfo = &instanceIdMap.info;
+
+        VkWriteDescriptorSet depthWrite{
+            VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
+        };
+        depthWrite.dstSet = m_descriptorSet[sIndex][0];
+        depthWrite.dstBinding = 4;
+        depthWrite.descriptorCount = 1;
+        depthWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        depthWrite.pImageInfo = &depthMap.info;
+
+        VkWriteDescriptorSet difTexImageWrite{
+            VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
+        };
+        difTexImageWrite.dstSet = m_descriptorSet[sIndex][1];
+        difTexImageWrite.dstBinding = 0;
+        difTexImageWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        difTexImageWrite.descriptorCount = (uint32_t)textureDifArr.size();
+        difTexImageWrite.pImageInfo = textureDifArr.data();
+
+        VkWriteDescriptorSet norTexImageWrite{
+            VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
+        };
+        norTexImageWrite.dstSet = m_descriptorSet[sIndex][2];
+        norTexImageWrite.dstBinding = 0;
+        norTexImageWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        norTexImageWrite.descriptorCount = (uint32_t)textureNorArr.size();
+        norTexImageWrite.pImageInfo = textureNorArr.data();
+
+        VkWriteDescriptorSet speTexImageWrite{
+            VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
+        };
+        speTexImageWrite.dstSet = m_descriptorSet[sIndex][3];
+        speTexImageWrite.dstBinding = 0;
+        speTexImageWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        speTexImageWrite.descriptorCount = (uint32_t)textureSpeArr.size();
+        speTexImageWrite.pImageInfo = textureSpeArr.data();
+
+        VkWriteDescriptorSet materialWrite{
+            VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
+        };
+        materialWrite.dstSet = m_descriptorSet[sIndex][4];
+        materialWrite.dstBinding = 0;
+        materialWrite.descriptorCount = 1;
+        materialWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        materialWrite.pBufferInfo = &materialUBO->getBufferSet()->info;
+
+        std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
+            asWrite, imageWrite, sceneUboWrite, InstanceIdMapWrite, depthWrite,
+            difTexImageWrite,
+            norTexImageWrite,
+            speTexImageWrite,
+            materialWrite
+        };
+
+        VulkanDeviceRt* devRt = VulkanDeviceRt::getVulkanDeviceRt();
+
+        vkUpdateDescriptorSets(
+            devRt->GetDevice(),
+            uint32_t(writeDescriptorSets.size()),
+            writeDescriptorSets.data(),
+            0,
+            nullptr);
     };
 
-    VkWriteDescriptorSetAccelerationStructureKHR asDescriptor{
-        VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR
-    };
-    asDescriptor.accelerationStructureCount = (uint32_t)asHandles.size();
-    asDescriptor.pAccelerationStructures = asHandles.data();
-
-    VkWriteDescriptorSet asWrite{
-        VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
-    };
-    asWrite.pNext = &asDescriptor;
-    asWrite.dstSet = m_descriptorSet[0];
-    asWrite.dstBinding = 0;
-    asWrite.descriptorCount = 1;
-    asWrite.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
-
-    VkWriteDescriptorSet imageWrite{
-        VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
-    };
-    imageWrite.dstSet = m_descriptorSet[0];
-    imageWrite.dstBinding = 1;
-    imageWrite.descriptorCount = 1;
-    imageWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    imageWrite.pImageInfo = &m_raytracedImage.info;
-
-    VkWriteDescriptorSet sceneUboWrite{
-        VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
-    };
-    sceneUboWrite.dstSet = m_descriptorSet[0];
-    sceneUboWrite.dstBinding = 2;
-    sceneUboWrite.descriptorCount = 1;
-    sceneUboWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    sceneUboWrite.pBufferInfo = &m_sceneUBO->getBufferSet()->info;
-
-    VkWriteDescriptorSet InstanceIdMapWrite{
-        VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
-    };
-    InstanceIdMapWrite.dstSet = m_descriptorSet[0];
-    InstanceIdMapWrite.dstBinding = 3;
-    InstanceIdMapWrite.descriptorCount = 1;
-    InstanceIdMapWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    InstanceIdMapWrite.pImageInfo = &instanceIdMap.info;
-
-    VkWriteDescriptorSet depthWrite{
-        VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
-    };
-    depthWrite.dstSet = m_descriptorSet[0];
-    depthWrite.dstBinding = 4;
-    depthWrite.descriptorCount = 1;
-    depthWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    depthWrite.pImageInfo = &depthMap.info;
-
-    VkWriteDescriptorSet difTexImageWrite{
-        VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
-    };
-    difTexImageWrite.dstSet = m_descriptorSet[1];
-    difTexImageWrite.dstBinding = 0;
-    difTexImageWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    difTexImageWrite.descriptorCount = (uint32_t)textureDifArr.size();
-    difTexImageWrite.pImageInfo = textureDifArr.data();
-
-    VkWriteDescriptorSet norTexImageWrite{
-        VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
-    };
-    norTexImageWrite.dstSet = m_descriptorSet[2];
-    norTexImageWrite.dstBinding = 0;
-    norTexImageWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    norTexImageWrite.descriptorCount = (uint32_t)textureNorArr.size();
-    norTexImageWrite.pImageInfo = textureNorArr.data();
-
-    VkWriteDescriptorSet speTexImageWrite{
-        VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
-    };
-    speTexImageWrite.dstSet = m_descriptorSet[3];
-    speTexImageWrite.dstBinding = 0;
-    speTexImageWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    speTexImageWrite.descriptorCount = (uint32_t)textureSpeArr.size();
-    speTexImageWrite.pImageInfo = textureSpeArr.data();
-
-    VkWriteDescriptorSet materialWrite{
-        VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
-    };
-    materialWrite.dstSet = m_descriptorSet[4];
-    materialWrite.dstBinding = 0;
-    materialWrite.descriptorCount = 1;
-    materialWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    materialWrite.pBufferInfo = &materialUBO->getBufferSet()->info;
-
-    std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
-        asWrite, imageWrite, sceneUboWrite, InstanceIdMapWrite, depthWrite,
-        difTexImageWrite,
-        norTexImageWrite,
-        speTexImageWrite,
-        materialWrite
-    };
-
-    VulkanDeviceRt* devRt = VulkanDeviceRt::getVulkanDeviceRt();
-
-    vkUpdateDescriptorSets(
-        devRt->GetDevice(),
-        uint32_t(writeDescriptorSets.size()),
-        writeDescriptorSets.data(),
-        0,
-        nullptr);
+    for (uint32_t i = 0; i < VulkanBasicPolygonRt::numSwap; i++) {
+        cds(i);
+    }
 }
 
 void VulkanRendererRt::TestModeOn(TestMode mode) {

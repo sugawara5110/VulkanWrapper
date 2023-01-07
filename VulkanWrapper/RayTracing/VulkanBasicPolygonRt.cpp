@@ -11,10 +11,14 @@ VulkanBasicPolygonRt::VulkanBasicPolygonRt() {
 }
 
 VulkanBasicPolygonRt::~VulkanBasicPolygonRt() {
-    vertexBuf.destroy();
+    for (uint32_t i = 0; i < numSwap; i++) {
+        vertexBuf[i].destroy();
+    }
     for (auto i = 0; i < Rdata.size(); i++) {
         Rdata[i].indexBuf.destroy();
-        Rdata[i].BLAS.destroy();
+        for (uint32_t i1 = 0; i1 < numSwap; i1++) {
+            Rdata[i].BLAS[i1].destroy();
+        }
         Rdata[i].texId.destroy();
     }
 }
@@ -65,7 +69,9 @@ void VulkanBasicPolygonRt::createVertexBuffer(
     memoryAllocateFlagsInfo.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR;
     void* pNext = &memoryAllocateFlagsInfo;
 
-    vertexBuf.createVertexBuffer(QueueIndex, comIndex, v, num, false, pNext, &usageForRT);
+    for (uint32_t i = 0; i < numSwap; i++) {
+        vertexBuf[i].createVertexBuffer(QueueIndex, comIndex, v, num, false, pNext, &usageForRT);
+    }
     vkUtil::ARR_DELETE(v);
     vertexStride = sizeof(Vertex3Dvec4);
     vertexCount = num;
@@ -105,44 +111,47 @@ void VulkanBasicPolygonRt::createBLAS(RtData& rdata, uint32_t QueueIndex, uint32
     Geometry.geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR;
 
     auto& triangles = Geometry.geometry.triangles;
-    triangles.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR;
-    triangles.vertexFormat = VK_FORMAT_R32G32B32_SFLOAT;
-    triangles.vertexData.deviceAddress = rdata.vertexBuf->getDeviceAddress();
-    triangles.maxVertex = rdata.vertexCount;
-    triangles.vertexStride = rdata.vertexStride;
-    triangles.indexType = VK_INDEX_TYPE_UINT32;
-    triangles.indexData.deviceAddress = rdata.indexBuf.getDeviceAddress();
 
-    VkAccelerationStructureBuildRangeInfoKHR BuildRangeInfo{};
-    BuildRangeInfo.primitiveCount = rdata.indexCount / 3;
-    BuildRangeInfo.primitiveOffset = 0;
-    BuildRangeInfo.firstVertex = 0;
-    BuildRangeInfo.transformOffset = 0;
+    for (uint32_t i = 0; i < numSwap; i++) {
+        triangles.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR;
+        triangles.vertexFormat = VK_FORMAT_R32G32B32_SFLOAT;
+        triangles.vertexData.deviceAddress = rdata.vertexBuf[i]->getDeviceAddress();
+        triangles.maxVertex = rdata.vertexCount;
+        triangles.vertexStride = rdata.vertexStride;
+        triangles.indexType = VK_INDEX_TYPE_UINT32;
+        triangles.indexData.deviceAddress = rdata.indexBuf.getDeviceAddress();
 
-    VkBuildAccelerationStructureFlagsKHR buildFlags = 0;
-    buildFlags |= VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
-    buildFlags |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR;
+        VkAccelerationStructureBuildRangeInfoKHR BuildRangeInfo{};
+        BuildRangeInfo.primitiveCount = rdata.indexCount / 3;
+        BuildRangeInfo.primitiveOffset = 0;
+        BuildRangeInfo.firstVertex = 0;
+        BuildRangeInfo.transformOffset = 0;
 
-    rdata.BLAS.buildAS(QueueIndex, comIndex, VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
-        Geometry,
-        BuildRangeInfo,
-        buildFlags);
-    rdata.BLAS.destroyScratchBuffer();
+        VkBuildAccelerationStructureFlagsKHR buildFlags = 0;
+        buildFlags |= VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
+        buildFlags |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR;
+
+        rdata.BLAS[i].buildAS(QueueIndex, comIndex, VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
+            Geometry,
+            BuildRangeInfo,
+            buildFlags);
+        rdata.BLAS[i].destroyScratchBuffer();
+    }
 }
 
-void VulkanBasicPolygonRt::updateBLAS(RtData& rdata, uint32_t QueueIndex, uint32_t comIndex) {
+void VulkanBasicPolygonRt::updateBLAS(uint32_t swapIndex, RtData& rdata, uint32_t QueueIndex, uint32_t comIndex) {
 
     VkBuildAccelerationStructureFlagsKHR buildFlags = 0;
     buildFlags |= VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
     buildFlags |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR;
-    rdata.BLAS.update(
+    rdata.BLAS[swapIndex].update(
         QueueIndex,
         comIndex,
         VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
         buildFlags);
 }
 
-void VulkanBasicPolygonRt::updateInstance(RtData& rdata) {
+void VulkanBasicPolygonRt::updateInstance(uint32_t swapIndex, RtData& rdata) {
 
     for (uint32_t i = 0; i < rdata.instance.size(); i++) {
         VkAccelerationStructureInstanceKHR instance{};
@@ -150,13 +159,13 @@ void VulkanBasicPolygonRt::updateInstance(RtData& rdata) {
         instance.mask = 0x00;
         if (InstanceCnt > i) instance.mask = 0xFF;
         instance.flags = 0;
-        instance.accelerationStructureReference = rdata.BLAS.getDeviceAddress();
+        instance.accelerationStructureReference = rdata.BLAS[swapIndex].getDeviceAddress();
         instance.instanceShaderBindingTableRecordOffset = rdata.hitShaderIndex;
         if (rdataCreateF)
             instance.transform = rdata.instance[i].vkWorld;
         else
             instance.transform = VkTransformMatrixKHR();
-        rdata.instance[i].vkInstance = instance;
+        rdata.instance[i].vkInstance[swapIndex] = instance;
     }
 }
 
@@ -180,12 +189,16 @@ void VulkanBasicPolygonRt::createMultipleMaterials(uint32_t QueueIndex, uint32_t
     createVertexBuffer(QueueIndex, comIndex, ver, num);
     for (auto i = 0; i < Rdata.size(); i++) {
         Rdata[i].instance.resize((size_t)numInstance);
-        Rdata[i].vertexBuf = &vertexBuf;
+        for (uint32_t i1 = 0; i1 < numSwap; i1++) {
+            Rdata[i].vertexBuf[i1] = &vertexBuf[i1];
+        }
         Rdata[i].vertexCount = vertexCount;
         Rdata[i].vertexStride = vertexStride;
         createIndexBuffer(Rdata[i], QueueIndex, comIndex, ind[i], indNum[i]);
         createBLAS(Rdata[i], QueueIndex, comIndex);
-        updateInstance(Rdata[i]);
+        for (uint32_t i1 = 0; i1 < numSwap; i1++) {
+            updateInstance(i1, Rdata[i]);
+        }
         createTexture(Rdata[i], QueueIndex, comIndex, texid[i]);
         Rdata[i].mat.useAlpha.x = 0.0f;
         if (useAlpha) {
@@ -270,15 +283,15 @@ void VulkanBasicPolygonRt::instancing(CoordTf::VECTOR3 pos, CoordTf::VECTOR3 the
     InstanceCnt++;
 }
 
-void VulkanBasicPolygonRt::instancingUpdate(uint32_t QueueIndex, uint32_t comIndex) {
+void VulkanBasicPolygonRt::instancingUpdate(uint32_t swapIndex, uint32_t QueueIndex, uint32_t comIndex) {
     for (auto i = 0; i < Rdata.size(); i++) {
-        updateBLAS(Rdata[i], QueueIndex, comIndex);
-        updateInstance(Rdata[i]);
+        updateBLAS(swapIndex, Rdata[i], QueueIndex, comIndex);
+        updateInstance(swapIndex, Rdata[i]);
     }
     InstanceCnt = 0;
 }
 
-void VulkanBasicPolygonRt::update(uint32_t QueueIndex, uint32_t comIndex, CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale) {
+void VulkanBasicPolygonRt::update(uint32_t swapIndex, uint32_t QueueIndex, uint32_t comIndex, CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale) {
     instancing(pos, theta, scale);
-    instancingUpdate(QueueIndex, comIndex);
+    instancingUpdate(swapIndex, QueueIndex, comIndex);
 }

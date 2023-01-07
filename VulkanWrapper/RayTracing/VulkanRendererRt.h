@@ -33,14 +33,15 @@ private:
     };
 
     std::vector<VulkanBasicPolygonRt::RtData*> rt;
-    BufferSetRt  m_instancesBuffer;
-    AccelerationStructure m_topLevelAS;
-    const static int numDescriptorSet = 5;
-    VkDescriptorSetLayout m_dsLayout[numDescriptorSet] = {};
-    VkDescriptorSet m_descriptorSet[numDescriptorSet] = {};
-    VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
-    VulkanDevice::ImageSet   m_raytracedImage;
-    VkPipeline m_raytracePipeline;
+    BufferSetRt            m_instancesBuffer[VulkanBasicPolygonRt::numSwap] = {};
+    AccelerationStructure  m_topLevelAS[VulkanBasicPolygonRt::numSwap] = {};
+    const static int       numDescriptorSet = 5;
+    VkDescriptorSetLayout  m_dsLayout[VulkanBasicPolygonRt::numSwap][numDescriptorSet] = {};
+    VkDescriptorSet        m_descriptorSet[VulkanBasicPolygonRt::numSwap][numDescriptorSet] = {};
+    VkPipelineLayout       m_pipelineLayout[VulkanBasicPolygonRt::numSwap] = {};
+    VkPipeline             m_raytracePipeline[VulkanBasicPolygonRt::numSwap] = {};
+
+    VulkanDevice::ImageSet m_raytracedImage;
     VulkanDevice::ImageSet instanceIdMap;
     VulkanDevice::ImageSet depthMap;
     VulkanDevice::BufferSet depthMapUp;
@@ -58,8 +59,8 @@ private:
         MaxShaderGroup
     };
     std::vector<VkRayTracingShaderGroupCreateInfoKHR> m_shaderGroups;
-    BufferSetRt  m_shaderBindingTable;
-    ShaderBindingTableInfo m_sbtInfo;
+    BufferSetRt  m_shaderBindingTable[VulkanBasicPolygonRt::numSwap] = {};
+    ShaderBindingTableInfo m_sbtInfo[VulkanBasicPolygonRt::numSwap] = {};
 
     std::vector<VkDescriptorImageInfo> textureDifArr;
     std::vector<VkDescriptorImageInfo> textureNorArr;
@@ -96,9 +97,9 @@ private:
 
     void CreateDescriptorSets();
 
-    void UpdateTLAS(uint32_t QueueIndex, uint32_t comIndex);
-
-    void writeSBTDataAndHit(VulkanBasicPolygonRt::RtData* rt,
+    void writeSBTDataAndHit(
+        uint32_t SwapIndex,
+        VulkanBasicPolygonRt::RtData* rt,
         void* dst, uint64_t hitShaderEntrySize,
         void* hit, uint32_t handleSizeAligned, uint32_t hitHandleSize);
 
@@ -123,7 +124,8 @@ public:
     void setGlobalAmbientColor(CoordTf::VECTOR3 Color);
 
     void Update(int maxRecursion);
-    void Render(uint32_t QueueIndex, uint32_t comIndex, bool depthUpdate = false);
+    void UpdateTLAS(uint32_t swapIndex, uint32_t QueueIndex, uint32_t comIndex);
+    void Render(uint32_t swapIndex, uint32_t QueueIndex, uint32_t comIndex, bool depthUpdate = false);
 
     VulkanDevice::ImageSet* getInstanceIdMap() {
         return &instanceIdMap;

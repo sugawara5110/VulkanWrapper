@@ -122,7 +122,7 @@ protected:
 		void CreateDescriptorSets(VkDescriptorBufferInfo* output, VkDescriptorBufferInfo* bone);
 		void Skinned(uint32_t QueueIndex, uint32_t comIndex);
 	};
-	SkinningCom* sk = nullptr;
+	SkinningCom* sk[VulkanBasicPolygonRt::numSwap] = {};
 
 public:
 	VulkanSkinMeshRt();
@@ -156,9 +156,9 @@ public:
 
 	void Instancing(CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale);
 
-	bool InstancingUpdate(uint32_t QueueIndex, uint32_t comIndex, int AnimationIndex, float time, int InternalAnimationIndex = 0);
+	bool InstancingUpdate(uint32_t swapIndex, uint32_t QueueIndex, uint32_t comIndex, int AnimationIndex, float time, int InternalAnimationIndex = 0);
 
-	bool Update(uint32_t QueueIndex, uint32_t comIndex,
+	bool Update(uint32_t swapIndex, uint32_t QueueIndex, uint32_t comIndex,
 		int AnimationIndex, float time,
 		CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale,
 		int InternalAnimationIndex = 0);

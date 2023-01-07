@@ -188,7 +188,11 @@ public:
             uint32_t waitSemaphoreCount, VkSemaphore* WaitSemaphores,
             uint32_t signalSemaphoreCount, VkSemaphore* SignalSemaphores);
 
-        void submitCommandsDoNotRender();
+        void submitCommandsAndWait();
+
+        void submitCommands();
+
+        void Wait();
 
         VkCommandBuffer getCommandBuffer(uint32_t comBufindex);
     };

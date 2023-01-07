@@ -127,7 +127,7 @@ void VulkanBloom::createBuffer(uint32_t QueueIndex, uint32_t comIndex) {
 	Output.barrierResource(QueueIndex, comIndex, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
 	com->endCommand(comIndex);
-	com->submitCommandsDoNotRender();
+	com->submitCommandsAndWait();
 
 	bParamUBO = new VulkanDevice::Uniform<BloomParam>(1);
 	bParam.numInstance = (int)bloom.size();
@@ -531,7 +531,7 @@ void VulkanBloom::Bloom::createBuffer(uint32_t QueueIndex, uint32_t comIndex) {
 	Output.barrierResource(QueueIndex, comIndex, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
 	com->endCommand(comIndex);
-	com->submitCommandsDoNotRender();
+	com->submitCommandsAndWait();
 
 	bParamUBO = new VulkanDevice::Uniform<BloomParam>(1);
 }

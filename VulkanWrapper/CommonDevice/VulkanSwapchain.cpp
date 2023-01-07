@@ -148,7 +148,7 @@ void VulkanSwapchain::createswapchain(
             VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_ASPECT_COLOR_BIT);
     }
     com->endCommand(comBufindex);
-    com->submitCommandsDoNotRender();
+    com->submitCommandsAndWait();
 
     //ƒrƒ…[¶¬
     views = std::make_unique<VkImageView[]>(imageCount);

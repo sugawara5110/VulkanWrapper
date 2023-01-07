@@ -20,8 +20,10 @@ enum vkMaterialType {
 class VulkanBasicPolygonRt {
 
 public:
+	static const uint32_t numSwap = 3;
+
 	struct Instance {
-		VkAccelerationStructureInstanceKHR vkInstance = {};
+		VkAccelerationStructureInstanceKHR vkInstance[numSwap] = {};
 		CoordTf::MATRIX world = {};
 		CoordTf::MATRIX mvp = {};
 		VkTransformMatrixKHR vkWorld = {};
@@ -38,12 +40,8 @@ public:
 		CoordTf::VECTOR4 MaterialType = { NONREFLECTION,0.0f,0.0f,0.0f };//x:
 	};
 
-	BufferSetRt vertexBuf = {};
-	uint32_t vertexCount = 0;
-	uint32_t vertexStride = 0;
-
 	struct RtData {
-		BufferSetRt* vertexBuf = nullptr;//ポインタ受け取るだけ
+		BufferSetRt* vertexBuf[numSwap] = {};//ポインタ受け取るだけ
 		uint32_t vertexCount = 0;
 		uint32_t vertexStride = 0;
 		BufferSetRt indexBuf = {};
@@ -53,8 +51,8 @@ public:
 
 		RtMaterial mat = {};
 
-		AccelerationStructure BLAS = {};
-		std::vector<Instance> instance;
+		AccelerationStructure BLAS[numSwap] = {};
+		std::vector<Instance> instance = {};
 		uint32_t hitShaderIndex = 0;
 	};
 	struct Vertex3D_t {
@@ -68,13 +66,16 @@ public:
 private:
 	bool rdataCreateF = false;
 	uint32_t InstanceCnt = 0;
+	BufferSetRt vertexBuf[numSwap] = {};
+	uint32_t vertexCount = 0;
+	uint32_t vertexStride = 0;
 
 	void createVertexBuffer(uint32_t QueueIndex, uint32_t comIndex, Vertex3D_t* ver, uint32_t num);
 	void createIndexBuffer(RtData& rdata, uint32_t QueueIndex, uint32_t comIndex, uint32_t* ind, uint32_t indNum);
 	void createBLAS(RtData& rdata, uint32_t QueueIndex, uint32_t comIndex);
-	void updateInstance(RtData& rdata);
+	void updateInstance(uint32_t swapIndex, RtData& rdata);
 	void createTexture(RtData& rdata, uint32_t QueueIndex, uint32_t comIndex, VulkanDevice::textureIdSetInput& texId);
-	void updateBLAS(RtData& rdata, uint32_t QueueIndex, uint32_t comIndex);
+	void updateBLAS(uint32_t swapIndex, RtData& rdata, uint32_t QueueIndex, uint32_t comIndex);
 
 public:
 	std::vector<RtData> Rdata;
@@ -103,8 +104,8 @@ public:
 	void setMaterialRefractiveIndex(float RefractiveIndex, uint32_t materialIndex = 0);
 
 	void instancing(CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale);
-	void instancingUpdate(uint32_t QueueIndex, uint32_t comIndex);
-	void update(uint32_t QueueIndex, uint32_t comIndex, CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale);
+	void instancingUpdate(uint32_t swapIndex, uint32_t QueueIndex, uint32_t comIndex);
+	void update(uint32_t swapIndex, uint32_t QueueIndex, uint32_t comIndex, CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale);
 };
 
 #endif
