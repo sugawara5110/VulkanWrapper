@@ -162,7 +162,7 @@ void VulkanDevice::CommandObj::endCommand(uint32_t comBufindex) {
     status[comBufindex] = CLOSE;
 }
 
-void VulkanDevice::CommandObj::submitCommands(VkFence fence, bool useRender,
+void VulkanDevice::CommandObj::submitCommands(VkFence fence,
     uint32_t waitSemaphoreCount, VkSemaphore* WaitSemaphores,
     uint32_t signalSemaphoreCount, VkSemaphore* SignalSemaphores) {
 
@@ -181,19 +181,17 @@ void VulkanDevice::CommandObj::submitCommands(VkFence fence, bool useRender,
     sinfo.commandBufferCount = comCnt;
     sinfo.pCommandBuffers = temp.get();
     sinfo.pWaitDstStageMask = &waitStageMask;
-    if (useRender) {
-        sinfo.waitSemaphoreCount = waitSemaphoreCount;
-        sinfo.pWaitSemaphores = WaitSemaphores;
-        sinfo.signalSemaphoreCount = signalSemaphoreCount;
-        sinfo.pSignalSemaphores = SignalSemaphores;
-        VulkanDevice::GetInstance()->resetFence(fence);
-    }
+    sinfo.waitSemaphoreCount = waitSemaphoreCount;
+    sinfo.pWaitSemaphores = WaitSemaphores;
+    sinfo.signalSemaphoreCount = signalSemaphoreCount;
+    sinfo.pSignalSemaphores = SignalSemaphores;
+
     auto res = vkQueueSubmit(devQueue, 1, &sinfo, fence);
     vkUtil::checkError(res);
 }
 
 void VulkanDevice::CommandObj::submitCommandsAndWait() {
-    submitCommands(fence, false,
+    submitCommands(fence,
         0, nullptr,
         0, nullptr);
     VulkanDevice::GetInstance()->waitForFence(fence);
@@ -201,7 +199,7 @@ void VulkanDevice::CommandObj::submitCommandsAndWait() {
 }
 
 void VulkanDevice::CommandObj::submitCommands() {
-    submitCommands(fence, false,
+    submitCommands(fence,
         0, nullptr,
         0, nullptr);
 }

@@ -284,20 +284,6 @@ void VulkanSwapchain::createFramebuffers() {
     }
 }
 
-void VulkanSwapchain::present(uint32_t QueueIndex) {
-    VkPresentInfoKHR pinfo{};
-
-    pinfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-    pinfo.swapchainCount = 1;
-    pinfo.pSwapchains = getSwapchain();
-    pinfo.pImageIndices = getCurrentFrameIndex();
-    pinfo.waitSemaphoreCount = 1;
-    pinfo.pWaitSemaphores = &renderCompletedSem;
-
-    auto res = vkQueuePresentKHR(getDevice()->getCommandObj(QueueIndex)->getQueue(), &pinfo);
-    vkUtil::checkError(res);
-}
-
 void VulkanSwapchain::create(
     uint32_t QueueIndex, uint32_t comBufindex,
     VkPhysicalDevice pd, VkSurfaceKHR surface, bool clearBackBuffer, bool V_SYNC) {
@@ -322,6 +308,7 @@ void VulkanSwapchain::acquireNextImageAndWait() {
         return;
     }
     getDevice()->waitForFence(swFence);
+    getDevice()->resetFence(swFence);
 }
 
 void VulkanSwapchain::beginCommandNextImage(uint32_t QueueIndex, uint32_t comBufindex) {
@@ -354,11 +341,26 @@ void VulkanSwapchain::endDraw(uint32_t QueueIndex, uint32_t comBufindex) {
     vkCmdEndRenderPass(getCommand(QueueIndex, comBufindex));
 }
 
-void VulkanSwapchain::Present(uint32_t QueueIndex) {
+void VulkanSwapchain::endCommand(uint32_t QueueIndex, uint32_t comBufindex) {
+    getDevice()->getCommandObj(QueueIndex)->endCommand(comBufindex);
+}
 
-    getDevice()->getCommandObj(QueueIndex)->submitCommands(getFence(), true,
+void VulkanSwapchain::submitCommands(uint32_t QueueIndex) {
+    getDevice()->getCommandObj(QueueIndex)->submitCommands(swFence,
         1, &presentCompletedSem,
         1, &renderCompletedSem);
+}
 
-    present(QueueIndex);
+void VulkanSwapchain::present(uint32_t QueueIndex) {
+    VkPresentInfoKHR pinfo{};
+
+    pinfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    pinfo.swapchainCount = 1;
+    pinfo.pSwapchains = &swapchain;
+    pinfo.pImageIndices = &currentFrameIndex;
+    pinfo.waitSemaphoreCount = 1;
+    pinfo.pWaitSemaphores = &renderCompletedSem;
+
+    auto res = vkQueuePresentKHR(getDevice()->getCommandObj(QueueIndex)->getQueue(), &pinfo);
+    vkUtil::checkError(res);
 }

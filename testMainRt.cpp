@@ -218,11 +218,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	  { VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 100 },
 	};
 
-	devRt->createDevice(vins->getInstance(), pd, vins->getApiVersion(), 1, & poolSize, 100);
+	devRt->createDevice(vins->getInstance(), pd, vins->getApiVersion(), 2,1,1, & poolSize, 100);
 
 	VulkanSwapchain::InstanceCreate();
 	VulkanSwapchain* sc = VulkanSwapchain::GetInstance();
-	sc->create(pd, sur, false, false);//レイトレでラスタライザもやる時はclearBackBufferはオフ
+	sc->create(0,0,pd, sur, false, false);//レイトレでラスタライザもやる時はclearBackBufferはオフ
 
 	VulkanRendererRt theApp;
 	
@@ -252,20 +252,20 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	unsigned char* young_lightskinned_male_diffuse = png.loadPNG("../texturePPM/young_lightskinned_male_diffuse.png", 256, 256);
 
 	VulkanDevice* device = VulkanDevice::GetInstance();
-	device->GetTexture(0, "wall1.jpg", wall1, 256, 256); vkUtil::ARR_DELETE(wall1);
-	device->GetTexture(0, "wood.jpg", wall2, 256, 256); vkUtil::ARR_DELETE(wall2);
-	device->GetTexture(0, "wallNor.png", wallNor, 256, 256); vkUtil::ARR_DELETE(wallNor);
-	device->GetTexture(0, "woodNor.png", woodNor, 256, 256); vkUtil::ARR_DELETE(woodNor);
-	device->GetTexture(0, "brown_eye.png", brown_eye, 256, 256); ARR_DELETE(brown_eye);
-	device->GetTexture(0, "classicshoes_texture_diffuse.png", classicshoes_texture_diffuse, 256, 256); ARR_DELETE(classicshoes_texture_diffuse);
-	device->GetTexture(0, "classicshoes_texture_normals.png", classicshoes_texture_normals, 256, 256); ARR_DELETE(classicshoes_texture_normals);
-	device->GetTexture(0, "eyebrow001.png", eyebrow001, 256, 256); ARR_DELETE(eyebrow001);
-	device->GetTexture(0, "jacket01_diffuse.png", jacket01_diffuse, 256, 256); ARR_DELETE(jacket01_diffuse);
-	device->GetTexture(0, "jacket01_normals.png", jacket01_normals, 256, 256); ARR_DELETE(jacket01_normals);
-	device->GetTexture(0, "jeans01_black_diffuse.png", jeans01_black_diffuse, 256, 256); ARR_DELETE(jeans01_black_diffuse);
-	device->GetTexture(0, "jeans01_normals.png", jeans01_normals, 256, 256); ARR_DELETE(jeans01_normals);
-	device->GetTexture(0, "male01_diffuse_black.png", male01_diffuse_black, 256, 256); ARR_DELETE(male01_diffuse_black);
-	device->GetTexture(0, "young_lightskinned_male_diffuse.png", young_lightskinned_male_diffuse, 256, 256); ARR_DELETE(young_lightskinned_male_diffuse);
+	device->GetTexture("wall1.jpg", wall1, 256, 256); vkUtil::ARR_DELETE(wall1);
+	device->GetTexture("wood.jpg", wall2, 256, 256); vkUtil::ARR_DELETE(wall2);
+	device->GetTexture("wallNor.png", wallNor, 256, 256); vkUtil::ARR_DELETE(wallNor);
+	device->GetTexture("woodNor.png", woodNor, 256, 256); vkUtil::ARR_DELETE(woodNor);
+	device->GetTexture("brown_eye.png", brown_eye, 256, 256); ARR_DELETE(brown_eye);
+	device->GetTexture("classicshoes_texture_diffuse.png", classicshoes_texture_diffuse, 256, 256); ARR_DELETE(classicshoes_texture_diffuse);
+	device->GetTexture("classicshoes_texture_normals.png", classicshoes_texture_normals, 256, 256); ARR_DELETE(classicshoes_texture_normals);
+	device->GetTexture("eyebrow001.png", eyebrow001, 256, 256); ARR_DELETE(eyebrow001);
+	device->GetTexture("jacket01_diffuse.png", jacket01_diffuse, 256, 256); ARR_DELETE(jacket01_diffuse);
+	device->GetTexture("jacket01_normals.png", jacket01_normals, 256, 256); ARR_DELETE(jacket01_normals);
+	device->GetTexture("jeans01_black_diffuse.png", jeans01_black_diffuse, 256, 256); ARR_DELETE(jeans01_black_diffuse);
+	device->GetTexture("jeans01_normals.png", jeans01_normals, 256, 256); ARR_DELETE(jeans01_normals);
+	device->GetTexture("male01_diffuse_black.png", male01_diffuse_black, 256, 256); ARR_DELETE(male01_diffuse_black);
+	device->GetTexture("young_lightskinned_male_diffuse.png", young_lightskinned_male_diffuse, 256, 256); ARR_DELETE(young_lightskinned_male_diffuse);
 	
 	emissiv = new VulkanBasicPolygonRt();
 	cube = new VulkanBasicPolygonRt();
@@ -276,7 +276,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	std::vector<VulkanDevice::Vertex3D> vertices;
 	std::vector<uint32_t> index;
 
-	emissiv->create(0, true, ver24aa, 24, index36, 36,
+	emissiv->create(0,0, true, ver24aa, 24, index36, 36,
 		-1,
 		-1,
 		-1,
@@ -326,7 +326,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 		svv1[i].difUv[1] = svv1[i].speUv[1] = sv1[i].tex.y;
 	}
 
-	cube->create(0, true, svv, (numSphereVer + 1) * (numSphereVer + 1) * numSphereArr, svI, numSphereVer * numSphereVer * 6 * numSphereArr,
+	cube->create(0,0, true, svv, (numSphereVer + 1) * (numSphereVer + 1) * numSphereArr, svI, numSphereVer * numSphereVer * 6 * numSphereArr,
 	-1,//	VulkanDevice::GetInstance()->getTextureNo("wall1.jpg"),
 	-1,//	VulkanDevice::GetInstance()->getTextureNo("wallNor.png"),
 		-1,//VulkanDevice::GetInstance()->getTextureNo("wallNor.png"),
@@ -340,7 +340,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	vkUtil::ARR_DELETE(svI1);
 	vkUtil::ARR_DELETE(svv1);
 
-	plane->create(0, true, ver24aa, 24, index36, 36,
+	plane->create(0,0, true, ver24aa, 24, index36, 36,
     	VulkanDevice::GetInstance()->getTextureNo("wood.jpg"),
 	-1,//	VulkanDevice::GetInstance()->getTextureNo("woodNor.png"), 
 		-1,
@@ -350,10 +350,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	skin->SetFbx("../texturePPM/player1_fbx_att.fbx");
 	skin->CreateBuffer(1000.0f);
 	skin->SetVertex();
-	skin->CreateFromFBX(0, true, 1);
+	skin->CreateFromFBX(0,0, true, 1);
 
 	sk->setFbx("../texturePPM/player1_fbx_att.fbx",300.0f);
-	sk->create(0, true);
+	sk->create(0,0, true);
 
 	
 	
@@ -375,7 +375,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	//theApp.TestModeOn(VulkanRendererRt::InstanceIdMap);
 	//theApp.TestModeOn(VulkanRendererRt::DepthMap);
 
-	theApp.Init(0, rt);
+	theApp.Init(0,0, rt);
 
 	////////////////////////
 
@@ -417,7 +417,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	std::vector<std::vector<uint32_t>> ga = { { 256,128,64,32,16 },{ 256,128,64,32 } };
 
 	bl->setImage(theApp.getRenderedImage(), theApp.getInstanceIdMap(), w, h,ipaA,&ga);
-	bl->Create(0);
+	bl->Create(0,0);
+	VulkanDevice::CommandObj* com = vDev->getCommandObj(0);
+	VulkanDevice::CommandObj* com2 = vDev->getCommandObj(1);
+
+	uint32_t si = 0;
+	uint32_t si2 = 1;
 
 	while (1)
 	{
@@ -454,40 +459,52 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 			VectorMatrixMultiply(&epos2, &Y);
 			vDev->updateView(cam, { 0,0,0 });
 
-			sc->beginCommandNextImage(0);
+			sc->beginCommandNextImage(0,0);
 
 			rd->setLight(0, epos1, { 1.0f,1.0f,1.0f });
 			rd->setLight(1, epos2, { 1.0f,0.0f,0.0f });
 
+			com2->beginCommand(0);
+
 			emissiv->instancing(epos1, { 0,0,0 }, { 1,1,1 });
 			emissiv->instancing(epos2, { 0,0,0 }, { 1,1,1 });
-			emissiv->instancingUpdate(0);
+			emissiv->instancingUpdate(si2,1,0);
 			cube->setMaterialColor({ 0.8f,0.8f,0.8f }, { 0.5f,0.5f,0.5f }, { 0,0,0 }, 0);
 			cube->instancing({ -2.0f, -1.0f, 0.0f }, { theta0,0,0 }, { 2,2,2 });
 			cube->instancing({ +2.0f, -1.0f, 1.0f }, { 0,theta0,0 }, { 1,1,1 });
-			cube->instancingUpdate(0);
-			plane->update(0,{ 0,-10,0 }, { 0,0,0 }, { 15,5,15 });
+			cube->instancingUpdate(si2,1,0);
+			plane->update(si2,1,0,{ 0,-10,0 }, { 0,0,0 }, { 15,5,15 });
 			skin->Instancing({ 8,3.5f,1 }, { -90,0,theta0 }, { 1.0f,1.0f,1.0f });
 			//skin->Instancing({ 3,10,1 }, { -90,0,0 }, { 0.5,0.5,0.5 });
-			skin->InstancingUpdate(0, 0, 5.0f);
+			skin->InstancingUpdate(si2,1,0, 0, 5.0f);
 	
 
 			theApp.Update(5);
-			theApp.Render(0,true);
+			
+			theApp.UpdateTLAS(si2, 1, 0);
+			
+			theApp.Render(si,0,0,true);
 
-			sc->beginDraw(0);
+			sc->beginDraw(0,0);
 
 			//通常のレンダリングする場合ここで処理/////////////////////
 			sk->autoUpdate(0, 0, 0.1f, { -8,0.5f,1 }, { 90,0,0 }, { 2.0f,2.0f,2.0f });
-			sk->draw(0, 0);
+			sk->draw(0, 0,0);
 			 // レンダーパスが終了するとバックバッファは
 			 // TRANSFER_DST_OPTIMAL->PRESENT_SRC_KHR へレイアウト変更が適用される.
-			sc->endDraw(0);
-			bl->Compute(0);
-			vDev->endCommand(0);
-			sc->Present(0);
+			sc->endDraw(0, 0);
+			bl->Compute(si,0,0);
+			bl->CopyImage(si2,1, 0);
+			sc->endCommand(0,0);
+			com2->endCommand(0);
+			sc->submitCommands(0);
+			com2->submitCommands();
+			com2->Wait();
+			sc->present(0);
+			
 
-			int kk = 0;
+			si = 1 - si;
+			si2 = 1 - si2;
 
 		}
 		//ループ内処理

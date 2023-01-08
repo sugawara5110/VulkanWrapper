@@ -129,7 +129,9 @@ void VulkanBasicPolygonRt::createBLAS(RtData& rdata, uint32_t QueueIndex, uint32
 
         VkBuildAccelerationStructureFlagsKHR buildFlags = 0;
         buildFlags |= VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
-        buildFlags |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR;
+        if (UpdateBLAS_On) {
+            buildFlags |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR;
+        }
 
         rdata.BLAS[i].buildAS(QueueIndex, comIndex, VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
             Geometry,
@@ -180,7 +182,9 @@ void VulkanBasicPolygonRt::createTexture(RtData& rdata, uint32_t QueueIndex, uin
 
 void VulkanBasicPolygonRt::createMultipleMaterials(uint32_t QueueIndex, uint32_t comIndex, bool useAlpha, uint32_t numMat,
     Vertex3D_t* ver, uint32_t num, uint32_t** ind, uint32_t* indNum,
-    VulkanDevice::textureIdSetInput* texid, uint32_t numInstance) {
+    VulkanDevice::textureIdSetInput* texid, uint32_t numInstance, bool updateBLAS_on) {
+
+    UpdateBLAS_On = updateBLAS_on;
 
     vkUtil::createTangent(numMat, indNum,
         ver, ind, sizeof(Vertex3D_t), 0, 3 * 4, 9 * 4, 6 * 4);
@@ -229,7 +233,7 @@ void VulkanBasicPolygonRt::create(uint32_t QueueIndex, uint32_t comIndex, bool u
 
     createMultipleMaterials(QueueIndex, comIndex, useAlpha, 1,
         v3, num, &ind, &indNum,
-        tex, numInstance);
+        tex, numInstance, false);
 
     vkUtil::ARR_DELETE(v3);
 }
@@ -285,7 +289,9 @@ void VulkanBasicPolygonRt::instancing(CoordTf::VECTOR3 pos, CoordTf::VECTOR3 the
 
 void VulkanBasicPolygonRt::instancingUpdate(uint32_t swapIndex, uint32_t QueueIndex, uint32_t comIndex) {
     for (auto i = 0; i < Rdata.size(); i++) {
-        updateBLAS(swapIndex, Rdata[i], QueueIndex, comIndex);
+        if (UpdateBLAS_On) {
+            updateBLAS(swapIndex, Rdata[i], QueueIndex, comIndex);
+        }
         updateInstance(swapIndex, Rdata[i]);
     }
     InstanceCnt = 0;

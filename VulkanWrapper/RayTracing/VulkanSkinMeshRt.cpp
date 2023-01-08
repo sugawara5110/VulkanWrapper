@@ -610,7 +610,7 @@ bool VulkanSkinMeshRt::CreateFromFBX(uint32_t QueueIndex, uint32_t comIndex, boo
 
 		o.createMultipleMaterials(QueueIndex, comIndex, useAlpha, (uint32_t)mesh->getNumMaterial(),
 			pvVBM[i], mesh->getNumPolygonVertices(), newIndex[i], NumNewIndex[i],
-			textureId[i], numInstance);
+			textureId[i], numInstance, true);
 
 		if (sk[0]) {
 			vkUtil::createTangent((uint32_t)mesh->getNumMaterial(), NumNewIndex[i],

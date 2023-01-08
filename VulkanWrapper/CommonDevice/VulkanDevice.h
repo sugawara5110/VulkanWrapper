@@ -184,7 +184,7 @@ public:
 
         void endCommand(uint32_t comBufindex);
 
-        void submitCommands(VkFence fence, bool useRender,
+        void submitCommands(VkFence fence,
             uint32_t waitSemaphoreCount, VkSemaphore* WaitSemaphores,
             uint32_t signalSemaphoreCount, VkSemaphore* SignalSemaphores);
 
@@ -246,8 +246,6 @@ private:
 
     bool createDescriptorPool(std::vector<VkDescriptorPoolSize>* add_poolSize, uint32_t maxDescriptorSets);
 
-    void resetFence(VkFence fence);
-
     void AllocateMemory(VkBufferUsageFlags usage, VkMemoryRequirements memRequirements, VkMemoryPropertyFlags properties,
         VkDeviceMemory& bufferMemory, void* add_pNext);
 
@@ -261,6 +259,7 @@ private:
 
 public:
     VkResult waitForFence(VkFence fence);
+    void resetFence(VkFence fence);
 
     void copyBufferToImage(
         uint32_t QueueIndex, uint32_t comBufindex,

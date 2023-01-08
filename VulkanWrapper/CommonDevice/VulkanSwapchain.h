@@ -48,7 +48,7 @@ private:
     void createFramebuffers();
 
     void acquireNextImageAndWait();
-    void present(uint32_t QueueIndex);
+    const VkFramebuffer getFramebuffer() { return frameBuffer[currentFrameIndex]; }
 
 public:
     static void InstanceCreate();
@@ -61,20 +61,18 @@ public:
     void beginCommandNextImage(uint32_t QueueIndex, uint32_t comBufindex);
     void beginDraw(uint32_t QueueIndex, uint32_t comBufindex);
     void endDraw(uint32_t QueueIndex, uint32_t comBufindex);
-    void Present(uint32_t QueueIndex);
+    void endCommand(uint32_t QueueIndex, uint32_t comBufindex);
+    void submitCommands(uint32_t QueueIndex);
+    void present(uint32_t QueueIndex);
 
     const VkSurfaceFormatKHR getBackBufferFormat(uint32_t index) { return BackBufferFormat[index]; }
     const VkImage getCurrentImage() { return images[currentFrameIndex]; }
     const VkImage getImage(uint32_t index) { return images[index]; }
-    const VkFence getFence() { return swFence; }
     const uint32_t getImageCount() { return imageCount; }
-    const VkFramebuffer getFramebuffer() { return frameBuffer[currentFrameIndex]; }
-    const VkSwapchainKHR* getSwapchain() { return &swapchain; }
     const VkFormat getFormat() { return format; }
-    const uint32_t* getCurrentFrameIndex() { return &currentFrameIndex; }
     VulkanDevice::ImageSet* getDepthImageSet() { return &depth; }
     const VkExtent2D getSize() { return wh; }
-    const VkRenderPass getRenderPass() { return renderPass; }
+    VkRenderPass getRenderPass() { return renderPass; }
 };
 
 #endif

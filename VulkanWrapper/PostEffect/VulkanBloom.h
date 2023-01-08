@@ -91,10 +91,13 @@ private:
 
 	uint32_t Width;
 	uint32_t Height;
-	VkPipelineLayout pipelineLayout;
-	VkPipeline Pipeline;
-	VkDescriptorSetLayout dsLayout;
-	VkDescriptorSet descriptorSet;
+
+	static const uint32_t numSwap = 3;
+
+	VkPipelineLayout pipelineLayout[numSwap] = {};
+	VkPipeline Pipeline[numSwap] = {};
+	VkDescriptorSetLayout dsLayout[numSwap] = {};
+	VkDescriptorSet descriptorSet[numSwap] = {};
 
 	struct BloomParam {
 		int numInstance;
@@ -106,7 +109,7 @@ private:
 
 	std::vector<Bloom> bloom;
 	std::vector<VkDescriptorImageInfo> blOutput_Info;
-	VulkanDevice::ImageSet Output;
+	VulkanDevice::ImageSet Output[numSwap] = {};
 
 	void createBuffer(uint32_t QueueIndex, uint32_t comIndex);
 	void createLayouts();
@@ -124,7 +127,9 @@ public:
 
 	void Create(uint32_t QueueIndex, uint32_t comIndex, std::vector<float>* sigma = nullptr);
 
-	void Compute(uint32_t QueueIndex, uint32_t comIndex);
+	void Compute(uint32_t swapIndex, uint32_t QueueIndex, uint32_t comIndex);
+
+	void CopyImage(uint32_t swapIndex, uint32_t QueueIndex, uint32_t comIndex);
 };
 
 #endif

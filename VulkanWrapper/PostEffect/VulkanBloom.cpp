@@ -64,15 +64,17 @@ namespace {
 }
 
 VulkanBloom::~VulkanBloom() {
-	Output.destroy();
+
 	vkUtil::S_DELETE(bParamUBO);
 
 	VkDevice d = VulkanDevice::GetInstance()->getDevice();
-
-	vkDestroyPipeline(d, Pipeline, nullptr);
-	vkDestroyPipelineLayout(d, pipelineLayout, nullptr);
-	VulkanDevice::GetInstance()->DeallocateDescriptorSet(descriptorSet);
-	vkDestroyDescriptorSetLayout(d, dsLayout, nullptr);
+	for (uint32_t i = 0; i < numSwap; i++) {
+		Output[i].destroy();
+		vkDestroyPipeline(d, Pipeline[i], nullptr);
+		vkDestroyPipelineLayout(d, pipelineLayout[i], nullptr);
+		VulkanDevice::GetInstance()->DeallocateDescriptorSet(descriptorSet[i]);
+		vkDestroyDescriptorSetLayout(d, dsLayout[i], nullptr);
+	}
 }
 
 void VulkanBloom::setImage(
@@ -122,9 +124,11 @@ void VulkanBloom::createBuffer(uint32_t QueueIndex, uint32_t comIndex) {
 
 	com->beginCommand(comIndex);
 
-	Output.createImage(Width, Height, format, VK_IMAGE_TILING_OPTIMAL, usage, devMemProps);
-	Output.createImageView(format, VK_IMAGE_ASPECT_COLOR_BIT);
-	Output.barrierResource(QueueIndex, comIndex, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
+	for (uint32_t i = 0; i < numSwap; i++) {
+		Output[i].createImage(Width, Height, format, VK_IMAGE_TILING_OPTIMAL, usage, devMemProps);
+		Output[i].createImageView(format, VK_IMAGE_ASPECT_COLOR_BIT);
+		Output[i].barrierResource(QueueIndex, comIndex, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
+	}
 
 	com->endCommand(comIndex);
 	com->submitCommandsAndWait();
@@ -151,16 +155,18 @@ void VulkanBloom::createLayouts() {
 
 	VulkanDevice* dev = VulkanDevice::GetInstance();
 
-	vkCreateDescriptorSetLayout(
-		dev->getDevice(), &dsLayoutCI, nullptr, &dsLayout);
+	for (uint32_t i = 0; i < numSwap; i++) {
+		vkCreateDescriptorSetLayout(
+			dev->getDevice(), &dsLayoutCI, nullptr, &dsLayout[i]);
 
-	VkPipelineLayoutCreateInfo pipelineLayoutCI{
-		VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO
-	};
-	pipelineLayoutCI.setLayoutCount = 1;
-	pipelineLayoutCI.pSetLayouts = &dsLayout;
-	vkCreatePipelineLayout(dev->getDevice(),
-		&pipelineLayoutCI, nullptr, &pipelineLayout);
+		VkPipelineLayoutCreateInfo pipelineLayoutCI{
+			VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO
+		};
+		pipelineLayoutCI.setLayoutCount = 1;
+		pipelineLayoutCI.pSetLayouts = &dsLayout[i];
+		vkCreatePipelineLayout(dev->getDevice(),
+			&pipelineLayoutCI, nullptr, &pipelineLayout[i]);
+	}
 }
 
 void VulkanBloom::createPipeline() {
@@ -169,34 +175,38 @@ void VulkanBloom::createPipeline() {
 
 	auto Stage = dev->createShaderModule("Bloom4", ShaderBloom4, VK_SHADER_STAGE_COMPUTE_BIT);
 
-	VkComputePipelineCreateInfo compPipelineCI{
-				VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO
-	};
-	compPipelineCI.layout = pipelineLayout;
-	compPipelineCI.stage = Stage;
+	for (uint32_t i = 0; i < numSwap; i++) {
+		VkComputePipelineCreateInfo compPipelineCI{
+					VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO
+		};
+		compPipelineCI.layout = pipelineLayout[i];
+		compPipelineCI.stage = Stage;
 
-	vkCreateComputePipelines(dev->getDevice(), VK_NULL_HANDLE, 1,
-		&compPipelineCI, nullptr, &Pipeline);
+		vkCreateComputePipelines(dev->getDevice(), VK_NULL_HANDLE, 1,
+			&compPipelineCI, nullptr, &Pipeline[i]);
+	}
 
 	vkDestroyShaderModule(dev->getDevice(), Stage.module, nullptr);
 }
 
 void VulkanBloom::createDescriptorSets() {
 
-	VulkanDevice* dev = VulkanDevice::GetInstance();
-	descriptorSet = dev->AllocateDescriptorSet(dsLayout);
-
 	for (size_t i = 0; i < bloom.size(); i++) {
 		blOutput_Info.push_back(bloom[i].getOutput()->info);
 	}
 
-	std::vector<VkWriteDescriptorSet> write = {
-		getDescriptorSet(descriptorSet, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, nullptr, &bParamUBO->getBufferSet()->info),
-		getDescriptorSet(descriptorSet, 1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, &pRenderedImage->info, nullptr),
-		getDescriptorSet(descriptorSet, 2, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, (uint32_t)blOutput_Info.size(), blOutput_Info.data(), nullptr),
-		getDescriptorSet(descriptorSet, 3, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, &Output.info, nullptr),
-	};
-	vkUpdateDescriptorSets(dev->getDevice(), uint32_t(write.size()), write.data(), 0, nullptr);
+	for (uint32_t i = 0; i < numSwap; i++) {
+		VulkanDevice* dev = VulkanDevice::GetInstance();
+		descriptorSet[i] = dev->AllocateDescriptorSet(dsLayout[i]);
+
+		std::vector<VkWriteDescriptorSet> write = {
+			getDescriptorSet(descriptorSet[i], 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, nullptr, &bParamUBO->getBufferSet()->info),
+			getDescriptorSet(descriptorSet[i], 1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, &pRenderedImage->info, nullptr),
+			getDescriptorSet(descriptorSet[i], 2, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, (uint32_t)blOutput_Info.size(), blOutput_Info.data(), nullptr),
+			getDescriptorSet(descriptorSet[i], 3, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, &Output[i].info, nullptr),
+		};
+		vkUpdateDescriptorSets(dev->getDevice(), uint32_t(write.size()), write.data(), 0, nullptr);
+	}
 }
 
 void VulkanBloom::Create(uint32_t QueueIndex, uint32_t comIndex, std::vector<float>* sigma) {
@@ -215,25 +225,31 @@ void VulkanBloom::Create(uint32_t QueueIndex, uint32_t comIndex, std::vector<flo
 	createDescriptorSets();
 }
 
-void VulkanBloom::Compute(uint32_t QueueIndex, uint32_t comIndex) {
+void VulkanBloom::Compute(uint32_t swapIndex, uint32_t QueueIndex, uint32_t comIndex) {
 
 	for (size_t i = 0; i < bloom.size(); i++) {
 		bloom[i].Compute(QueueIndex, comIndex);
 	}
 
 	VulkanDevice* dev = VulkanDevice::GetInstance();
-	VulkanSwapchain* sw = VulkanSwapchain::GetInstance();
 	auto command = dev->getCommandObj(QueueIndex)->getCommandBuffer(comIndex);
 
-	vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_COMPUTE, Pipeline);
+	vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_COMPUTE, Pipeline[swapIndex]);
 	vkCmdBindDescriptorSets(
 		command, VK_PIPELINE_BIND_POINT_COMPUTE,
-		pipelineLayout, 0,
-		1, &descriptorSet,
+		pipelineLayout[swapIndex], 0,
+		1, &descriptorSet[swapIndex],
 		0,
 		nullptr);
 
 	vkCmdDispatch(command, Width, Height, 1);
+}
+
+void VulkanBloom::CopyImage(uint32_t swapIndex, uint32_t QueueIndex, uint32_t comIndex) {
+
+	VulkanDevice* dev = VulkanDevice::GetInstance();
+	VulkanSwapchain* sw = VulkanSwapchain::GetInstance();
+	auto command = dev->getCommandObj(QueueIndex)->getCommandBuffer(comIndex);
 
 	VkMemoryBarrier barrier{
 		VK_STRUCTURE_TYPE_MEMORY_BARRIER,
@@ -253,7 +269,7 @@ void VulkanBloom::Compute(uint32_t QueueIndex, uint32_t comIndex) {
 	region.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
 	region.dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
 
-	Output.barrierResource(QueueIndex, comIndex,
+	Output[swapIndex].barrierResource(QueueIndex, comIndex,
 		VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
 	dev->barrierResource(QueueIndex, comIndex,
@@ -262,7 +278,7 @@ void VulkanBloom::Compute(uint32_t QueueIndex, uint32_t comIndex) {
 		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
 	vkCmdCopyImage(command,
-		Output.getImage(), Output.info.imageLayout,
+		Output[swapIndex].getImage(), Output[swapIndex].info.imageLayout,
 		sw->getCurrentImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 		1, &region);
 
@@ -271,7 +287,7 @@ void VulkanBloom::Compute(uint32_t QueueIndex, uint32_t comIndex) {
 		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 		VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_ASPECT_COLOR_BIT);
 
-	Output.barrierResource(QueueIndex, comIndex, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
+	Output[swapIndex].barrierResource(QueueIndex, comIndex, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
 }
 
 VulkanBloom::Bloom::~Bloom() {

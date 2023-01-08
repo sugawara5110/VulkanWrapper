@@ -103,14 +103,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	vins->createInstance("vulkanTest", VK_API_VERSION_1_0);
 	auto pd = vins->getPhysicalDevice(0);
 
-	VulkanDevice::InstanceCreate(pd, vins->getApiVersion(), 2);
+	VulkanDevice::InstanceCreate(pd, vins->getApiVersion(), 1);
 	VulkanDevice* device = VulkanDevice::GetInstance();
 	device->createDevice();
 	vins->createSurfaceHwnd(hWnd);
 	auto sur = vins->getSurface();
 	VulkanSwapchain::InstanceCreate();
 	VulkanSwapchain* sc = VulkanSwapchain::GetInstance();
-	sc->create(pd, sur, true, false);
+	sc->create(0,0,pd, sur, true, false);
 	device->updateProjection(sc->getSize());
 
 	RasterizeDescriptor::InstanceCreate();
@@ -221,28 +221,28 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	unsigned char* male01_diffuse_black = png.loadPNG("../../../texturePPM/male01_diffuse_black.png", 256, 256);
 	unsigned char* young_lightskinned_male_diffuse = png.loadPNG("../../../texturePPM/young_lightskinned_male_diffuse.png", 256, 256);
 	try {
-		device->GetTexture(0, "wall1.jpg", wall1, 256, 256); ARR_DELETE(wall1);
-		device->GetTexture(0, "wallNor1.png", wallNor1, 256, 256); ARR_DELETE(wallNor1);
-		device->GetTexture(0, "mahou2.png", MagicCircle1, 256, 256); ARR_DELETE(MagicCircle1);
+		device->GetTexture("wall1.jpg", wall1, 256, 256); ARR_DELETE(wall1);
+		device->GetTexture("wallNor1.png", wallNor1, 256, 256); ARR_DELETE(wallNor1);
+		device->GetTexture("mahou2.png", MagicCircle1, 256, 256); ARR_DELETE(MagicCircle1);
 
-		device->GetTexture(0, "boss1.jpg", ima[0], 256, 256);
-		device->GetTexture(0, "boss1_normal.png", ima[1], 256, 256);
+		device->GetTexture("boss1.jpg", ima[0], 256, 256);
+		device->GetTexture("boss1_normal.png", ima[1], 256, 256);
 
-		device->GetTexture(0, "brown_eye.png", brown_eye, 256, 256); ARR_DELETE(brown_eye);
-		device->GetTexture(0, "classicshoes_texture_diffuse.png", classicshoes_texture_diffuse, 256, 256); ARR_DELETE(classicshoes_texture_diffuse);
-		device->GetTexture(0, "classicshoes_texture_normals.png", classicshoes_texture_normals, 256, 256); ARR_DELETE(classicshoes_texture_normals);
-		device->GetTexture(0, "eyebrow001.png", eyebrow001, 256, 256); ARR_DELETE(eyebrow001);
-		device->GetTexture(0, "jacket01_diffuse.png", jacket01_diffuse, 256, 256); ARR_DELETE(jacket01_diffuse);
-		device->GetTexture(0, "jacket01_normals.png", jacket01_normals, 256, 256); ARR_DELETE(jacket01_normals);
-		device->GetTexture(0, "jeans01_black_diffuse.png", jeans01_black_diffuse, 256, 256); ARR_DELETE(jeans01_black_diffuse);
-		device->GetTexture(0, "jeans01_normals.png", jeans01_normals, 256, 256); ARR_DELETE(jeans01_normals);
-		device->GetTexture(0, "male01_diffuse_black.png", male01_diffuse_black, 256, 256); ARR_DELETE(male01_diffuse_black);
-		device->GetTexture(0, "young_lightskinned_male_diffuse.png", young_lightskinned_male_diffuse, 256, 256); ARR_DELETE(young_lightskinned_male_diffuse);
+		device->GetTexture("brown_eye.png", brown_eye, 256, 256); ARR_DELETE(brown_eye);
+		device->GetTexture("classicshoes_texture_diffuse.png", classicshoes_texture_diffuse, 256, 256); ARR_DELETE(classicshoes_texture_diffuse);
+		device->GetTexture("classicshoes_texture_normals.png", classicshoes_texture_normals, 256, 256); ARR_DELETE(classicshoes_texture_normals);
+		device->GetTexture("eyebrow001.png", eyebrow001, 256, 256); ARR_DELETE(eyebrow001);
+		device->GetTexture("jacket01_diffuse.png", jacket01_diffuse, 256, 256); ARR_DELETE(jacket01_diffuse);
+		device->GetTexture("jacket01_normals.png", jacket01_normals, 256, 256); ARR_DELETE(jacket01_normals);
+		device->GetTexture("jeans01_black_diffuse.png", jeans01_black_diffuse, 256, 256); ARR_DELETE(jeans01_black_diffuse);
+		device->GetTexture("jeans01_normals.png", jeans01_normals, 256, 256); ARR_DELETE(jeans01_normals);
+		device->GetTexture("male01_diffuse_black.png", male01_diffuse_black, 256, 256); ARR_DELETE(male01_diffuse_black);
+		device->GetTexture("young_lightskinned_male_diffuse.png", young_lightskinned_male_diffuse, 256, 256); ARR_DELETE(young_lightskinned_male_diffuse);
 
-		device->GetTexture(0, "Dragon_Bump_Col2.jpg", ima[2], 256, 256);
-		device->GetTexture(0, "Dragon_Nor_mirror2.jpg", ima[3], 256, 256);
-		device->GetTexture(0, "Dragon_ground_color.jpg", ima[4], 256, 256);
-		device->GetTexture(0, "Dragon_Nor.jpg", ima[5], 256, 256);
+		device->GetTexture("Dragon_Bump_Col2.jpg", ima[2], 256, 256);
+		device->GetTexture("Dragon_Nor_mirror2.jpg", ima[3], 256, 256);
+		device->GetTexture("Dragon_ground_color.jpg", ima[4], 256, 256);
+		device->GetTexture("Dragon_Nor.jpg", ima[5], 256, 256);
 	}
 	catch (std::runtime_error e) {
 		std::cerr << "runtime_error: " << e.what() << std::endl;
@@ -250,10 +250,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 
 	v2 = new Vulkan2D();
 	//v2->createColor(0, ver, 4, index2d, 6);
-	v2->createTexture(0, vertex, 4, index2d, 6, 2);
+	v2->createTexture(0,0, vertex, 4, index2d, 6, 2);
 	//for (int i = 0; i < Num; i++) {
 	v22[0] = new VulkanBasicPolygon();
-	v22[0]->create(0, false, 0, 1, -1, ver11, 24, index1, 36);
+	v22[0]->create(0,0, false, 0, 1, -1, ver11, 24, index1, 36);
 	//v22[1] = new VulkanBasicPolygon(device);
 	//v22[1]->create(0, true, 2, -1, -1, ver11, 24, index1, 36);
 	//}
@@ -267,10 +267,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	sk2 = new VulkanSkinMesh();
 	sk2->setFbx("../../../Black Dragon NEW/Dragon_Baked_Actions2.fbx", 300);
 
-	sk2->create(0, true);
-	sk1->create(0, true);
+	sk2->create(0,0, true);
+	sk1->create(0,0, true);
 	sk->setChangeTexture(0, 0, -1, device->getTextureNo("boss1_normal.png"), -1);
-	sk->create(0, true);
+	sk->create(0,0, true);
 	sk->setMaterialParameter(0, 0, 0, { 1,1,1 }, { 0.1f,0.1f,0.1f }, { 0.3f,0.3f,0.3f });
 	sk->setMaterialParameter(1, 0, 0, { 1,1,1 }, { 0.1f,0.1f,0.1f }, { 0.3f,0.3f,0.3f });
 	ShowWindow(hWnd, nCmdShow);
@@ -357,21 +357,23 @@ void update(uint32_t sw) {
 void draw(uint32_t& sw0) {
 	VulkanDevice* device = VulkanDevice::GetInstance();
 	VulkanSwapchain* sc = VulkanSwapchain::GetInstance();
+	auto com = device->getCommandObj(0);
 	while (loop) {
 		uint32_t sw = 1 - sw0;
 		if (firstDraw) {
-			sc->beginCommandNextImage(0);
-			sc->beginDraw(0);
-			v2->draw(sw, 0);
+			sc->beginCommandNextImage(0,0);
+			sc->beginDraw(0,0);
+			v2->draw(sw, 0,0);
 			for (int i = 0; i < Num; i++) {
-				v22[i]->draw(sw, 0);
+				v22[i]->draw(sw, 0,0);
 			}
-			sk->draw(sw, 0);
-			sk1->draw(sw, 0);
-			sk2->draw(sw, 0);
-			sc->endDraw(0);
-			device->endCommand(0);
-			sc->Present(0);
+			sk->draw(sw, 0,0);
+			sk1->draw(sw, 0,0);
+			sk2->draw(sw, 0,0);
+			sc->endDraw(0,0);
+			sc->endCommand(0,0);
+			sc->submitCommands(0);
+			sc->present(0);
 		}
 		sync = true;
 		while (sync);

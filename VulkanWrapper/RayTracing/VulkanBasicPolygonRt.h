@@ -70,6 +70,8 @@ private:
 	uint32_t vertexCount = 0;
 	uint32_t vertexStride = 0;
 
+	bool UpdateBLAS_On = false;
+
 	void createVertexBuffer(uint32_t QueueIndex, uint32_t comIndex, Vertex3D_t* ver, uint32_t num);
 	void createIndexBuffer(RtData& rdata, uint32_t QueueIndex, uint32_t comIndex, uint32_t* ind, uint32_t indNum);
 	void createBLAS(RtData& rdata, uint32_t QueueIndex, uint32_t comIndex);
@@ -85,7 +87,7 @@ public:
 
 	void createMultipleMaterials(uint32_t QueueIndex, uint32_t comIndex, bool useAlpha, uint32_t numMat,
 		Vertex3D_t* ver, uint32_t num, uint32_t** ind, uint32_t* indNum,
-		VulkanDevice::textureIdSetInput* texid, uint32_t numInstance);
+		VulkanDevice::textureIdSetInput* texid, uint32_t numInstance, bool updateBLAS_on);
 
 	void setMaterialType(vkMaterialType type, uint32_t matIndex);
 
