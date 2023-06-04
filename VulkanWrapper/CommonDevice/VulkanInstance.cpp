@@ -113,9 +113,9 @@ VulkanInstance::~VulkanInstance() {
 }
 
 #ifdef __ANDROID__
-void VulkanInstance::createInstance(char* appName) {
+void VulkanInstance::createInstance(char* appName, uint32_t apiVersion, uint32_t applicationVersion, uint32_t engineVersion) {
     VulkanPFN();
-    createinstance(appName);//インスタンス生成
+    createinstance(appName, apiVersion, applicationVersion, engineVersion);//インスタンス生成
     createPhysicalDevice();//物理デバイス生成
 }
 #else
@@ -135,7 +135,7 @@ void VulkanInstance::createSurfaceAndroid(ANativeWindow* Window) {
     surfaceInfo.window = Window;
     //android用のサーフェース生成
     auto res = vkCreateAndroidSurfaceKHR(instance, &surfaceInfo, nullptr, &surface);
-    checkError(res);
+    vkUtil::checkError(res);
     surfaceAlive = true;
 }
 #else
