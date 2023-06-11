@@ -29,7 +29,7 @@ private:
     std::unique_ptr<VkImage[]> images = nullptr;
     std::unique_ptr<VkImageView[]> views = nullptr;
     std::unique_ptr<VkFramebuffer[]> frameBuffer = nullptr;
-    VkFence swFence = nullptr;
+    VkFence swFence;
     bool firstswFence = false;
     VkFormat format = {};
     bool swapchainAlive = false;

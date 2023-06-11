@@ -773,7 +773,10 @@ static std::vector<uint32_t> CompileShader(const char* fname, char* source, VkSh
     }
     else {
         auto errMessage = result.GetErrorMessage();
+#ifdef __ANDROID__
+#else
         OutputDebugStringA(errMessage.c_str());
+#endif
     }
     return compiled;
 }
@@ -958,7 +961,7 @@ bool VulkanDevice::createDescriptorPool(std::vector<VkDescriptorPoolSize>* add_p
       VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
       nullptr,  VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
       100, // maxDescriptorSetsêî
-      _countof(poolSize), poolSize
+      COUNTOF(poolSize), poolSize
     };
 
     if (add_poolSize) {
