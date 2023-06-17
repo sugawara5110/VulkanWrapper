@@ -197,6 +197,22 @@ public:
         VkCommandBuffer getCommandBuffer(uint32_t comBufindex);
     };
 
+    struct Texture {
+        unsigned char* byte = nullptr;
+        uint32_t width = 0;
+        uint32_t height = 0;
+        void setByte(unsigned char* inbyte) {
+            byte = new unsigned char[width * 4 * height];
+            memcpy(byte, inbyte, sizeof(unsigned char) * width * 4 * height);
+        }
+        void destroy() {
+            delete[] byte;
+            byte = nullptr;
+            width = 0;
+            height = 0;
+        }
+    };
+
 private:
     static VulkanDevice* DevicePointer;
 
@@ -215,21 +231,6 @@ private:
     CoordTf::VECTOR4 viewPos;
     CoordTf::VECTOR3 upVec = {};
 
-    struct Texture {
-        unsigned char* byte = nullptr;
-        uint32_t width = 0;
-        uint32_t height = 0;
-        void setByte(unsigned char* inbyte) {
-            byte = new unsigned char[width * 4 * height];
-            memcpy(byte, inbyte, sizeof(unsigned char) * width * 4 * height);
-        }
-        void destroy() {
-            delete[] byte;
-            byte = nullptr;
-            width = 0;
-            height = 0;
-        }
-    };
     Texture texture[numTextureMax + 2];
     char textureNameList[numTextureMax][numTexFileNamelenMax];
     uint32_t numTexture = 0;

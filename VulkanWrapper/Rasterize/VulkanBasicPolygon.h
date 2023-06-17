@@ -91,8 +91,8 @@ private:
 		VulkanSwapchain* sw = VulkanSwapchain::GetInstance();
 		pipeline = rd->createGraphicsPipelineVF(useAlpha, vsInfo, fsInfo, bindDesc, attrDescs, numAttr,
 			pipelineLayout, sw->getRenderPass(), pipelineCache);
-		vkDestroyShaderModule(device->getDevice(), vsInfo.module, nullptr);
-		vkDestroyShaderModule(device->getDevice(), fsInfo.module, nullptr);
+		_vkDestroyShaderModule(device->getDevice(), vsInfo.module, nullptr);
+		_vkDestroyShaderModule(device->getDevice(), fsInfo.module, nullptr);
 	}
 
 	void update0(uint32_t swapIndex, CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale,

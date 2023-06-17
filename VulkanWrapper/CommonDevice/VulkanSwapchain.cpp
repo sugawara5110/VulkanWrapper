@@ -40,20 +40,20 @@ void VulkanSwapchain::DeleteInstance() {
 VulkanSwapchain::~VulkanSwapchain() {
     if (swapchainAlive) {
         VkDevice d = getVkDevice();
-        vkDestroySemaphore(d, presentCompletedSem, nullptr);
-        vkDestroySemaphore(d, renderCompletedSem, nullptr);
+        _vkDestroySemaphore(d, presentCompletedSem, nullptr);
+        _vkDestroySemaphore(d, renderCompletedSem, nullptr);
         depth.destroy();
-        vkDestroyRenderPass(d, renderPass, nullptr);
-        vkDestroyFence(d, swFence, nullptr);
+        _vkDestroyRenderPass(d, renderPass, nullptr);
+        _vkDestroyFence(d, swFence, nullptr);
         renderPass = VK_NULL_HANDLE;
         swFence = VK_NULL_HANDLE;
         for (uint32_t i = 0; i < imageCount; i++) {
-            vkDestroyImageView(d, views[i], nullptr);
-            vkDestroyFramebuffer(d, frameBuffer[i], nullptr);
+            _vkDestroyImageView(d, views[i], nullptr);
+            _vkDestroyFramebuffer(d, frameBuffer[i], nullptr);
             views[i] = VK_NULL_HANDLE;
             frameBuffer[i] = VK_NULL_HANDLE;
         }
-        vkDestroySwapchainKHR(d, swapchain, nullptr);
+        _vkDestroySwapchainKHR(d, swapchain, nullptr);
         swapchain = VK_NULL_HANDLE;
         swapchainAlive = false;
     }
@@ -63,8 +63,8 @@ void VulkanSwapchain::createSemaphore() {
     VkDevice d = getVkDevice();
     VkSemaphoreCreateInfo ci{};
     ci.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-    vkCreateSemaphore(d, &ci, nullptr, &renderCompletedSem);
-    vkCreateSemaphore(d, &ci, nullptr, &presentCompletedSem);
+    _vkCreateSemaphore(d, &ci, nullptr, &renderCompletedSem);
+    _vkCreateSemaphore(d, &ci, nullptr, &presentCompletedSem);
 }
 
 void VulkanSwapchain::createswapchain(
@@ -83,19 +83,19 @@ void VulkanSwapchain::createswapchain(
     VkSwapchainCreateInfoKHR scinfo{};
     //サーフェスの機能取得
     VkSurfaceCapabilitiesKHR surfaceCaps;
-    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(pd, surface, &surfaceCaps);
+    _vkGetPhysicalDeviceSurfaceCapabilitiesKHR(pd, surface, &surfaceCaps);
     //サーフェスフォーマット数取得
     uint32_t surfaceFormatCount;
-    vkGetPhysicalDeviceSurfaceFormatsKHR(pd, surface, &surfaceFormatCount, nullptr);
+    _vkGetPhysicalDeviceSurfaceFormatsKHR(pd, surface, &surfaceFormatCount, nullptr);
     //サーフェスフォーマット取得
     BackBufferFormat = std::make_unique<VkSurfaceFormatKHR[]>(surfaceFormatCount);
-    vkGetPhysicalDeviceSurfaceFormatsKHR(pd, surface, &surfaceFormatCount, BackBufferFormat.get());
+    _vkGetPhysicalDeviceSurfaceFormatsKHR(pd, surface, &surfaceFormatCount, BackBufferFormat.get());
     //サーフェスでサポートされるプレゼンテーションモード数取得
     uint32_t presentModeCount;
-    vkGetPhysicalDeviceSurfacePresentModesKHR(pd, surface, &presentModeCount, nullptr);
+    _vkGetPhysicalDeviceSurfacePresentModesKHR(pd, surface, &presentModeCount, nullptr);
     //サーフェスでサポートされるプレゼンテーションモード取得
     auto presentModes = std::make_unique<VkPresentModeKHR[]>(presentModeCount);
-    vkGetPhysicalDeviceSurfacePresentModesKHR(pd, surface, &presentModeCount, presentModes.get());
+    _vkGetPhysicalDeviceSurfacePresentModesKHR(pd, surface, &presentModeCount, presentModes.get());
 
     for (uint32_t i = 0; i < surfaceFormatCount; i++) {
         auto c = BackBufferFormat[i];
@@ -128,15 +128,15 @@ void VulkanSwapchain::createswapchain(
     scinfo.clipped = VK_TRUE;
     VkDevice d = getVkDevice();
     //スワップチェーン生成
-    auto res = vkCreateSwapchainKHR(d, &scinfo, nullptr, &swapchain);
+    auto res = _vkCreateSwapchainKHR(d, &scinfo, nullptr, &swapchain);
     vkUtil::checkError(res);
 
     //ウインドウに直接表示する画像のオブジェクト生成
-    res = vkGetSwapchainImagesKHR(d, swapchain, &imageCount,
+    res = _vkGetSwapchainImagesKHR(d, swapchain, &imageCount,
         nullptr);//個数imageCount取得
     vkUtil::checkError(res);
     images = std::make_unique<VkImage[]>(imageCount);
-    res = vkGetSwapchainImagesKHR(d, swapchain, &imageCount,
+    res = _vkGetSwapchainImagesKHR(d, swapchain, &imageCount,
         images.get());//個数分生成
     vkUtil::checkError(res);
 
@@ -167,7 +167,7 @@ void VulkanSwapchain::createDepth(VkPhysicalDevice pd) {
     const VkFormat depth_format = VK_FORMAT_D32_SFLOAT;
     VkImageTiling tiling;
     VkFormatProperties props;
-    vkGetPhysicalDeviceFormatProperties(pd, depth_format, &props);
+    _vkGetPhysicalDeviceFormatProperties(pd, depth_format, &props);
     if (props.linearTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) {
         tiling = VK_IMAGE_TILING_LINEAR;
     }
@@ -198,7 +198,7 @@ void VulkanSwapchain::createFence() {
     VkFenceCreateInfo finfo{};
     finfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 
-    auto res = vkCreateFence(getVkDevice(), &finfo, nullptr, &swFence);
+    auto res = _vkCreateFence(getVkDevice(), &finfo, nullptr, &swFence);
     vkUtil::checkError(res);
     firstswFence = false;
 }
@@ -255,7 +255,7 @@ void VulkanSwapchain::createRenderPass(bool clearBackBuffer) {
     renderPassInfo.subpassCount = 1;
     renderPassInfo.pSubpasses = &subpass;
 
-    auto res = vkCreateRenderPass(getVkDevice(), &renderPassInfo, nullptr, &renderPass);
+    auto res = _vkCreateRenderPass(getVkDevice(), &renderPassInfo, nullptr, &renderPass);
     vkUtil::checkError(res);
 }
 
@@ -279,7 +279,7 @@ void VulkanSwapchain::createFramebuffers() {
 
     for (uint32_t i = 0; i < imageCount; i++) {
         attachmentViews[0] = views[i];
-        auto res = vkCreateFramebuffer(getVkDevice(), &fbinfo, nullptr, &frameBuffer[i]);
+        auto res = _vkCreateFramebuffer(getVkDevice(), &fbinfo, nullptr, &frameBuffer[i]);
         vkUtil::checkError(res);
     }
 }
@@ -299,7 +299,7 @@ void VulkanSwapchain::create(
 
 void VulkanSwapchain::acquireNextImageAndWait() {
     //vkAcquireNextImageKHR:命令はバックバッファのスワップを行い,次に描画されるべきImageのインデックスを返す
-    auto res = vkAcquireNextImageKHR(getVkDevice(), swapchain,
+    auto res = _vkAcquireNextImageKHR(getVkDevice(), swapchain,
         UINT64_MAX, presentCompletedSem, VK_NULL_HANDLE,
         &currentFrameIndex);
     vkUtil::checkError(res);
@@ -334,11 +334,11 @@ void VulkanSwapchain::beginDraw(uint32_t QueueIndex, uint32_t comBufindex) {
     rpinfo.clearValueCount = 2;
     rpinfo.pClearValues = clearValue;
 
-    vkCmdBeginRenderPass(getCommand(QueueIndex, comBufindex), &rpinfo, VK_SUBPASS_CONTENTS_INLINE);
+    _vkCmdBeginRenderPass(getCommand(QueueIndex, comBufindex), &rpinfo, VK_SUBPASS_CONTENTS_INLINE);
 }
 
 void VulkanSwapchain::endDraw(uint32_t QueueIndex, uint32_t comBufindex) {
-    vkCmdEndRenderPass(getCommand(QueueIndex, comBufindex));
+    _vkCmdEndRenderPass(getCommand(QueueIndex, comBufindex));
 }
 
 void VulkanSwapchain::endCommand(uint32_t QueueIndex, uint32_t comBufindex) {
@@ -361,6 +361,6 @@ void VulkanSwapchain::present(uint32_t QueueIndex) {
     pinfo.waitSemaphoreCount = 1;
     pinfo.pWaitSemaphores = &renderCompletedSem;
 
-    auto res = vkQueuePresentKHR(getDevice()->getCommandObj(QueueIndex)->getQueue(), &pinfo);
+    auto res = _vkQueuePresentKHR(getDevice()->getCommandObj(QueueIndex)->getQueue(), &pinfo);
     vkUtil::checkError(res);
 }

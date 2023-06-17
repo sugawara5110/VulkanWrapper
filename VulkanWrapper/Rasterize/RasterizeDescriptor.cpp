@@ -75,7 +75,7 @@ void RasterizeDescriptor::descriptorAndPipelineLayouts(bool useTexture,
 
     VkResult res;
 
-    res = vkCreateDescriptorSetLayout(VulkanDevice::GetInstance()->getDevice(), &descriptor_layout, nullptr, &descSetLayout);
+    res = _vkCreateDescriptorSetLayout(VulkanDevice::GetInstance()->getDevice(), &descriptor_layout, nullptr, &descSetLayout);
     vkUtil::checkError(res);
 
     VkPipelineLayoutCreateInfo pPipelineLayoutCreateInfo = {};
@@ -86,7 +86,7 @@ void RasterizeDescriptor::descriptorAndPipelineLayouts(bool useTexture,
     pPipelineLayoutCreateInfo.setLayoutCount = 1;
     pPipelineLayoutCreateInfo.pSetLayouts = &descSetLayout;
 
-    res = vkCreatePipelineLayout(VulkanDevice::GetInstance()->getDevice(), &pPipelineLayoutCreateInfo, nullptr, &pipelineLayout);
+    res = _vkCreatePipelineLayout(VulkanDevice::GetInstance()->getDevice(), &pPipelineLayoutCreateInfo, nullptr, &pipelineLayout);
     vkUtil::checkError(res);
 }
 
@@ -118,7 +118,7 @@ void  RasterizeDescriptor::descriptorAndPipelineLayouts2D(bool useTexture, VkPip
 
     VkResult res;
 
-    res = vkCreateDescriptorSetLayout(VulkanDevice::GetInstance()->getDevice(), &descriptor_layout, nullptr, &descSetLayout);
+    res = _vkCreateDescriptorSetLayout(VulkanDevice::GetInstance()->getDevice(), &descriptor_layout, nullptr, &descSetLayout);
     vkUtil::checkError(res);
 
     VkPipelineLayoutCreateInfo pPipelineLayoutCreateInfo = {};
@@ -129,7 +129,7 @@ void  RasterizeDescriptor::descriptorAndPipelineLayouts2D(bool useTexture, VkPip
     pPipelineLayoutCreateInfo.setLayoutCount = 1;
     pPipelineLayoutCreateInfo.pSetLayouts = &descSetLayout;
 
-    res = vkCreatePipelineLayout(VulkanDevice::GetInstance()->getDevice(), &pPipelineLayoutCreateInfo, nullptr, &pipelineLayout);
+    res = _vkCreatePipelineLayout(VulkanDevice::GetInstance()->getDevice(), &pPipelineLayoutCreateInfo, nullptr, &pipelineLayout);
     vkUtil::checkError(res);
 }
 
@@ -151,7 +151,7 @@ uint32_t RasterizeDescriptor::upDescriptorSet(bool useTexture,
     alloc_info[0].descriptorSetCount = 1;
     alloc_info[0].pSetLayouts = &descSetLayout;
 
-    res = vkAllocateDescriptorSets(VulkanDevice::GetInstance()->getDevice(), alloc_info, &descriptorSet);
+    res = _vkAllocateDescriptorSets(VulkanDevice::GetInstance()->getDevice(), alloc_info, &descriptorSet);
     vkUtil::checkError(res);
 
     VkWriteDescriptorSet writes[5];
@@ -210,7 +210,7 @@ uint32_t RasterizeDescriptor::upDescriptorSet(bool useTexture,
         bufferMaterial.dstBinding = bCnt++;
     }
 
-    vkUpdateDescriptorSets(VulkanDevice::GetInstance()->getDevice(), bCnt, writes, 0, nullptr);
+    _vkUpdateDescriptorSets(VulkanDevice::GetInstance()->getDevice(), bCnt, writes, 0, nullptr);
     return bCnt;
 }
 
@@ -228,7 +228,7 @@ uint32_t RasterizeDescriptor::upDescriptorSet2D(bool useTexture, VulkanDevice::I
     alloc_info[0].descriptorSetCount = 1;
     alloc_info[0].pSetLayouts = &descSetLayout;
 
-    res = vkAllocateDescriptorSets(VulkanDevice::GetInstance()->getDevice(), alloc_info, &descriptorSet);
+    res = _vkAllocateDescriptorSets(VulkanDevice::GetInstance()->getDevice(), alloc_info, &descriptorSet);
     vkUtil::checkError(res);
 
     VkWriteDescriptorSet writes[2];
@@ -256,7 +256,7 @@ uint32_t RasterizeDescriptor::upDescriptorSet2D(bool useTexture, VulkanDevice::I
         texSampler.dstArrayElement = 0;
     }
 
-    vkUpdateDescriptorSets(VulkanDevice::GetInstance()->getDevice(), bCnt, writes, 0, nullptr);
+    _vkUpdateDescriptorSets(VulkanDevice::GetInstance()->getDevice(), bCnt, writes, 0, nullptr);
     return bCnt;
 }
 
@@ -264,7 +264,7 @@ VkPipelineCache RasterizeDescriptor::createPipelineCache() {
     VkPipelineCacheCreateInfo cacheInfo{};
     VkPipelineCache pipelineCache;
     cacheInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
-    auto res = vkCreatePipelineCache(VulkanDevice::GetInstance()->getDevice(), &cacheInfo, nullptr, &pipelineCache);
+    auto res = _vkCreatePipelineCache(VulkanDevice::GetInstance()->getDevice(), &cacheInfo, nullptr, &pipelineCache);
     vkUtil::checkError(res);
     return pipelineCache;
 }
@@ -379,7 +379,7 @@ VkPipeline RasterizeDescriptor::createGraphicsPipelineVF(bool useAlpha,
     gpInfo.subpass = 0;
 
     VkPipeline pipeline;
-    auto res = vkCreateGraphicsPipelines(VulkanDevice::GetInstance()->getDevice(), pCache, 1, &gpInfo, nullptr, &pipeline);
+    auto res = _vkCreateGraphicsPipelines(VulkanDevice::GetInstance()->getDevice(), pCache, 1, &gpInfo, nullptr, &pipeline);
     vkUtil::checkError(res);
     return pipeline;
 }

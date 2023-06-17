@@ -41,8 +41,8 @@ void VulkanDevice::BufferSet::UnMap() {
 
 void VulkanDevice::BufferSet::destroy() {
     VkDevice d = DevicePointer->device;
-    vkDestroyBuffer(d, buffer, nullptr);
-    vkFreeMemory(d, mem, nullptr);
+    _vkDestroyBuffer(d, buffer, nullptr);
+    _vkFreeMemory(d, mem, nullptr);
     buffer = VK_NULL_HANDLE;
     mem = VK_NULL_HANDLE;
 }
@@ -76,10 +76,10 @@ void VulkanDevice::ImageSet::createImageView(VkFormat format, VkImageAspectFlags
 
 void VulkanDevice::ImageSet::destroy() {
     VkDevice d = DevicePointer->device;
-    vkDestroyImageView(d, info.imageView, nullptr);
-    vkDestroySampler(d, info.sampler, nullptr);
-    vkDestroyImage(d, image, nullptr);
-    vkFreeMemory(d, mem, nullptr);
+    _vkDestroyImageView(d, info.imageView, nullptr);
+    _vkDestroySampler(d, info.sampler, nullptr);
+    _vkDestroyImage(d, image, nullptr);
+    _vkFreeMemory(d, mem, nullptr);
     info.imageView = VK_NULL_HANDLE;
     info.sampler = VK_NULL_HANDLE;
     image = VK_NULL_HANDLE;
@@ -94,7 +94,7 @@ void VulkanDevice::CommandObj::createCommandPool() {
     info.queueFamilyIndex = queueFamilyIndex;
     info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
     //コマンドプールの作成:コマンドバッファーメモリが割り当てられるオブジェクト
-    auto res = vkCreateCommandPool(d, &info, nullptr, &commandPool);
+    auto res = _vkCreateCommandPool(d, &info, nullptr, &commandPool);
     vkUtil::checkError(res);
 }
 
@@ -102,7 +102,7 @@ void VulkanDevice::CommandObj::createFence() {
     VkDevice d = VulkanDevice::GetInstance()->getDevice();
     VkFenceCreateInfo finfo{};
     finfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-    auto res = vkCreateFence(d, &finfo, nullptr, &fence);
+    auto res = _vkCreateFence(d, &finfo, nullptr, &fence);
     vkUtil::checkError(res);
 }
 
@@ -114,7 +114,7 @@ void VulkanDevice::CommandObj::createCommandBuffers() {
     cbAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     cbAllocInfo.commandBufferCount = (uint32_t)commandBuffer.size();
     //コマンドバッファの作成
-    auto res = vkAllocateCommandBuffers(d, &cbAllocInfo, commandBuffer.data());
+    auto res = _vkAllocateCommandBuffers(d, &cbAllocInfo, commandBuffer.data());
     vkUtil::checkError(res);
     temp = std::make_unique<VkCommandBuffer[]>(commandBuffer.size());
     status = std::make_unique<Status[]>(commandBuffer.size());
@@ -132,9 +132,9 @@ void VulkanDevice::CommandObj::create(uint32_t numCommand) {
 
 void VulkanDevice::CommandObj::destroy() {
     VkDevice d = VulkanDevice::GetInstance()->getDevice();
-    vkFreeCommandBuffers(d, commandPool, (uint32_t)commandBuffer.size(), commandBuffer.data());
-    vkDestroyFence(d, fence, nullptr);
-    vkDestroyCommandPool(d, commandPool, nullptr);
+    _vkFreeCommandBuffers(d, commandPool, (uint32_t)commandBuffer.size(), commandBuffer.data());
+    _vkDestroyFence(d, fence, nullptr);
+    _vkDestroyCommandPool(d, commandPool, nullptr);
 }
 
 uint32_t VulkanDevice::CommandObj::getQueueFamilyIndex() {
@@ -154,11 +154,11 @@ void VulkanDevice::CommandObj::beginCommand(uint32_t comBufindex, VkFramebuffer 
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     beginInfo.pInheritanceInfo = &inhInfo;
     //コマンド記録開始
-    vkBeginCommandBuffer(commandBuffer[comBufindex], &beginInfo);
+    _vkBeginCommandBuffer(commandBuffer[comBufindex], &beginInfo);
 }
 
 void VulkanDevice::CommandObj::endCommand(uint32_t comBufindex) {
-    vkEndCommandBuffer(commandBuffer[comBufindex]);
+    _vkEndCommandBuffer(commandBuffer[comBufindex]);
     status[comBufindex] = CLOSE;
 }
 
@@ -186,7 +186,7 @@ void VulkanDevice::CommandObj::submitCommands(VkFence fence,
     sinfo.signalSemaphoreCount = signalSemaphoreCount;
     sinfo.pSignalSemaphores = SignalSemaphores;
 
-    auto res = vkQueueSubmit(devQueue, 1, &sinfo, fence);
+    auto res = _vkQueueSubmit(devQueue, 1, &sinfo, fence);
     vkUtil::checkError(res);
 }
 
@@ -215,7 +215,7 @@ VkCommandBuffer VulkanDevice::CommandObj::getCommandBuffer(uint32_t comBufindex)
 
 VulkanDevice::VulkanDevice(VkPhysicalDevice pd, uint32_t numCommandBuffer, uint32_t numGraphicsQueue, uint32_t numComputeQueue) {
     pDev = pd;
-    vkGetPhysicalDeviceProperties(pDev, &physicalDeviceProperties);
+    _vkGetPhysicalDeviceProperties(pDev, &physicalDeviceProperties);
     commandBufferCount = numCommandBuffer;
     NumGraphicsQueue = numGraphicsQueue;
     NumComputeQueue = numComputeQueue;
@@ -223,13 +223,13 @@ VulkanDevice::VulkanDevice(VkPhysicalDevice pd, uint32_t numCommandBuffer, uint3
 }
 
 VulkanDevice::~VulkanDevice() {
-    vkDestroyDescriptorPool(device, descriptorPool, nullptr);
+    _vkDestroyDescriptorPool(device, descriptorPool, nullptr);
     destroyTexture();
     for (uint32_t i = 0; i < NumAllQueue; i++) {
         commandObj[i].destroy();
     }
-    vkDeviceWaitIdle(device);
-    vkDestroyDevice(device, nullptr);
+    _vkDeviceWaitIdle(device);
+    _vkDestroyDevice(device, nullptr);
 }
 
 void VulkanDevice::create(std::vector<const char*>* requiredExtensions, const void* pNext) {
@@ -246,9 +246,9 @@ void VulkanDevice::create(std::vector<const char*>* requiredExtensions, const vo
     //デバイスキューのファミリー番号を取得
     uint32_t propertyCount;
     //nullptr指定でプロパティ数取得
-    vkGetPhysicalDeviceQueueFamilyProperties(pDev, &propertyCount, nullptr);
+    _vkGetPhysicalDeviceQueueFamilyProperties(pDev, &propertyCount, nullptr);
     auto properties = std::make_unique<VkQueueFamilyProperties[]>(propertyCount);
-    vkGetPhysicalDeviceQueueFamilyProperties(pDev, &propertyCount, properties.get());
+    _vkGetPhysicalDeviceQueueFamilyProperties(pDev, &propertyCount, properties.get());
 
     for (uint32_t i = 0; i < propertyCount; i++) {
         if ((properties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0) {
@@ -335,22 +335,22 @@ void VulkanDevice::create(std::vector<const char*>* requiredExtensions, const vo
     devInfo.pEnabledFeatures = nullptr;
 
     //論理デバイス生成,キューも生成される
-    auto res = vkCreateDevice(pDev, &devInfo, nullptr, &device);
+    auto res = _vkCreateDevice(pDev, &devInfo, nullptr, &device);
     vkUtil::checkError(res);
     //キュー取得
     commandObj.resize(NumAllQueue);
     for (uint32_t i = 0; i < NumGraphicsQueue; i++) {
         CommandObj* Gr = &commandObj[i];
-        vkGetDeviceQueue(device, queueFamilyIndexGRAPHICS, i, &Gr->devQueue);
+        _vkGetDeviceQueue(device, queueFamilyIndexGRAPHICS, i, &Gr->devQueue);
         Gr->queueFamilyIndex = queueFamilyIndexGRAPHICS;
     }
     for (uint32_t i = 0; i < NumComputeQueue; i++) {
         CommandObj* Co = &commandObj[i + NumGraphicsQueue];
-        vkGetDeviceQueue(device, queueFamilyIndexCOMPUTE, i, &Co->devQueue);
+        _vkGetDeviceQueue(device, queueFamilyIndexCOMPUTE, i, &Co->devQueue);
         Co->queueFamilyIndex = queueFamilyIndexCOMPUTE;
     }
     //VRAMプロパティ取得:頂点バッファ取得時使用
-    vkGetPhysicalDeviceMemoryProperties(pDev, &memProps);
+    _vkGetPhysicalDeviceMemoryProperties(pDev, &memProps);
 
     vkUtil::ARR_DELETE(qPrioritiesGr);
     vkUtil::ARR_DELETE(qPrioritiesCo);
@@ -361,12 +361,12 @@ VkResult VulkanDevice::waitForFence(VkFence fence) {
     //条件が満たされた場合待ち解除でVK_SUCCESSを返す
     //条件が満たされない,かつ
     //タイムアウト(ここではUINT64_MAX)に達した場合,待ち解除でVK_TIMEOUTを返す
-    return vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX);
+    return _vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX);
 }
 
 void VulkanDevice::resetFence(VkFence fence) {
     //指定数(ここでは1)のフェンスをリセット
-    auto res = vkResetFences(device, 1, &fence);
+    auto res = _vkResetFences(device, 1, &fence);
     vkUtil::checkError(res);
 }
 
@@ -428,7 +428,7 @@ void VulkanDevice::barrierResource(uint32_t QueueIndex, uint32_t comBufindex, Vk
         break;
     }
 
-    vkCmdPipelineBarrier(commandObj[QueueIndex].commandBuffer[comBufindex], srcStage, dstStage,
+    _vkCmdPipelineBarrier(commandObj[QueueIndex].commandBuffer[comBufindex], srcStage, dstStage,
         0, 0, nullptr,
         0, nullptr,
         1, &barrier);
@@ -456,7 +456,7 @@ void VulkanDevice::copyBufferToImage(
             1
     };
 
-    vkCmdCopyBufferToImage(commandObj[QueueIndex].commandBuffer[comBufindex],
+    _vkCmdCopyBufferToImage(commandObj[QueueIndex].commandBuffer[comBufindex],
         buffer,
         image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
         1, &region);
@@ -484,7 +484,7 @@ void VulkanDevice::copyImageToBuffer(
             1
     };
 
-    vkCmdCopyImageToBuffer(commandObj[QueueIndex].commandBuffer[comBufindex],
+    _vkCmdCopyImageToBuffer(commandObj[QueueIndex].commandBuffer[comBufindex],
         image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
         buffer, 1, &region);
 }
@@ -508,15 +508,15 @@ void VulkanDevice::createImage(uint32_t width, uint32_t height, VkFormat format,
     imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    auto res = vkCreateImage(device, &imageInfo, nullptr, &image);
+    auto res = _vkCreateImage(device, &imageInfo, nullptr, &image);
     vkUtil::checkError(res);
 
     VkMemoryRequirements memRequirements;
-    vkGetImageMemoryRequirements(device, image, &memRequirements);
+    _vkGetImageMemoryRequirements(device, image, &memRequirements);
 
     AllocateMemory(usage, memRequirements, properties, imageMemory, nullptr);
 
-    res = vkBindImageMemory(device, image, imageMemory, 0);
+    res = _vkBindImageMemory(device, image, imageMemory, 0);
     vkUtil::checkError(res);
 }
 
@@ -575,7 +575,7 @@ VkImageView VulkanDevice::createImageView(VkImage image, VkFormat format,
     viewInfo.subresourceRange.layerCount = 1;
 
     VkImageView imageView;
-    VkResult res = vkCreateImageView(device, &viewInfo, nullptr, &imageView);
+    VkResult res = _vkCreateImageView(device, &viewInfo, nullptr, &imageView);
     vkUtil::checkError(res);
     return imageView;
 }
@@ -603,7 +603,7 @@ void VulkanDevice::createTextureSampler(VkSampler& textureSampler) {
     samplerInfo.minLod = 0.0f;
     samplerInfo.maxLod = 0.0f;
     samplerInfo.flags = VK_SAMPLER_CREATE_SUBSAMPLED_BIT_EXT;
-    auto res = vkCreateSampler(device, &samplerInfo, nullptr, &textureSampler);
+    auto res = _vkCreateSampler(device, &samplerInfo, nullptr, &textureSampler);
     vkUtil::checkError(res);
 }
 
@@ -624,7 +624,7 @@ void VulkanDevice::AllocateMemory(VkBufferUsageFlags usage, VkMemoryRequirements
     allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
     allocInfo.pNext = add_pNext;
 
-    auto res = vkAllocateMemory(device, &allocInfo, nullptr, &bufferMemory);
+    auto res = _vkAllocateMemory(device, &allocInfo, nullptr, &bufferMemory);
     vkUtil::checkError(res);
 }
 
@@ -637,15 +637,15 @@ void VulkanDevice::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkM
     bufferInfo.usage = usage;
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    auto res = vkCreateBuffer(device, &bufferInfo, nullptr, &buffer);
+    auto res = _vkCreateBuffer(device, &bufferInfo, nullptr, &buffer);
     vkUtil::checkError(res);
 
     VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(device, buffer, &memRequirements);
+    _vkGetBufferMemoryRequirements(device, buffer, &memRequirements);
 
     AllocateMemory(usage, memRequirements, properties, bufferMemory, allocateMemory_add_pNext);
 
-    vkBindBufferMemory(device, buffer, bufferMemory, 0);
+    _vkBindBufferMemory(device, buffer, bufferMemory, 0);
 }
 
 void VulkanDevice::createUploadBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
@@ -670,7 +670,7 @@ void VulkanDevice::copyBuffer(uint32_t QueueIndex, uint32_t comBufindex, VkBuffe
 
     VkBufferCopy copyRegion = {};
     copyRegion.size = size;
-    vkCmdCopyBuffer(com->commandBuffer[comBufindex], srcBuffer, dstBuffer, 1, &copyRegion);
+    _vkCmdCopyBuffer(com->commandBuffer[comBufindex], srcBuffer, dstBuffer, 1, &copyRegion);
 
     com->endCommand(comBufindex);
     com->submitCommandsAndWait();
@@ -690,13 +690,13 @@ uint32_t VulkanDevice::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags
 
 void* VulkanDevice::Map(VkDeviceMemory mem) {
     void* mdata;
-    auto res = vkMapMemory(device, mem, 0, VK_WHOLE_SIZE, 0, &mdata);
+    auto res = _vkMapMemory(device, mem, 0, VK_WHOLE_SIZE, 0, &mdata);
     vkUtil::checkError(res);
     return mdata;
 }
 
 void VulkanDevice::UnMap(VkDeviceMemory mem) {
-    vkUnmapMemory(device, mem);
+    _vkUnmapMemory(device, mem);
 }
 
 void VulkanDevice::memoryMap(void* pData, VkDeviceMemory mem, VkDeviceSize size) {
@@ -791,7 +791,7 @@ VkPipelineShaderStageCreateInfo VulkanDevice::createShaderModule(const char* fna
     shaderInfo.codeSize = spv.size() * sizeof(uint32_t);
     shaderInfo.pCode = spv.data();
 
-    auto res = vkCreateShaderModule(device, &shaderInfo, nullptr, &mod);
+    auto res = _vkCreateShaderModule(device, &shaderInfo, nullptr, &mod);
     vkUtil::checkError(res);
 
     VkPipelineShaderStageCreateInfo stageInfo = {};
@@ -909,7 +909,7 @@ void VulkanDevice::updateView(CoordTf::VECTOR3 vi, CoordTf::VECTOR3 gaze, CoordT
 }
 
 void VulkanDevice::DeviceWaitIdle() {
-    vkDeviceWaitIdle(device);
+    _vkDeviceWaitIdle(device);
 }
 
 void VulkanDevice::InstanceCreate(
@@ -972,7 +972,7 @@ bool VulkanDevice::createDescriptorPool(std::vector<VkDescriptorPoolSize>* add_p
         descPoolCI.maxSets = maxDescriptorSets;
     }
 
-    result = vkCreateDescriptorPool(vkDev->getDevice(), &descPoolCI, nullptr, &descriptorPool);
+    result = _vkCreateDescriptorPool(vkDev->getDevice(), &descPoolCI, nullptr, &descriptorPool);
     return result == VK_SUCCESS;
 }
 
@@ -987,7 +987,7 @@ VkDescriptorSet VulkanDevice::AllocateDescriptorSet(VkDescriptorSetLayout dsLayo
     dsAI.descriptorSetCount = 1;
     dsAI.pNext = pNext;
     VkDescriptorSet ds{};
-    auto r = vkAllocateDescriptorSets(vkDev->getDevice(), &dsAI, &ds);
+    auto r = _vkAllocateDescriptorSets(vkDev->getDevice(), &dsAI, &ds);
     vkUtil::checkError(r);
     return ds;
 }
@@ -995,5 +995,5 @@ VkDescriptorSet VulkanDevice::AllocateDescriptorSet(VkDescriptorSetLayout dsLayo
 void VulkanDevice::DeallocateDescriptorSet(VkDescriptorSet ds) {
 
     VulkanDevice* vkDev = VulkanDevice::GetInstance();
-    vkFreeDescriptorSets(vkDev->getDevice(), descriptorPool, 1, &ds);
+    _vkFreeDescriptorSets(vkDev->getDevice(), descriptorPool, 1, &ds);
 }

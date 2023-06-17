@@ -92,7 +92,7 @@ void VulkanDeviceRt::destroy() {
 
     VulkanDevice* vkDev = VulkanDevice::GetInstance();
     if (vkDev->getDevice()) {
-        vkDeviceWaitIdle(vkDev->getDevice());
+        _vkDeviceWaitIdle(vkDev->getDevice());
     }
 
     VulkanDevice::DeleteInstance();

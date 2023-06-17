@@ -18,10 +18,10 @@ Vulkan2D::~Vulkan2D() {
 	for (uint32_t s = 0; s < numSwap; s++) {
 		vkUtil::S_DELETE(uniform[s]);
 	}
-	vkDestroyDescriptorSetLayout(vd, descSetLayout, nullptr);
-	vkDestroyPipeline(vd, pipeline, nullptr);
-	vkDestroyPipelineCache(vd, pipelineCache, nullptr);
-	vkDestroyPipelineLayout(vd, pipelineLayout, nullptr);
+	_vkDestroyDescriptorSetLayout(vd, descSetLayout, nullptr);
+	_vkDestroyPipeline(vd, pipeline, nullptr);
+	_vkDestroyPipelineCache(vd, pipelineCache, nullptr);
+	_vkDestroyPipelineLayout(vd, pipelineLayout, nullptr);
 	vertices.destroy();
 	index.destroy();
 }
@@ -61,12 +61,12 @@ void Vulkan2D::draw(uint32_t swapIndex, uint32_t QueueIndex, uint32_t comIndex) 
 
 	VkCommandBuffer comb = device->getCommandObj(QueueIndex)->getCommandBuffer(comIndex);
 
-	vkCmdBindPipeline(comb, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
-	vkCmdSetViewport(comb, 0, 1, &vp);
-	vkCmdSetScissor(comb, 0, 1, &sc);
-	vkCmdBindVertexBuffers(comb, 0, 1, vertices.getBufferAddress(), offsets);
-	vkCmdBindDescriptorSets(comb, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
+	_vkCmdBindPipeline(comb, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+	_vkCmdSetViewport(comb, 0, 1, &vp);
+	_vkCmdSetScissor(comb, 0, 1, &sc);
+	_vkCmdBindVertexBuffers(comb, 0, 1, vertices.getBufferAddress(), offsets);
+	_vkCmdBindDescriptorSets(comb, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
 		&descSet[swapIndex], 0, nullptr);
-	vkCmdBindIndexBuffer(comb, index.getBuffer(), 0, VK_INDEX_TYPE_UINT32);
-	vkCmdDrawIndexed(comb, numIndex, 1, 0, 0, 0);
+	_vkCmdBindIndexBuffer(comb, index.getBuffer(), 0, VK_INDEX_TYPE_UINT32);
+	_vkCmdDrawIndexed(comb, numIndex, 1, 0, 0, 0);
 }

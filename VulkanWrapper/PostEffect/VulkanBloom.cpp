@@ -70,10 +70,10 @@ VulkanBloom::~VulkanBloom() {
 	VkDevice d = VulkanDevice::GetInstance()->getDevice();
 	for (uint32_t i = 0; i < numSwap; i++) {
 		Output[i].destroy();
-		vkDestroyPipeline(d, Pipeline[i], nullptr);
-		vkDestroyPipelineLayout(d, pipelineLayout[i], nullptr);
+		_vkDestroyPipeline(d, Pipeline[i], nullptr);
+		_vkDestroyPipelineLayout(d, pipelineLayout[i], nullptr);
 		VulkanDevice::GetInstance()->DeallocateDescriptorSet(descriptorSet[i]);
-		vkDestroyDescriptorSetLayout(d, dsLayout[i], nullptr);
+		_vkDestroyDescriptorSetLayout(d, dsLayout[i], nullptr);
 	}
 }
 
@@ -156,7 +156,7 @@ void VulkanBloom::createLayouts() {
 	VulkanDevice* dev = VulkanDevice::GetInstance();
 
 	for (uint32_t i = 0; i < numSwap; i++) {
-		vkCreateDescriptorSetLayout(
+		_vkCreateDescriptorSetLayout(
 			dev->getDevice(), &dsLayoutCI, nullptr, &dsLayout[i]);
 
 		VkPipelineLayoutCreateInfo pipelineLayoutCI{
@@ -164,7 +164,7 @@ void VulkanBloom::createLayouts() {
 		};
 		pipelineLayoutCI.setLayoutCount = 1;
 		pipelineLayoutCI.pSetLayouts = &dsLayout[i];
-		vkCreatePipelineLayout(dev->getDevice(),
+		_vkCreatePipelineLayout(dev->getDevice(),
 			&pipelineLayoutCI, nullptr, &pipelineLayout[i]);
 	}
 }
@@ -182,11 +182,11 @@ void VulkanBloom::createPipeline() {
 		compPipelineCI.layout = pipelineLayout[i];
 		compPipelineCI.stage = Stage;
 
-		vkCreateComputePipelines(dev->getDevice(), VK_NULL_HANDLE, 1,
+		_vkCreateComputePipelines(dev->getDevice(), VK_NULL_HANDLE, 1,
 			&compPipelineCI, nullptr, &Pipeline[i]);
 	}
 
-	vkDestroyShaderModule(dev->getDevice(), Stage.module, nullptr);
+	_vkDestroyShaderModule(dev->getDevice(), Stage.module, nullptr);
 }
 
 void VulkanBloom::createDescriptorSets() {
@@ -205,7 +205,7 @@ void VulkanBloom::createDescriptorSets() {
 			getDescriptorSet(descriptorSet[i], 2, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, (uint32_t)blOutput_Info.size(), blOutput_Info.data(), nullptr),
 			getDescriptorSet(descriptorSet[i], 3, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, &Output[i].info, nullptr),
 		};
-		vkUpdateDescriptorSets(dev->getDevice(), uint32_t(write.size()), write.data(), 0, nullptr);
+		_vkUpdateDescriptorSets(dev->getDevice(), uint32_t(write.size()), write.data(), 0, nullptr);
 	}
 }
 
@@ -234,15 +234,15 @@ void VulkanBloom::Compute(uint32_t swapIndex, uint32_t QueueIndex, uint32_t comI
 	VulkanDevice* dev = VulkanDevice::GetInstance();
 	auto command = dev->getCommandObj(QueueIndex)->getCommandBuffer(comIndex);
 
-	vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_COMPUTE, Pipeline[swapIndex]);
-	vkCmdBindDescriptorSets(
+	_vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_COMPUTE, Pipeline[swapIndex]);
+	_vkCmdBindDescriptorSets(
 		command, VK_PIPELINE_BIND_POINT_COMPUTE,
 		pipelineLayout[swapIndex], 0,
 		1, &descriptorSet[swapIndex],
 		0,
 		nullptr);
 
-	vkCmdDispatch(command, Width, Height, 1);
+	_vkCmdDispatch(command, Width, Height, 1);
 }
 
 void VulkanBloom::CopyImage(uint32_t swapIndex, uint32_t QueueIndex, uint32_t comIndex) {
@@ -256,7 +256,7 @@ void VulkanBloom::CopyImage(uint32_t swapIndex, uint32_t QueueIndex, uint32_t co
 	};
 	barrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
 	barrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-	vkCmdPipelineBarrier(
+	_vkCmdPipelineBarrier(
 		command,
 		VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
 		VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
@@ -277,7 +277,7 @@ void VulkanBloom::CopyImage(uint32_t swapIndex, uint32_t QueueIndex, uint32_t co
 		VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
 		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
-	vkCmdCopyImage(command,
+	_vkCmdCopyImage(command,
 		Output[swapIndex].getImage(), Output[swapIndex].info.imageLayout,
 		sw->getCurrentImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 		1, &region);
@@ -304,10 +304,10 @@ VulkanBloom::Bloom::~Bloom() {
 	VkDevice d = VulkanDevice::GetInstance()->getDevice();
 
 	for (size_t i = 0; i < dset.size(); i++) {
-		vkDestroyPipeline(d, dset[i].Pipeline, nullptr);
-		vkDestroyPipelineLayout(d, dset[i].pipelineLayout, nullptr);
+		_vkDestroyPipeline(d, dset[i].Pipeline, nullptr);
+		_vkDestroyPipelineLayout(d, dset[i].pipelineLayout, nullptr);
 		VulkanDevice::GetInstance()->DeallocateDescriptorSet(dset[i].descriptorSet);
-		vkDestroyDescriptorSetLayout(d, dset[i].dsLayout, nullptr);
+		_vkDestroyDescriptorSetLayout(d, dset[i].dsLayout, nullptr);
 	}
 }
 
@@ -339,7 +339,7 @@ void VulkanBloom::Bloom::createLayouts() {
 
 			VulkanDevice* dev = VulkanDevice::GetInstance();
 
-			vkCreateDescriptorSetLayout(
+			_vkCreateDescriptorSetLayout(
 				dev->getDevice(), &dsLayoutCI, nullptr, &dset[index].dsLayout);
 
 			VkPipelineLayoutCreateInfo pipelineLayoutCI{
@@ -347,7 +347,7 @@ void VulkanBloom::Bloom::createLayouts() {
 			};
 			pipelineLayoutCI.setLayoutCount = 1;
 			pipelineLayoutCI.pSetLayouts = &dset[index].dsLayout;
-			vkCreatePipelineLayout(dev->getDevice(),
+			_vkCreatePipelineLayout(dev->getDevice(),
 				&pipelineLayoutCI, nullptr, &dset[index].pipelineLayout);
 	};
 
@@ -406,7 +406,7 @@ void VulkanBloom::Bloom::createPipeline() {
 			compPipelineCI.layout = dset[index].pipelineLayout;
 			compPipelineCI.stage = Stage;
 
-			vkCreateComputePipelines(dev->getDevice(), VK_NULL_HANDLE, 1,
+			_vkCreateComputePipelines(dev->getDevice(), VK_NULL_HANDLE, 1,
 				&compPipelineCI, nullptr, &dset[index].Pipeline);
 	};
 
@@ -427,7 +427,7 @@ void VulkanBloom::Bloom::createPipeline() {
 	dset[cnt++].sizeWH.height = Height;
 
 	for (int i = 0; i < COUNTOF(Stage); i++) {
-		vkDestroyShaderModule(dev->getDevice(), Stage[i].module, nullptr);
+		_vkDestroyShaderModule(dev->getDevice(), Stage[i].module, nullptr);
 	}
 }
 
@@ -440,7 +440,7 @@ void VulkanBloom::Bloom::createDescriptorSets() {
 	}
 
 	auto deset = [dev](std::vector<VkWriteDescriptorSet> write) {
-		vkUpdateDescriptorSets(dev->getDevice(), uint32_t(write.size()), write.data(), 0, nullptr);
+		_vkUpdateDescriptorSets(dev->getDevice(), uint32_t(write.size()), write.data(), 0, nullptr);
 	};
 
 	uint32_t cnt = 0;
@@ -574,22 +574,22 @@ void VulkanBloom::Bloom::Compute(uint32_t QueueIndex, uint32_t comIndex) {
 
 	for (size_t i = 0; i < dset.size(); i++) {
 
-		vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_COMPUTE, dset[i].Pipeline);
-		vkCmdBindDescriptorSets(
+		_vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_COMPUTE, dset[i].Pipeline);
+		_vkCmdBindDescriptorSets(
 			command, VK_PIPELINE_BIND_POINT_COMPUTE,
 			dset[i].pipelineLayout, 0,
 			1, &dset[i].descriptorSet,
 			0,
 			nullptr);
 
-		vkCmdDispatch(command, dset[i].sizeWH.width, dset[i].sizeWH.height, 1);
+		_vkCmdDispatch(command, dset[i].sizeWH.width, dset[i].sizeWH.height, 1);
 
 		VkMemoryBarrier barrier{
 			VK_STRUCTURE_TYPE_MEMORY_BARRIER,
 		};
 		barrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
 		barrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-		vkCmdPipelineBarrier(
+		_vkCmdPipelineBarrier(
 			command,
 			VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
 			VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,

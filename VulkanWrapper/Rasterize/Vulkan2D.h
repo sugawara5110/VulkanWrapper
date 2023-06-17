@@ -65,11 +65,13 @@ private:
 		for (uint32_t i = 0; i < numSwap; i++) {
 			uniform[i] = new VulkanDevice::Uniform<RasterizeDescriptor::MatrixSet2D>(1);
 			if (textureId < 0) {
-				if (i == 0)device->createVkTexture(texture, QueueIndex, comIndex, device->getTexture(device->numTextureMax));
+				VulkanDevice::Texture tex = device->getTexture(device->numTextureMax);
+				if (i == 0)device->createVkTexture(texture, QueueIndex, comIndex, tex);
 				//-1の場合テクスチャー無いので, ダミーを入れる
 			}
 			else {
-				if (i == 0)device->createVkTexture(texture, QueueIndex, comIndex, device->getTexture(textureId));
+				VulkanDevice::Texture tex = device->getTexture(textureId);
+				if (i == 0)device->createVkTexture(texture, QueueIndex, comIndex, tex);
 			}
 			descSetCnt = rd->upDescriptorSet2D(useTexture, texture, uniform[i], descSet[i], descSetLayout);
 		}
@@ -78,8 +80,8 @@ private:
 		VulkanSwapchain* sw = VulkanSwapchain::GetInstance();
 		pipeline = rd->createGraphicsPipelineVF(false, vsInfo, fsInfo,
 			bindDesc, attrDescs, 2, pipelineLayout, sw->getRenderPass(), pipelineCache);
-		vkDestroyShaderModule(device->getDevice(), vsInfo.module, nullptr);
-		vkDestroyShaderModule(device->getDevice(), fsInfo.module, nullptr);
+		_vkDestroyShaderModule(device->getDevice(), vsInfo.module, nullptr);
+		_vkDestroyShaderModule(device->getDevice(), fsInfo.module, nullptr);
 	}
 
 public:

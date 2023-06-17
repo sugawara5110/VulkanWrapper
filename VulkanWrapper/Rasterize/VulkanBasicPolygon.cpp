@@ -27,10 +27,10 @@ VulkanBasicPolygon::~VulkanBasicPolygon() {
 	VulkanDevice* device = VulkanDevice::GetInstance();
 	VkDevice vd = device->getDevice();
 
-	vkDestroyDescriptorSetLayout(vd, descSetLayout, nullptr);
-	vkDestroyPipeline(vd, pipeline, nullptr);
-	vkDestroyPipelineCache(vd, pipelineCache, nullptr);
-	vkDestroyPipelineLayout(vd, pipelineLayout, nullptr);
+	_vkDestroyDescriptorSetLayout(vd, descSetLayout, nullptr);
+	_vkDestroyPipeline(vd, pipeline, nullptr);
+	_vkDestroyPipelineCache(vd, pipelineCache, nullptr);
+	_vkDestroyPipelineLayout(vd, pipelineLayout, nullptr);
 	vertices.destroy();
 	for (uint32_t i = 0; i < numMaterial; i++) {
 		if (numIndex[i] <= 0)continue;
@@ -79,8 +79,10 @@ void VulkanBasicPolygon::update0(uint32_t swapIndex,
 	vkUtil::calculationMatrixWorld(world, pos, theta, scale);
 
 	MATRIX vm;
-	MatrixMultiply(&vm, &world, &device->getCameraView());
-	MatrixMultiply(&matset[swapIndex].mvp, &vm, &device->getProjection());
+	MATRIX vi = device->getCameraView();
+	MatrixMultiply(&vm, &world, &vi);
+	MATRIX pro = device->getProjection();
+	MatrixMultiply(&matset[swapIndex].mvp, &vm, &pro);
 	matset[swapIndex].world = world;
 	if (numBone > 0)memcpy(matset[swapIndex].bone, bone, sizeof(MATRIX) * numBone);
 	uniform[swapIndex]->update(0, &matset[swapIndex]);
@@ -118,16 +120,16 @@ void VulkanBasicPolygon::draw(uint32_t swapIndex, uint32_t QueueIndex, uint32_t 
 
 	VkCommandBuffer comb = device->getCommandObj(QueueIndex)->getCommandBuffer(comIndex);
 
-	vkCmdBindPipeline(comb, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
-	vkCmdSetViewport(comb, 0, 1, &vp);
-	vkCmdSetScissor(comb, 0, 1, &sc);
-	vkCmdBindVertexBuffers(comb, 0, 1, vertices.getBufferAddress(), offsets);
+	_vkCmdBindPipeline(comb, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+	_vkCmdSetViewport(comb, 0, 1, &vp);
+	_vkCmdSetScissor(comb, 0, 1, &sc);
+	_vkCmdBindVertexBuffers(comb, 0, 1, vertices.getBufferAddress(), offsets);
 
 	for (uint32_t m = 0; m < numMaterial; m++) {
 		if (numIndex[m] <= 0)continue;
-		vkCmdBindDescriptorSets(comb, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
+		_vkCmdBindDescriptorSets(comb, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
 			&descSet[swapIndex][m], 0, nullptr);
-		vkCmdBindIndexBuffer(comb, index[m].getBuffer(), 0, VK_INDEX_TYPE_UINT32);
-		vkCmdDrawIndexed(comb, numIndex[m], 1, 0, 0, 0);
+		_vkCmdBindIndexBuffer(comb, index[m].getBuffer(), 0, VK_INDEX_TYPE_UINT32);
+		_vkCmdDrawIndexed(comb, numIndex[m], 1, 0, 0, 0);
 	}
 }

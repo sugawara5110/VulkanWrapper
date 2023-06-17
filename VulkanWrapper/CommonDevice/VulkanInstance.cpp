@@ -45,7 +45,7 @@ void VulkanInstance::createinstance(char* appName, uint32_t apiVersion, uint32_t
     instanceInfo.ppEnabledExtensionNames = extensions;
 
     //Vulkanインスタンス生成
-    auto res = vkCreateInstance(&instanceInfo, nullptr, &instance);
+    auto res = _vkCreateInstance(&instanceInfo, nullptr, &instance);
     vkUtil::checkError(res);
 
     //デバック
@@ -78,11 +78,11 @@ void VulkanInstance::createDebugReportCallback() {
 void VulkanInstance::createPhysicalDevice() {
 
     //物理デバイス出力先にnullptrを指定:adapterCountに物理デバイス個数出力
-    auto res = vkEnumeratePhysicalDevices(instance, &adapterCount, nullptr);
+    auto res = _vkEnumeratePhysicalDevices(instance, &adapterCount, nullptr);
     vkUtil::checkError(res);
     adapters = std::make_unique<VkPhysicalDevice[]>(adapterCount);
     //個数分の物理デバイス出力
-    res = vkEnumeratePhysicalDevices(instance, &adapterCount, adapters.get());
+    res = _vkEnumeratePhysicalDevices(instance, &adapterCount, adapters.get());
     vkUtil::checkError(res);
     //物理デバイスのプロパティ情報出力
 #ifdef __ANDROID__
@@ -92,8 +92,8 @@ void VulkanInstance::createPhysicalDevice() {
     for (uint32_t i = 0; i < adapterCount; i++) {
         static VkPhysicalDeviceProperties props;
         static VkPhysicalDeviceMemoryProperties memProps;
-        vkGetPhysicalDeviceProperties(adapters[i], &props);
-        vkGetPhysicalDeviceMemoryProperties(adapters[i], &memProps);
+        _vkGetPhysicalDeviceProperties(adapters[i], &props);
+        _vkGetPhysicalDeviceMemoryProperties(adapters[i], &memProps);
 #ifdef __ANDROID__
 #else
         OutputDebugString(L"#"); OutputDebugString(std::to_wstring(i).c_str()); OutputDebugString(L": \n");
@@ -109,7 +109,7 @@ VulkanInstance::~VulkanInstance() {
 #else
     _vkDestroyDebugReportCallbackEXT(instance, debugReportCallback, nullptr);
 #endif
-    vkDestroyInstance(instance, nullptr);
+    _vkDestroyInstance(instance, nullptr);
 }
 
 #ifdef __ANDROID__
@@ -120,6 +120,7 @@ void VulkanInstance::createInstance(char* appName, uint32_t apiVersion, uint32_t
 }
 #else
 void VulkanInstance::createInstance(char* appName, uint32_t apiVersion, uint32_t applicationVersion, uint32_t engineVersion) {
+    VulkanPFN();
     createinstance(appName, apiVersion, applicationVersion, engineVersion);//インスタンス生成
     createDebugReportCallback();//デバック
     createPhysicalDevice();//物理デバイス生成
@@ -134,7 +135,7 @@ void VulkanInstance::createSurfaceAndroid(ANativeWindow* Window) {
     surfaceInfo.flags = 0;
     surfaceInfo.window = Window;
     //android用のサーフェース生成
-    auto res = vkCreateAndroidSurfaceKHR(instance, &surfaceInfo, nullptr, &surface);
+    auto res = _vkCreateAndroidSurfaceKHR(instance, &surfaceInfo, nullptr, &surface);
     vkUtil::checkError(res);
     surfaceAlive = true;
 }
@@ -153,7 +154,7 @@ void VulkanInstance::createSurfaceHwnd(HWND hWnd) {
 
 void VulkanInstance::destroySurface() {
     if (surfaceAlive) {
-        vkDestroySurfaceKHR(instance, surface, nullptr);
+        _vkDestroySurfaceKHR(instance, surface, nullptr);
         surfaceAlive = false;
     }
 }

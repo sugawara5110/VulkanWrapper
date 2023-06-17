@@ -26,8 +26,12 @@
 #include <tuple>
 #include <functional>
 #include <shaderc/shaderc.hpp>
+
+#ifdef __ANDROID__
+#else
 #pragma comment(lib, "vulkan-1")
 #pragma comment(lib, "shaderc_shared.lib")
+#endif
 
 namespace vkUtil {
     template<typename TYPE>

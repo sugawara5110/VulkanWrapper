@@ -166,7 +166,7 @@ void VulkanRendererRt::Init(uint32_t QueueIndex, uint32_t comIndex, std::vector<
 
 void VulkanRendererRt::destroy() {
     // GPU の処理が全て終わるまでを待機.
-    vkDeviceWaitIdle(VulkanDevice::GetInstance()->getDevice());
+    _vkDeviceWaitIdle(VulkanDevice::GetInstance()->getDevice());
 
     vkUtil::S_DELETE(m_sceneUBO);
     vkUtil::S_DELETE(materialUBO);
@@ -182,14 +182,14 @@ void VulkanRendererRt::destroy() {
         m_shaderBindingTable[j].destroy();
 
         auto device = VulkanDevice::GetInstance()->getDevice();
-        vkDestroyPipeline(device, m_raytracePipeline[j], nullptr);
-        vkDestroyPipelineLayout(device, m_pipelineLayout[j], nullptr);
+        _vkDestroyPipeline(device, m_raytracePipeline[j], nullptr);
+        _vkDestroyPipelineLayout(device, m_pipelineLayout[j], nullptr);
 
         VulkanDevice* dev = VulkanDevice::GetInstance();
 
         for (int i = 0; i < numDescriptorSet; i++) {
-            vkDestroyDescriptorSetLayout(device, m_dsLayout[j][i], nullptr);
-            vkFreeDescriptorSets(device, dev->GetDescriptorPool(), 1, &m_descriptorSet[j][i]);
+            _vkDestroyDescriptorSetLayout(device, m_dsLayout[j][i], nullptr);
+            _vkFreeDescriptorSets(device, dev->GetDescriptorPool(), 1, &m_descriptorSet[j][i]);
         }
     }
 }
@@ -298,8 +298,8 @@ void VulkanRendererRt::Render(uint32_t swapIndex, uint32_t QueueIndex, uint32_t 
     m_sceneUBO->update(0, &m_sceneParam);
     materialUBO->updateArr(materialArr.data());
 
-    vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_raytracePipeline[swapIndex]);
-    vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_pipelineLayout[swapIndex], 0,
+    _vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_raytracePipeline[swapIndex]);
+    _vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_pipelineLayout[swapIndex], 0,
         numDescriptorSet, m_descriptorSet[swapIndex], 0, nullptr);
 
     uint32_t width = sw->getSize().width;
@@ -328,7 +328,7 @@ void VulkanRendererRt::Render(uint32_t swapIndex, uint32_t QueueIndex, uint32_t 
         VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
-    vkCmdCopyImage(command,
+    _vkCmdCopyImage(command,
         m_raytracedImage.getImage(), m_raytracedImage.info.imageLayout,
         sw->getCurrentImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
         1, &region);
@@ -600,7 +600,7 @@ void VulkanRendererRt::CreateRaytracePipeline() {
     }
     //シェーダーモジュール解放
     for (auto& v : stages) {
-        vkDestroyShaderModule(
+        _vkDestroyShaderModule(
             devRt->GetDevice(), v.module, nullptr);
     }
 }
@@ -830,7 +830,7 @@ void VulkanRendererRt::CreateLayouts() {
             dsLayout[i].bindingCount = static_cast<uint32_t>(set[i].size());
             dsLayout[i].pBindings = set[i].data();
 
-            vkCreateDescriptorSetLayout(
+            _vkCreateDescriptorSetLayout(
                 dev->getDevice(), &dsLayout[i], nullptr, &m_dsLayout[sIndex][i]);
 
             m_descriptorSet[sIndex][i] = dev->AllocateDescriptorSet(m_dsLayout[sIndex][i]);
@@ -841,7 +841,7 @@ void VulkanRendererRt::CreateLayouts() {
         };
         pipelineLayoutCI.setLayoutCount = numDescriptorSet;
         pipelineLayoutCI.pSetLayouts = m_dsLayout[sIndex];
-        vkCreatePipelineLayout(dev->getDevice(),
+        _vkCreatePipelineLayout(dev->getDevice(),
             &pipelineLayoutCI, nullptr, &m_pipelineLayout[sIndex]);
     };
 
@@ -955,7 +955,7 @@ void VulkanRendererRt::CreateDescriptorSets() {
 
         VulkanDeviceRt* devRt = VulkanDeviceRt::getVulkanDeviceRt();
 
-        vkUpdateDescriptorSets(
+        _vkUpdateDescriptorSets(
             devRt->GetDevice(),
             uint32_t(writeDescriptorSets.size()),
             writeDescriptorSets.data(),
