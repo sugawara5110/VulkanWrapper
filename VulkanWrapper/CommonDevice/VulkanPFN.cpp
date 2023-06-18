@@ -166,6 +166,14 @@ int VulkanPFN() {
         "vkCmdDispatch"));
     _vkCmdCopyImage = reinterpret_cast<PFN_vkCmdCopyImage>(dlsym(libvulkan,
         "vkCmdCopyImage"));
+    _vkGetBufferDeviceAddress = reinterpret_cast<PFN_vkGetBufferDeviceAddress>(dlsym(libvulkan,
+        "vkGetBufferDeviceAddress"));
+    _vkGetPhysicalDeviceFeatures = reinterpret_cast<PFN_vkGetPhysicalDeviceFeatures>(dlsym(libvulkan,
+        "vkGetPhysicalDeviceFeatures"));
+    _vkGetDeviceProcAddr = reinterpret_cast<PFN_vkGetDeviceProcAddr>(dlsym(libvulkan,
+        "vkGetDeviceProcAddr"));
+    _vkGetPhysicalDeviceProperties2 = reinterpret_cast<PFN_vkGetPhysicalDeviceProperties2>(dlsym(libvulkan,
+        "vkGetPhysicalDeviceProperties2"));
 
     _vkCreateAndroidSurfaceKHR = reinterpret_cast<PFN_vkCreateAndroidSurfaceKHR>(dlsym(libvulkan,
         "vkCreateAndroidSurfaceKHR"));
@@ -257,6 +265,10 @@ int VulkanPFN() {
     _vkCreateComputePipelines = vkCreateComputePipelines;
     _vkCmdDispatch = vkCmdDispatch;
     _vkCmdCopyImage = vkCmdCopyImage;
+    _vkGetBufferDeviceAddress = vkGetBufferDeviceAddress;
+    _vkGetPhysicalDeviceFeatures = vkGetPhysicalDeviceFeatures;
+    _vkGetDeviceProcAddr = vkGetDeviceProcAddr;
+    _vkGetPhysicalDeviceProperties2 = vkGetPhysicalDeviceProperties2;
 #endif
     return 1;
 }
@@ -348,6 +360,10 @@ PFN_vkCmdCopyImageToBuffer _vkCmdCopyImageToBuffer;
 PFN_vkCreateComputePipelines _vkCreateComputePipelines;
 PFN_vkCmdDispatch _vkCmdDispatch;
 PFN_vkCmdCopyImage _vkCmdCopyImage;
+PFN_vkGetBufferDeviceAddress _vkGetBufferDeviceAddress;
+PFN_vkGetPhysicalDeviceFeatures _vkGetPhysicalDeviceFeatures;
+PFN_vkGetDeviceProcAddr _vkGetDeviceProcAddr;
+PFN_vkGetPhysicalDeviceProperties2 _vkGetPhysicalDeviceProperties2;
 
 #ifdef __ANDROID__
 PFN_vkCreateAndroidSurfaceKHR _vkCreateAndroidSurfaceKHR;

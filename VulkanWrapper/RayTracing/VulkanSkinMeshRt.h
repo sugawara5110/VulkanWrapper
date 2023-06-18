@@ -41,6 +41,7 @@ protected:
 		SkinMesh_sub();
 		~SkinMesh_sub();
 		bool Create(char* szFileName);
+		bool CreateSetBinary(char* byteArray, unsigned int size);
 	};
 
 	struct BONE {
@@ -49,7 +50,7 @@ protected:
 
 		BONE()
 		{
-			ZeroMemory(this, sizeof(BONE));
+			memset(this, 0, sizeof(BONE));
 		}
 	};
 
@@ -93,6 +94,7 @@ protected:
 
 	void DestroyFBX();
 	bool InitFBX(char* szFileName, int p);
+	bool InitFBXSetBinary(char* byteArray, unsigned int size, int p);
 	void ReadSkinInfo(FbxMeshNode* mesh, MY_VERTEX_S* pvVB);
 	CoordTf::MATRIX GetCurrentPoseMatrix(int index);
 	void MatrixMap_Bone(SHADER_GLOBAL_BONES* sbB);
@@ -134,6 +136,7 @@ public:
 	void SetConnectStep(int ind, float step);
 	void Vertex_hold();
 	void SetFbx(char* szFileName);
+	void SetFbxSetBinary(char* byteArray, unsigned int size);
 	void CreateBuffer(int num_end_frame, float* end_frame, bool singleMesh = false, bool deformer = true);
 	void CreateBuffer(float end_frame, bool singleMesh = false, bool deformer = true);
 	void noUseMeshIndex(int meshIndex);
@@ -150,6 +153,7 @@ public:
 
 	bool CreateFromFBX(uint32_t QueueIndex, uint32_t comIndex, bool useAlpha, uint32_t numInstance);
 	void SetFbxSub(char* szFileName, int ind);
+	void SetFbxSubSetBinary(char* byteArray, unsigned int size, int ind);
 	void CreateBuffer_Sub(int ind, int num_end_frame, float* end_frame);
 	void CreateBuffer_Sub(int ind, float end_frame);
 	void CreateFromFBX_SubAnimation(int ind);

@@ -27,8 +27,12 @@ bool VulkanSkinMeshRt::SkinMesh_sub::Create(char* szFileName) {
 	return fbxL->setFbxFile(szFileName);
 }
 
+bool VulkanSkinMeshRt::SkinMesh_sub::CreateSetBinary(char* byteArray, unsigned int size) {
+	return fbxL->setBinaryInFbxFile(byteArray, size);
+}
+
 VulkanSkinMeshRt::VulkanSkinMeshRt() {
-	ZeroMemory(this, sizeof(VulkanSkinMeshRt));
+	memset(this, 0, sizeof(VulkanSkinMeshRt));
 	fbx = new SkinMesh_sub[FBX_PCS];
 	BoneConnect = -1.0f;
 	AnimLastInd = -1;
@@ -103,6 +107,13 @@ bool VulkanSkinMeshRt::InitFBX(char* szFileName, int p) {
 	return false;
 }
 
+bool VulkanSkinMeshRt::InitFBXSetBinary(char* byteArray, unsigned int size, int p) {
+	bool f = false;
+	f = fbx[p].CreateSetBinary(byteArray, size);
+	if (f)return true;
+	return false;
+}
+
 void VulkanSkinMeshRt::DestroyFBX() {
 	vkUtil::ARR_DELETE(fbx);
 }
@@ -155,6 +166,14 @@ void VulkanSkinMeshRt::Vertex_hold() {
 void VulkanSkinMeshRt::SetFbx(char* szFileName) {
 	//FBXローダーを初期化
 	if (!InitFBX(szFileName, 0))
+	{
+		throw std::runtime_error("FBXローダー初期化失敗");
+	}
+}
+
+void VulkanSkinMeshRt::SetFbxSetBinary(char* byteArray, unsigned int size) {
+	//FBXローダーを初期化
+	if (!InitFBXSetBinary(byteArray, size, 0))
 	{
 		throw std::runtime_error("FBXローダー初期化失敗");
 	}
@@ -371,7 +390,7 @@ void VulkanSkinMeshRt::SetVertex(bool lclOn, bool axisOn) {
 
 		MY_VERTEX_S* vb = pvVB[m];
 		VulkanBasicPolygonRt::Vertex3D_t* vbm = pvVBM[m];
-		for (UINT i = 0; i < mesh->getNumPolygonVertices(); i++) {
+		for (unsigned int i = 0; i < mesh->getNumPolygonVertices(); i++) {
 			//index順で頂点を整列しながら頂点格納
 			MY_VERTEX_S* v = &vb[i];
 			VulkanBasicPolygonRt::Vertex3D_t* vm = &vbm[i];
@@ -672,6 +691,16 @@ void VulkanSkinMeshRt::SetFbxSub(char* szFileName, int ind) {
 	}
 
 	if (!InitFBX(szFileName, ind)) {
+		throw std::runtime_error("FBXローダー初期化失敗");
+	}
+}
+
+void VulkanSkinMeshRt::SetFbxSubSetBinary(char* byteArray, unsigned int size, int ind) {
+	if (ind <= 0) {
+		throw std::runtime_error("FBXローダー初期化失敗");
+	}
+
+	if (!InitFBXSetBinary(byteArray, size, ind)) {
 		throw std::runtime_error("FBXローダー初期化失敗");
 	}
 }

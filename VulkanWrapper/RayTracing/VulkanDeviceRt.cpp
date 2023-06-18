@@ -64,7 +64,7 @@ bool VulkanDeviceRt::createDevice(VkInstance ins, VkPhysicalDevice phDev, uint32
     enabledDescriptorIndexingFeatures.descriptorBindingPartiallyBound = VK_TRUE;
 
     VkPhysicalDeviceFeatures features{};
-    vkGetPhysicalDeviceFeatures(physicalDevice, &features);
+    _vkGetPhysicalDeviceFeatures(physicalDevice, &features);
     VkPhysicalDeviceFeatures2 physicalDeviceFeatures2{
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2, nullptr,
     };
@@ -81,9 +81,9 @@ bool VulkanDeviceRt::createDevice(VkInstance ins, VkPhysicalDevice phDev, uint32
 
     load_VK_EXTENSIONS(
         ins,
-        vkGetInstanceProcAddr,
+        _vkGetInstanceProcAddr,
         vkDev->getDevice(),
-        vkGetDeviceProcAddr
+        _vkGetDeviceProcAddr
     );
     return true;
 }
@@ -105,7 +105,7 @@ uint64_t VulkanDeviceRt::GetDeviceAddress(VkBuffer buffer) {
         VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, nullptr
     };
     bufferDeviceInfo.buffer = buffer;
-    return vkGetBufferDeviceAddress(vkDev->getDevice(), &bufferDeviceInfo);
+    return _vkGetBufferDeviceAddress(vkDev->getDevice(), &bufferDeviceInfo);
 }
 
 VkPhysicalDeviceRayTracingPipelinePropertiesKHR VulkanDeviceRt::GetRayTracingPipelineProperties() {
@@ -117,6 +117,6 @@ VkPhysicalDeviceRayTracingPipelinePropertiesKHR VulkanDeviceRt::GetRayTracingPip
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2
     };
     physDevProps2.pNext = &physDevRtPipelineProps;
-    vkGetPhysicalDeviceProperties2(physicalDevice, &physDevProps2);
+    _vkGetPhysicalDeviceProperties2(physicalDevice, &physDevProps2);
     return physDevRtPipelineProps;
 }

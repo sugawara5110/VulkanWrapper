@@ -100,6 +100,10 @@ extern PFN_vkCmdCopyImageToBuffer _vkCmdCopyImageToBuffer;
 extern PFN_vkCreateComputePipelines _vkCreateComputePipelines;
 extern PFN_vkCmdDispatch _vkCmdDispatch;
 extern PFN_vkCmdCopyImage _vkCmdCopyImage;
+extern PFN_vkGetBufferDeviceAddress _vkGetBufferDeviceAddress;
+extern PFN_vkGetPhysicalDeviceFeatures _vkGetPhysicalDeviceFeatures;
+extern PFN_vkGetDeviceProcAddr _vkGetDeviceProcAddr;
+extern PFN_vkGetPhysicalDeviceProperties2 _vkGetPhysicalDeviceProperties2;
 
 #ifdef __ANDROID__
 #include <vulkan/vulkan_android.h>
