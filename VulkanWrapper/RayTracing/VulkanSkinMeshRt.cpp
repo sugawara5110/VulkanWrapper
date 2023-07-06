@@ -650,24 +650,28 @@ bool VulkanSkinMeshRt::CreateFromFBX(uint32_t QueueIndex, uint32_t comIndex, boo
 		for (int m = 0; m < o.Rdata.size(); m++) {
 			vkUtil::ARR_DELETE(newIndex[i][m]);
 
+			float DiffuseFactor = (float)mesh->getDiffuseFactor(m);
+			float SpecularFactor = (float)mesh->getSpecularFactor(m);
+			float AmbientFactor = (float)mesh->getAmbientFactor(m);
+
 			o.setMaterialColor(
 				//拡散反射光
 				{
-			(float)mesh->getDiffuseColor(m, 0),
-			(float)mesh->getDiffuseColor(m, 1),
-			(float)mesh->getDiffuseColor(m, 2)
+			(float)mesh->getDiffuseColor(m, 0) * DiffuseFactor,
+			(float)mesh->getDiffuseColor(m, 1) * DiffuseFactor,
+			(float)mesh->getDiffuseColor(m, 2) * DiffuseFactor
 				},
 				//スペキュラー
 				{
-			(float)mesh->getSpecularColor(m, 0),
-			(float)mesh->getSpecularColor(m, 1),
-			(float)mesh->getSpecularColor(m, 2)
+			(float)mesh->getSpecularColor(m, 0) * SpecularFactor,
+			(float)mesh->getSpecularColor(m, 1) * SpecularFactor,
+			(float)mesh->getSpecularColor(m, 2) * SpecularFactor
 				},
 				//アンビエント
 				{
-			(float)mesh->getAmbientColor(m, 0),
-			(float)mesh->getAmbientColor(m, 1),
-			(float)mesh->getAmbientColor(m, 2)
+			(float)mesh->getAmbientColor(m, 0) * AmbientFactor,
+			(float)mesh->getAmbientColor(m, 1) * AmbientFactor,
+			(float)mesh->getAmbientColor(m, 2) * AmbientFactor
 				},
 				m);
 		}

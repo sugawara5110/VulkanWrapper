@@ -26,7 +26,7 @@ char* Shader_traceRay =
 
 "       vec3 SpeculerCol = mcb.Speculer.xyz;\n"
 "       vec3 Diffuse = mcb.Diffuse.xyz;\n"
-"       vec3 Ambient = mcb.Ambient.xyz;\n"
+"       vec3 Ambient = mcb.Ambient.xyz + sceneParams.GlobalAmbientColor.xyz;\n"
 "       float shininess = mcb.shininess.x;\n"
 
 "       if(RecursionCnt <= sceneParams.maxRecursion.x) {\n"
@@ -47,12 +47,6 @@ char* Shader_traceRay =
 "                 while(loop){\n"
 "                    payload.mNo = EMISSIVE;\n"//処理分岐用
 "                    vec3 origin = payload.hitPosition;\n"
-
-"                    if(dot(normal, direction) <= 0){\n"//法線に対して光源に向かうレイの方向が90°以上ならレイを飛ばさない
-"                        payload.reTry = false;\n"
-"                        payload.color = sceneParams.GlobalAmbientColor.xyz;\n"
-"                        break;\n"
-"                    }\n"
 
 "                    traceRayEXT(\n"
 "                        topLevelAS,\n"

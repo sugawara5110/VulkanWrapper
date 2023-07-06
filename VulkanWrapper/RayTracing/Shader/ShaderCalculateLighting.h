@@ -29,7 +29,7 @@ char* ShaderCalculateLighting =
 "    float angleAttenSpe = pow(clamp(dot(eyeVec, reflectVec), 0.0f, 1.0f), shininess);\n"
 
 //ディフェーズ出力
-"    Out.Diffuse = distAtten * lightCol * (angleAttenDif * Diffuse + Ambient);\n"
+"    Out.Diffuse = distAtten * lightCol * angleAttenDif * Diffuse + Ambient;\n"
 //スペキュラ出力
 "    Out.Speculer = distAtten * lightCol * angleAttenSpe * SpeculerCol;\n"
 "    return Out;\n"

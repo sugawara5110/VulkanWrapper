@@ -18,7 +18,7 @@ char* Shader_emissiveHit =
 "    bool pay_mNoF = materialIdent(payloadIn.mNo, EMISSIVE);\n"
 "    bool mNoF     = materialIdent(mNo, EMISSIVE);\n"
 "    if(pay_mNoF && mNoF) {\n"
-"       payloadIn.color = difTex.xyz + sceneParams.GlobalAmbientColor.xyz;\n"
+"       payloadIn.color = difTex.xyz;\n"
 "       if(gl_InstanceID != payloadIn.pLightID || difTex.w <= 0.0f) {\n"
 "          payloadIn.reTry = true;\n"//目標の点光源以外の場合素通り
 "       }\n"
@@ -27,7 +27,7 @@ char* Shader_emissiveHit =
 "    pay_mNoF = materialIdent(payloadIn.mNo, DIRECTIONLIGHT | METALLIC);\n"
 "    if(pay_mNoF) {\n"
 "       if(materialIdent(mNo, DIRECTIONLIGHT)) {\n"//平行光源発生マテリアルか?
-"          payloadIn.color = sceneParams.dLightColor.xyz + sceneParams.GlobalAmbientColor.xyz;\n"
+"          payloadIn.color = sceneParams.dLightColor.xyz;\n"
 "       }\n"
 "       if(materialIdent(mNo, EMISSIVE)) {\n"//点光源の場合素通り
 "          payloadIn.reTry = true;\n"
@@ -41,7 +41,7 @@ char* Shader_emissiveHit =
 "       materialIdent(payloadIn.mNo, DIRECTIONLIGHT | METALLIC) \n"
 "       ) {\n"
 "       if(difTex.w >= 1.0f) {\n"
-"          payloadIn.color = sceneParams.GlobalAmbientColor.xyz;\n"
+"          payloadIn.color = vec3(0.0f, 0.0f, 0.0f);\n"
 "       }\n"
 "       else {\n"
 "          payloadIn.reTry = true;\n"
