@@ -23,7 +23,7 @@ namespace {
 VulkanSwapchain* VulkanSwapchain::swP = nullptr;
 
 void VulkanSwapchain::InstanceCreate() {
-    if (swP == nullptr)swP = new VulkanSwapchain();
+    if (swP == nullptr)swP = NEW VulkanSwapchain();
 }
 
 VulkanSwapchain* VulkanSwapchain::GetInstance() {

@@ -13,21 +13,21 @@ void VulkanSkinMesh::setfbx() {
 	numMesh = fbxObj[0]->fbx.getNumFbxMeshNode();
 	//bone数取得
 	numBone = fbxObj[0]->fbx.getFbxMeshNode(0)->getNumDeformer();
-	fbxObj[0]->defo = new Deformer * [numBone];
+	fbxObj[0]->defo = NEW Deformer * [numBone];
 	for (uint32_t i = 0; i < numBone; i++) {
 		fbxObj[0]->defo[i] = fbxObj[0]->fbx.getFbxMeshNode(0)->getDeformer(i);
 	}
 	//mesh数分BasicPolygon生成
-	bp = std::make_unique<VulkanBasicPolygon* []>(numMesh);
+	bp = std::make_unique<VulkanBasicPolygon * []>(numMesh);
 	bone = std::make_unique<Bone[]>(numBone);
 	outPose = std::make_unique<CoordTf::MATRIX[]>(numBone);
 
-	cTexId = std::make_unique<VulkanDevice::textureIdSet* []>(numMesh);
-	for (uint32_t i = 0; i < numMesh; i++)cTexId[i] = new VulkanDevice::textureIdSet[fbxObj[0]->fbx.getFbxMeshNode(i)->getNumMaterial()];
+	cTexId = std::make_unique<VulkanDevice::textureIdSet * []>(numMesh);
+	for (uint32_t i = 0; i < numMesh; i++)cTexId[i] = NEW VulkanDevice::textureIdSet[fbxObj[0]->fbx.getFbxMeshNode(i)->getNumMaterial()];
 }
 
 void VulkanSkinMesh::setFbx(char* pass, float endfra) {
-	fbxObj[0] = new FbxObj();
+	fbxObj[0] = NEW FbxObj();
 	//フレーム数
 	fbxObj[0]->endframe = endfra;
 	//fbxファイルのpass入力する事で内部でデータの取得, 圧縮データの解凍を行ってます
@@ -36,7 +36,7 @@ void VulkanSkinMesh::setFbx(char* pass, float endfra) {
 }
 
 void VulkanSkinMesh::setFbxInByteArray(char* byteArray, unsigned int size, float endfra) {
-	fbxObj[0] = new FbxObj();
+	fbxObj[0] = NEW FbxObj();
 	fbxObj[0]->endframe = endfra;
 	fbxObj[0]->fbx.setBinaryInFbxFile(byteArray, size);
 	setfbx();
@@ -58,7 +58,7 @@ static char* getName(char* in) {
 }
 
 void VulkanSkinMesh::setAnimation() {
-	fbxObj[numFbxObj]->defo = new Deformer * [numBone];
+	fbxObj[numFbxObj]->defo = NEW Deformer * [numBone];
 	uint32_t numNoneMeshBone = fbxObj[numFbxObj]->fbx.getNumNoneMeshDeformer();
 	for (uint32_t j = 0; j < numBone; j++) {
 		char* bName1 = getName(fbxObj[0]->defo[j]->getName());
@@ -75,14 +75,14 @@ void VulkanSkinMesh::setAnimation() {
 }
 
 void VulkanSkinMesh::additionalAnimation(char* pass, float endframe) {
-	fbxObj[numFbxObj] = new FbxObj();
+	fbxObj[numFbxObj] = NEW FbxObj();
 	fbxObj[numFbxObj]->endframe = endframe;
 	fbxObj[numFbxObj]->fbx.setFbxFile(pass);
 	setAnimation();
 }
 
 void VulkanSkinMesh::additionalAnimationInByteArray(char* byteArray, unsigned int size, float endframe) {
-	fbxObj[numFbxObj] = new FbxObj();
+	fbxObj[numFbxObj] = NEW FbxObj();
 	fbxObj[numFbxObj]->endframe = endframe;
 	fbxObj[numFbxObj]->fbx.setBinaryInFbxFile(byteArray, size);
 	setAnimation();
@@ -101,7 +101,7 @@ VulkanSkinMesh::~VulkanSkinMesh() {
 void VulkanSkinMesh::create(uint32_t QueueIndex, uint32_t comIndex, bool useAlpha) {
 	//各mesh読み込み
 	for (uint32_t mI = 0; mI < numMesh; mI++) {
-		bp[mI] = new VulkanBasicPolygon();
+		bp[mI] = NEW VulkanBasicPolygon();
 		FbxMeshNode* mesh = fbxObj[0]->fbx.getFbxMeshNode(mI);//mI番目のMesh取得
 		auto index = mesh->getPolygonVertices();//頂点Index取得(頂点xyzに対してのIndex)
 		auto ver = mesh->getVertices();//頂点取得
@@ -123,8 +123,8 @@ void VulkanSkinMesh::create(uint32_t QueueIndex, uint32_t comIndex, bool useAlph
 		//ボーン取得
 		const uint32_t numBoneWei = 4;
 		const uint32_t numArr = numBoneWei * mesh->getNumVertices();
-		auto* boneWeiArr = new float[numArr];
-		auto* boneWeiIndArr = new int32_t[numArr];
+		auto* boneWeiArr = NEW float[numArr];
+		auto* boneWeiIndArr = NEW int32_t[numArr];
 		for (uint32_t i = 0; i < numArr; i++) {
 			boneWeiArr[i] = 0.0f;
 			boneWeiIndArr[i] = 0;
@@ -163,7 +163,7 @@ void VulkanSkinMesh::create(uint32_t QueueIndex, uint32_t comIndex, bool useAlph
 			}
 		}
 
-		VertexSkin* verSkin = new VertexSkin[mesh->getNumPolygonVertices()];
+		VertexSkin* verSkin = NEW VertexSkin[mesh->getNumPolygonVertices()];
 		for (uint32_t vI = 0; vI < mesh->getNumPolygonVertices(); vI++) {
 			VertexSkin* v = &verSkin[vI];
 			v->pos[0] = (float)ver[index[vI] * 3];
@@ -186,7 +186,7 @@ void VulkanSkinMesh::create(uint32_t QueueIndex, uint32_t comIndex, bool useAlph
 
 		//4頂点ポリゴン分割後のIndex数カウント
 		auto numMaterial = mesh->getNumMaterial();
-		uint32_t* numNewIndex = new uint32_t[numMaterial];
+		uint32_t* numNewIndex = NEW uint32_t[numMaterial];
 		memset(numNewIndex, 0, sizeof(uint32_t) * numMaterial);
 		int32_t currentMatNo = -1;
 		for (uint32_t i1 = 0; i1 < mesh->getNumPolygon(); i1++) {
@@ -202,13 +202,13 @@ void VulkanSkinMesh::create(uint32_t QueueIndex, uint32_t comIndex, bool useAlph
 		}
 
 		//分割後のIndex生成, 順番を逆にする
-		uint32_t** newIndex = new uint32_t * [numMaterial];
+		uint32_t** newIndex = NEW uint32_t * [numMaterial];
 		for (uint32_t ind1 = 0; ind1 < numMaterial; ind1++) {
 			if (numNewIndex[ind1] <= 0) {
 				newIndex[ind1] = nullptr;
 				continue;
 			}
-			newIndex[ind1] = new uint32_t[numNewIndex[ind1]];
+			newIndex[ind1] = NEW uint32_t[numNewIndex[ind1]];
 		}
 		std::unique_ptr<uint32_t[]> indexCnt;
 		indexCnt = std::make_unique<uint32_t[]>(numMaterial);
@@ -240,7 +240,7 @@ void VulkanSkinMesh::create(uint32_t QueueIndex, uint32_t comIndex, bool useAlph
 			}
 		}
 
-		VulkanDevice::textureIdSet* texId = new VulkanDevice::textureIdSet[numMaterial];
+		VulkanDevice::textureIdSet* texId = NEW VulkanDevice::textureIdSet[numMaterial];
 
 		using namespace CoordTf;
 
@@ -249,7 +249,7 @@ void VulkanSkinMesh::create(uint32_t QueueIndex, uint32_t comIndex, bool useAlph
 		std::unique_ptr<VECTOR3[]> diffuse = std::make_unique<VECTOR3[]>(numMaterial);
 		std::unique_ptr<VECTOR3[]> specular = std::make_unique<VECTOR3[]>(numMaterial);
 		std::unique_ptr<VECTOR3[]> ambient = std::make_unique<VECTOR3[]>(numMaterial);
-		float* uvSw = new float[numMaterial];
+		float* uvSw = NEW float[numMaterial];
 		memset(uvSw, 0, sizeof(float) * numMaterial);
 		for (uint32_t matInd = 0; matInd < numMaterial; matInd++) {
 			//ディフェーズテクスチャId取得, 無い場合ダミー

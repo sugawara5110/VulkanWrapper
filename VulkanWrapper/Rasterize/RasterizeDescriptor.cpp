@@ -9,7 +9,7 @@
 RasterizeDescriptor* RasterizeDescriptor::ptr = nullptr;
 
 void RasterizeDescriptor::InstanceCreate() {
-    if (ptr == nullptr)ptr = new RasterizeDescriptor();
+    if (ptr == nullptr)ptr = NEW RasterizeDescriptor();
 }
 
 RasterizeDescriptor* RasterizeDescriptor::GetInstance() {

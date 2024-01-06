@@ -63,7 +63,7 @@ private:
 		rd->descriptorAndPipelineLayouts2D(useTexture, pipelineLayout, descSetLayout);
 
 		for (uint32_t i = 0; i < numSwap; i++) {
-			uniform[i] = new VulkanDevice::Uniform<RasterizeDescriptor::MatrixSet2D>(1);
+			uniform[i] = NEW VulkanDevice::Uniform<RasterizeDescriptor::MatrixSet2D>(1);
 			if (textureId < 0) {
 				VulkanDevice::Texture tex = device->getTexture(device->numTextureMax);
 				if (i == 0)device->createVkTexture(texture, QueueIndex, comIndex, tex);

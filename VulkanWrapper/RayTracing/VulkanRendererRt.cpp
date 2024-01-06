@@ -30,7 +30,7 @@ namespace {
         uint32_t reln = (uint32_t)strlen(replacement);
         uint32_t retln = ln - taln + reln;
 
-        char* ret = new char[retln + 1];
+        char* ret = NEW char[retln + 1];
         int retCnt = 0;
         for (uint32_t i = 0; i < ln; i++) {
             if (!strncmp(&srcStr[i], target, sizeof(char) * taln)) {
@@ -97,7 +97,7 @@ namespace {
 
 void VulkanRendererRt::Init(uint32_t QueueIndex, uint32_t comIndex, std::vector<VulkanBasicPolygonRt::RtData*> r) {
 
-    m_sceneUBO = new VulkanDevice::Uniform<SceneParam>(1);
+    m_sceneUBO = NEW VulkanDevice::Uniform<SceneParam>(1);
 
     rt = r;
 
@@ -140,7 +140,7 @@ void VulkanRendererRt::Init(uint32_t QueueIndex, uint32_t comIndex, std::vector<
     };
     memoryAllocateFlagsInfo.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR;
     void* pNext = &memoryAllocateFlagsInfo;
-    materialUBO = new VulkanDevice::Uniform<Material>((uint32_t)materialArr.size(), VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, pNext);
+    materialUBO = NEW VulkanDevice::Uniform<Material>((uint32_t)materialArr.size(), VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, pNext);
     materialUBO->updateArr(materialArr.data());
 
     CreateTLAS(QueueIndex, comIndex);

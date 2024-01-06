@@ -13,7 +13,7 @@
 using namespace std;
 
 VulkanSkinMeshRt::SkinMesh_sub::SkinMesh_sub() {
-	fbxL = new FbxLoader();
+	fbxL = NEW FbxLoader();
 	CoordTf::MatrixIdentity(&rotZYX);
 	connect_step = 3000.0f;
 	InternalLastAnimationIndex = -1;
@@ -33,7 +33,7 @@ bool VulkanSkinMeshRt::SkinMesh_sub::CreateSetBinary(char* byteArray, unsigned i
 
 VulkanSkinMeshRt::VulkanSkinMeshRt() {
 	memset(this, 0, sizeof(VulkanSkinMeshRt));
-	fbx = new SkinMesh_sub[FBX_PCS];
+	fbx = NEW SkinMesh_sub[FBX_PCS];
 	BoneConnect = -1.0f;
 	AnimLastInd = -1;
 }
@@ -193,10 +193,10 @@ void VulkanSkinMeshRt::CreateBuffer(int num_end_frame, float* end_frame, bool si
 	if (singleMesh)fbL->createFbxSingleMeshNode();
 	numMesh = fbL->getNumFbxMeshNode();
 	noUseMesh = std::make_unique<bool[]>(numMesh);
-	newIndex = new uint32_t * *[numMesh];
-	NumNewIndex = new uint32_t * [numMesh];
-	textureId = new VulkanDevice::textureIdSetInput * [numMesh];
-	numBone = new int[numMesh];
+	newIndex = NEW uint32_t * *[numMesh];
+	NumNewIndex = NEW uint32_t * [numMesh];
+	textureId = NEW VulkanDevice::textureIdSetInput * [numMesh];
+	numBone = NEW int[numMesh];
 
 	for (int i = 0; i < numMesh; i++) {
 		FbxMeshNode* mesh = fbL->getFbxMeshNode(i);
@@ -215,9 +215,9 @@ void VulkanSkinMeshRt::CreateBuffer(int num_end_frame, float* end_frame, bool si
 	}
 
 	if (maxNumBone > 0) {
-		boneName = new char[maxNumBone * 255];
-		m_BoneArray = new BONE[maxNumBone];
-		m_pLastBoneMatrix = new MATRIX[maxNumBone];
+		boneName = NEW char[maxNumBone * 255];
+		m_BoneArray = NEW BONE[maxNumBone];
+		m_pLastBoneMatrix = NEW MATRIX[maxNumBone];
 
 		FbxMeshNode* mesh = fbL->getFbxMeshNode(maxNumBoneMeshIndex);
 		for (int i = 0; i < maxNumBone; i++) {
@@ -234,15 +234,15 @@ void VulkanSkinMeshRt::CreateBuffer(int num_end_frame, float* end_frame, bool si
 			}
 		}
 
-		mObject_BONES = new VulkanDevice::Uniform<SHADER_GLOBAL_BONES>(1);
+		mObject_BONES = NEW VulkanDevice::Uniform<SHADER_GLOBAL_BONES>(1);
 	}
 
-	pvVB = new MY_VERTEX_S * [numMesh];
-	pvVBM = new VulkanBasicPolygonRt::Vertex3D_t * [numMesh];
-	mObj = new VulkanBasicPolygonRt[numMesh];
+	pvVB = NEW MY_VERTEX_S * [numMesh];
+	pvVBM = NEW VulkanBasicPolygonRt::Vertex3D_t * [numMesh];
+	mObj = NEW VulkanBasicPolygonRt[numMesh];
 	if (deformer) {
 		for (uint32_t i = 0; i < VulkanBasicPolygonRt::numSwap; i++) {
-			sk[i] = new SkinningCom[numMesh];
+			sk[i] = NEW SkinningCom[numMesh];
 		}
 	}
 }
@@ -306,7 +306,7 @@ void VulkanSkinMeshRt::LclTransformation(FbxMeshNode* mesh, CoordTf::VECTOR3* ve
 
 void VulkanSkinMeshRt::normalRecalculation(bool lclOn, double** nor, FbxMeshNode* mesh) {
 
-	*nor = new double[mesh->getNumPolygonVertices() * 3];
+	*nor = NEW double[mesh->getNumPolygonVertices() * 3];
 	auto index = mesh->getPolygonVertices();//頂点Index取得(頂点xyzに対してのIndex)
 	auto ver = mesh->getVertices();//頂点取得
 
@@ -358,7 +358,7 @@ void VulkanSkinMeshRt::SetVertex(bool lclOn, bool axisOn) {
 
 		FbxMeshNode* mesh = fbL->getFbxMeshNode(m);//メッシュ毎に処理する
 
-		MY_VERTEX_S* tmpVB = new MY_VERTEX_S[mesh->getNumVertices()];
+		MY_VERTEX_S* tmpVB = NEW MY_VERTEX_S[mesh->getNumVertices()];
 		//ボーンウエイト
 		ReadSkinInfo(mesh, tmpVB);
 
@@ -385,8 +385,8 @@ void VulkanSkinMeshRt::SetVertex(bool lclOn, bool axisOn) {
 			uv1 = mesh->getAlignedUV(0);
 		}
 
-		pvVB[m] = new MY_VERTEX_S[mesh->getNumPolygonVertices()];
-		pvVBM[m] = new VulkanBasicPolygonRt::Vertex3D_t[mesh->getNumPolygonVertices()];
+		pvVB[m] = NEW MY_VERTEX_S[mesh->getNumPolygonVertices()];
+		pvVBM[m] = NEW VulkanBasicPolygonRt::Vertex3D_t[mesh->getNumPolygonVertices()];
 
 		MY_VERTEX_S* vb = pvVB[m];
 		VulkanBasicPolygonRt::Vertex3D_t* vbm = pvVBM[m];
@@ -428,7 +428,7 @@ void VulkanSkinMeshRt::SetVertex(bool lclOn, bool axisOn) {
 		if (norCreate)vkUtil::ARR_DELETE(nor);
 
 		auto numMaterial = mesh->getNumMaterial();
-		int* uvSw = new int[numMaterial];
+		int* uvSw = NEW int[numMaterial];
 		createMaterial(m, numMaterial, mesh, uv0Name, uv1Name, uvSw);
 		swapTex(vb, sizeof(MY_VERTEX_S), mesh, uvSw);
 		swapTex(vbm, sizeof(VulkanBasicPolygonRt::Vertex3D_t), mesh, uvSw);
@@ -440,7 +440,7 @@ void VulkanSkinMeshRt::SetVertex(bool lclOn, bool axisOn) {
 void VulkanSkinMeshRt::splitIndex(uint32_t numMaterial, FbxMeshNode* mesh, int m) {
 
 	//ポリゴン分割後のIndex数カウント
-	NumNewIndex[m] = new uint32_t[numMaterial];
+	NumNewIndex[m] = NEW uint32_t[numMaterial];
 	uint32_t* numNewIndex = NumNewIndex[m];
 	memset(numNewIndex, 0, sizeof(uint32_t) * numMaterial);
 
@@ -453,13 +453,13 @@ void VulkanSkinMeshRt::splitIndex(uint32_t numMaterial, FbxMeshNode* mesh, int m
 	}
 
 	//分割後のIndex生成
-	newIndex[m] = new uint32_t * [numMaterial];
+	newIndex[m] = NEW uint32_t * [numMaterial];
 	for (uint32_t ind1 = 0; ind1 < numMaterial; ind1++) {
 		if (numNewIndex[ind1] <= 0) {
 			newIndex[m][ind1] = nullptr;
 			continue;
 		}
-		newIndex[m][ind1] = new uint32_t[numNewIndex[ind1]];
+		newIndex[m][ind1] = NEW uint32_t[numNewIndex[ind1]];
 	}
 	std::unique_ptr<uint32_t[]> indexCnt;
 	indexCnt = std::make_unique<uint32_t[]>(numMaterial);
@@ -486,7 +486,7 @@ void VulkanSkinMeshRt::createMaterial(int meshInd, uint32_t numMaterial, FbxMesh
 
 	VulkanDevice* dev = VulkanDevice::GetInstance();
 
-	textureId[m] = new VulkanDevice::textureIdSetInput[numMaterial];
+	textureId[m] = NEW VulkanDevice::textureIdSetInput[numMaterial];
 	VulkanDevice::textureIdSetInput* texId = textureId[m];
 
 	char difUvName[256] = {};
@@ -725,7 +725,7 @@ void VulkanSkinMeshRt::CreateBuffer_Sub(int ind, int num_end_frame, float* end_f
 	}
 
 	if (!m_ppSubAnimationBone) {
-		m_ppSubAnimationBone = new Deformer * [(FBX_PCS - 1) * maxNumBone];
+		m_ppSubAnimationBone = NEW Deformer * [(FBX_PCS - 1) * maxNumBone];
 	}
 }
 
@@ -991,7 +991,7 @@ void VulkanSkinMeshRt::SkinningCom::createVertexBuffer(uint32_t QueueIndex, uint
 		CoordTf::VECTOR4 bBoneWeight = {};
 	};
 
-	MY_VERTEX_S_4* v = new MY_VERTEX_S_4[num];
+	MY_VERTEX_S_4* v = NEW MY_VERTEX_S_4[num];
 	numVer = num;
 
 	for (uint32_t i = 0; i < num; i++) {

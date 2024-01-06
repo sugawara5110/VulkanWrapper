@@ -43,7 +43,7 @@ public:
 #endif
     void destroySurface();
 
-    VkPhysicalDevice getPhysicalDevice(int index = 0);
+    VkPhysicalDevice getPhysicalDevice(int index = 0, char* deviceName = nullptr);
 
     VkSurfaceKHR getSurface();
 

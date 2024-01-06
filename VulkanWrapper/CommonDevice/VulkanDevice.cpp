@@ -290,7 +290,7 @@ void VulkanDevice::create(std::vector<const char*>* requiredExtensions, const vo
         throw std::runtime_error("computeQueue.size() is too large.");
     }
 
-    float* qPrioritiesGr = new float[NumGraphicsQueue];//優先度配列 max1.0f
+    float* qPrioritiesGr = NEW float[NumGraphicsQueue];//優先度配列 max1.0f
     float step = 1.0f / (float)NumGraphicsQueue;
     float cnt = 1.0f;
     for (size_t i = 0; i < NumGraphicsQueue; i++) {
@@ -300,7 +300,7 @@ void VulkanDevice::create(std::vector<const char*>* requiredExtensions, const vo
 
     float* qPrioritiesCo = nullptr;
     if (NumComputeQueue > 0) {
-        qPrioritiesCo = new float[NumComputeQueue];//優先度配列 max1.0f
+        qPrioritiesCo = NEW float[NumComputeQueue];//優先度配列 max1.0f
         float step = 1.0f / (float)NumComputeQueue;
         float cnt = 1.0f;
         for (size_t i = 0; i < NumComputeQueue; i++) {
@@ -815,8 +815,8 @@ void VulkanDevice::createDevice(
     createDescriptorPool(add_poolSize, maxDescriptorSets);
 
     //ダミーテクスチャ生成(テクスチャーが無い場合に代わりに入れる)
-    unsigned char* dummyNor = new unsigned char[64 * 4 * 64];
-    unsigned char* dummyDifSpe = new unsigned char[64 * 4 * 64];
+    unsigned char* dummyNor = NEW unsigned char[64 * 4 * 64];
+    unsigned char* dummyDifSpe = NEW unsigned char[64 * 4 * 64];
     unsigned char nor[4] = { 128,128,255,0 };
     unsigned char difspe[4] = { 255,255,255,255 };
     for (int i = 0; i < 64 * 4 * 64; i += 4) {
@@ -919,7 +919,7 @@ void VulkanDevice::InstanceCreate(
     uint32_t numGraphicsQueue,
     uint32_t numComputeQueue) {
 
-    if (DevicePointer == nullptr)DevicePointer = new VulkanDevice(pd, numCommandBuffer, numGraphicsQueue, numComputeQueue);
+    if (DevicePointer == nullptr)DevicePointer = NEW VulkanDevice(pd, numCommandBuffer, numGraphicsQueue, numComputeQueue);
     ApiVersion = apiVersion;
 }
 

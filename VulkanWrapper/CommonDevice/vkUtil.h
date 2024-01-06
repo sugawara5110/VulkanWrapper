@@ -8,11 +8,21 @@
 #define vkUtil_Header
 
 #ifdef __ANDROID__
-#include <android/log.h>
-#include <android/native_window.h>
+ #include <android/log.h>
+ #include <android/native_window.h>
 #else
-#define VK_USE_PLATFORM_WIN32_KHR
-#include <windows.h>
+ #define VK_USE_PLATFORM_WIN32_KHR
+
+ #if defined(DEBUG) || defined(_DEBUG)
+  #define _CRTDBG_MAP_ALLOC
+  #include <stdlib.h>
+  #include <crtdbg.h>
+  #define NEW new ( _NORMAL_BLOCK , __FILE__ , __LINE__ )
+ #else
+  #define NEW new
+ #endif
+
+ #include <windows.h>
 #endif
 
 #include "NVIDIA_Library/extensions_vk.hpp"
@@ -35,9 +45,9 @@
 
 namespace vkUtil {
     template<typename TYPE>
-    void S_DELETE(TYPE p) { if (p) { delete p;    p = nullptr; } }
+    void S_DELETE(TYPE& p) { if (p) { delete p;    p = nullptr; } }
     template<typename TYPE>
-    void ARR_DELETE(TYPE p) { if (p) { delete[] p;    p = nullptr; } }
+    void ARR_DELETE(TYPE& p) { if (p) { delete[] p;    p = nullptr; } }
     void checkError(VkResult res);
 
     VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT, uint64_t object,
@@ -69,6 +79,8 @@ namespace vkUtil {
     T Align(T size, uint32_t align) {
         return (size + align - 1) & ~static_cast<T>((align - 1));
     }
+
+    void memory_leak_test();
 }
 
 #endif

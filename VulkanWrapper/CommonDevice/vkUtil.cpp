@@ -45,7 +45,7 @@ void vkUtil::addChar::addStr(char* str1, char* str2) {
     size_t size1 = strlen(str1);
     size_t size2 = strlen(str2);
     size = size1 + size2 + 1;
-    str = new char[size];
+    str = NEW char[size];
     memcpy(str, str1, size1 + 1);
     strncat(str, str2, size2 + 1);
 }
@@ -114,4 +114,13 @@ char* vkUtil::getNameFromPass(char* pass) {
         }
     }
     return pass;//ポインタ操作してるので返り値を使用させる
+}
+
+void vkUtil::memory_leak_test() {
+#ifdef __ANDROID__
+#else
+#if defined(DEBUG) || defined(_DEBUG)
+    _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+#endif
+#endif
 }

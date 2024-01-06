@@ -48,7 +48,7 @@ void VulkanBasicPolygonRt::createVertexBuffer(
         float speUv[4] = {};
     };
 
-    Vertex3Dvec4* v = new Vertex3Dvec4[num];
+    Vertex3Dvec4* v = NEW Vertex3Dvec4[num];
 
     for (uint32_t i = 0; i < num; i++) {
         memcpy(v[i].pos, ver[i].pos, sizeof(float) * 3);
@@ -216,7 +216,7 @@ void VulkanBasicPolygonRt::create(uint32_t QueueIndex, uint32_t comIndex, bool u
     VulkanDevice::Vertex3D* ver, uint32_t num, uint32_t* ind, uint32_t indNum,
     int32_t difTexInd, int32_t norTexInd, int32_t speTexInd, uint32_t numInstance) {
 
-    Vertex3D_t* v3 = new Vertex3D_t[num];
+    Vertex3D_t* v3 = NEW Vertex3D_t[num];
 
     for (uint32_t i = 0; i < num; i++) {
         memcpy(v3[i].pos, ver[i].pos, sizeof(float) * 3);

@@ -202,7 +202,7 @@ public:
         uint32_t width = 0;
         uint32_t height = 0;
         void setByte(unsigned char* inbyte) {
-            byte = new unsigned char[width * 4 * height];
+            byte = NEW unsigned char[width * 4 * height];
             memcpy(byte, inbyte, sizeof(unsigned char) * width * 4 * height);
         }
         void destroy() {

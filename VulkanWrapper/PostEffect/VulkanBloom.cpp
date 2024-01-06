@@ -18,7 +18,7 @@ namespace {
 
 		numWid = wCnt;
 		float total = 0.0f;
-		float* gaArr = new float[numWid];
+		float* gaArr = NEW float[numWid];
 
 		for (int x = 0; x < numWid; x++)
 		{
@@ -133,7 +133,7 @@ void VulkanBloom::createBuffer(uint32_t QueueIndex, uint32_t comIndex) {
 	com->endCommand(comIndex);
 	com->submitCommandsAndWait();
 
-	bParamUBO = new VulkanDevice::Uniform<BloomParam>(1);
+	bParamUBO = NEW VulkanDevice::Uniform<BloomParam>(1);
 	bParam.numInstance = (int)bloom.size();
 	bParamUBO->update(0, &bParam);
 }
@@ -549,7 +549,7 @@ void VulkanBloom::Bloom::createBuffer(uint32_t QueueIndex, uint32_t comIndex) {
 	com->endCommand(comIndex);
 	com->submitCommandsAndWait();
 
-	bParamUBO = new VulkanDevice::Uniform<BloomParam>(1);
+	bParamUBO = NEW VulkanDevice::Uniform<BloomParam>(1);
 }
 
 void VulkanBloom::Bloom::Create(uint32_t QueueIndex, uint32_t comIndex, float sigma) {

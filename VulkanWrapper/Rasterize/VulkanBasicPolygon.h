@@ -51,7 +51,7 @@ private:
 		VulkanDevice* device = VulkanDevice::GetInstance();
 
 		numMaterial = numMat;
-		texId = new VulkanDevice::textureIdSet[numMaterial];
+		texId = NEW VulkanDevice::textureIdSet[numMaterial];
 		memcpy(texId, texid, sizeof(VulkanDevice::textureIdSet) * numMaterial);
 		index = std::make_unique<VulkanDevice::BufferSet[]>(numMaterial);
 		numIndex = std::make_unique<uint32_t[]>(numMaterial);
@@ -67,12 +67,12 @@ private:
 		rd->descriptorAndPipelineLayouts(true, pipelineLayout, descSetLayout);
 
 		for (uint32_t i = 0; i < numSwap; i++) {
-			material[i] = new VulkanDevice::Uniform<RasterizeDescriptor::Material>*[numMaterial];
-			materialset[i] = new RasterizeDescriptor::Material[numMaterial];
-			uniform[i] = new VulkanDevice::Uniform<RasterizeDescriptor::MatrixSet>(1);
+			material[i] = NEW VulkanDevice::Uniform<RasterizeDescriptor::Material>*[numMaterial];
+			materialset[i] = NEW RasterizeDescriptor::Material[numMaterial];
+			uniform[i] = NEW VulkanDevice::Uniform<RasterizeDescriptor::MatrixSet>(1);
 			for (uint32_t m = 0; m < numMaterial; m++) {
 				if (i == 0)numIndex[m] = indNum[m];
-				material[i][m] = new VulkanDevice::Uniform<RasterizeDescriptor::Material>(1);
+				material[i][m] = NEW VulkanDevice::Uniform<RasterizeDescriptor::Material>(1);
 				if (numIndex[m] <= 0)continue;
 				materialset[i][m].UvSwitch.x = uvSw[m];
 				material[i][m]->update(0, &materialset[i][m]);

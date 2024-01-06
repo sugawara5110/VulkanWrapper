@@ -159,7 +159,13 @@ void VulkanInstance::destroySurface() {
     }
 }
 
-VkPhysicalDevice VulkanInstance::getPhysicalDevice(int index) {
+VkPhysicalDevice VulkanInstance::getPhysicalDevice(int index, char* deviceName) {
+    static VkPhysicalDeviceProperties props;
+    _vkGetPhysicalDeviceProperties(adapters[index], &props);
+    if (deviceName) {
+        memcpy(deviceName, props.deviceName, strlen(props.deviceName) + 1);
+    }
+
     return adapters[index];
 }
 
