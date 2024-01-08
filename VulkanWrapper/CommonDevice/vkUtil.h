@@ -10,6 +10,7 @@
 #ifdef __ANDROID__
  #include <android/log.h>
  #include <android/native_window.h>
+ #define NEW new
 #else
  #define VK_USE_PLATFORM_WIN32_KHR
 

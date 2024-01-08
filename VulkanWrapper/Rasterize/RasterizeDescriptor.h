@@ -28,10 +28,12 @@ private:
     float attenuation2 = 0.001f;
     float attenuation3 = 0.001f;
 
+    static const int numBoneMax = 256;
+
     struct MatrixSet {
         CoordTf::MATRIX world;
         CoordTf::MATRIX mvp;
-        CoordTf::MATRIX bone[VulkanDevice::numBoneMax];
+        CoordTf::MATRIX bone[numBoneMax];
     };
 
     struct Material {

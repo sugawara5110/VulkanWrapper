@@ -27,7 +27,6 @@ public:
     VkDeviceSize GetUniformBufferAlignment()const;
 
     const static uint32_t numLightMax = 256;
-    const static uint32_t numBoneMax = 256;
     const static uint32_t numTextureMax = 254;
     const static uint32_t numTexFileNamelenMax = 256;
 
