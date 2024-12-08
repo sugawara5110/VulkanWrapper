@@ -15,3 +15,5 @@ char* Shader_anyHit =
 "        ignoreIntersectionEXT;\n"
 "    }\n"
 "}\n";
+
+

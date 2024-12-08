@@ -19,23 +19,20 @@ char* Shader_common =
 "    vec4 numEmissive;\n"//.xのみ
 "    vec4 GlobalAmbientColor;\n"
 "    vec4 emissiveNo[NumLightMax];"//.xのみ
-"    vec4 dDirection;\n"
-"    vec4 dLightColor;\n"
-"    vec4 dLightst;\n"//.x:オンオフ
 "    vec4 TMin_TMax;\n"//.x, .y
 "    vec4 maxRecursion;\n"//x:, y:maxNumInstance
 "} sceneParams;\n"
 
 "struct MaterialCB {\n"
+"    mat4 mvp;\n"
 "    vec4 Diffuse;\n"
 "    vec4 Speculer; \n"
 "    vec4 Ambient;\n"
 "    vec4 shininess;\n"//x:
 "    vec4 RefractiveIndex;\n"//x:屈折率
-"    vec4 AlphaBlend;\n"//x:
 "    vec4 materialNo;\n"//x:
 "    vec4 lightst;\n"//レンジ, 減衰1, 減衰2, 減衰3
-"    mat4 mvp;\n"
+"    vec4 Padding;\n"
 "};\n"
 
 "layout(binding = 0, set = 4) uniform Materials {\n"
@@ -55,4 +52,7 @@ char* Shader_common =
 "    vec4 lightst;\n"//レンジ, 減衰1, 減衰2, 減衰3
 "    float depth;\n"
 "    int hitInstanceId;\n"
-"};\n";
+"    uint EmissiveIndex;\n"
+"};\n"
+
+"layout(location = 0) rayPayloadEXT vkRayPayload payload;\n";

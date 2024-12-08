@@ -4,7 +4,7 @@
 
 char* Shader_emissiveHit =
 
-"layout(location = rayPayloadInEXT_location) rayPayloadInEXT vkRayPayload payloadIn;\n"
+"layout(location = 1) rayPayloadInEXT vkRayPayload payloadIn;\n"
 
 "void main()\n"
 "{\n"
@@ -23,22 +23,13 @@ char* Shader_emissiveHit =
 "          payloadIn.reTry = true;\n"//目標の点光源以外の場合素通り
 "       }\n"
 "    }\n"
-//////平行光源
-"    pay_mNoF = materialIdent(payloadIn.mNo, DIRECTIONLIGHT | METALLIC);\n"
-"    if(pay_mNoF) {\n"
-"       if(materialIdent(mNo, DIRECTIONLIGHT)) {\n"//平行光源発生マテリアルか?
-"          payloadIn.color = sceneParams.dLightColor.xyz;\n"
-"       }\n"
-"       if(materialIdent(mNo, EMISSIVE)) {\n"//点光源の場合素通り
-"          payloadIn.reTry = true;\n"
-"       }\n"
-"    }\n"
+
 //////影
 "    if( \n"
 "       !materialIdent(mNo, EMISSIVE) && \n"
 "       materialIdent(payloadIn.mNo, EMISSIVE) || \n"
 "       (mNo == METALLIC || mNo == NONREFLECTION) && \n"
-"       materialIdent(payloadIn.mNo, DIRECTIONLIGHT | METALLIC) \n"
+"       materialIdent(payloadIn.mNo, METALLIC) \n"
 "       ) {\n"
 "       if(difTex.w >= 1.0f) {\n"
 "          payloadIn.color = vec3(0.0f, 0.0f, 0.0f);\n"

@@ -104,7 +104,7 @@ void VulkanBasicPolygonRt::createBLAS(RtData& rdata, uint32_t QueueIndex, uint32
     };
 
     Geometry.flags = VK_GEOMETRY_OPAQUE_BIT_KHR;
-    if (rdata.mat.useAlpha.x == 1.0f) {
+    if (useAlpha) {
         Geometry.flags = 0;
     }
 
@@ -180,7 +180,7 @@ void VulkanBasicPolygonRt::createTexture(RtData& rdata, uint32_t QueueIndex, uin
     d->createTextureSet(QueueIndex, comIndex, rdata.texId);
 }
 
-void VulkanBasicPolygonRt::createMultipleMaterials(uint32_t QueueIndex, uint32_t comIndex, bool useAlpha, uint32_t numMat,
+void VulkanBasicPolygonRt::createMultipleMaterials(uint32_t QueueIndex, uint32_t comIndex, bool use_Alpha, uint32_t numMat,
     Vertex3D_t* ver, uint32_t num, uint32_t** ind, uint32_t* indNum,
     VulkanDevice::textureIdSetInput* texid, uint32_t numInstance, bool updateBLAS_on) {
 
@@ -204,10 +204,7 @@ void VulkanBasicPolygonRt::createMultipleMaterials(uint32_t QueueIndex, uint32_t
             updateInstance(i1, Rdata[i]);
         }
         createTexture(Rdata[i], QueueIndex, comIndex, texid[i]);
-        Rdata[i].mat.useAlpha.x = 0.0f;
-        if (useAlpha) {
-            Rdata[i].mat.useAlpha.x = 1.0f;
-        }
+        useAlpha = use_Alpha;
     }
     rdataCreateF = true;
 }

@@ -4,7 +4,7 @@
 
 char* Shader_closesthit =
 
-"layout(location = rayPayloadInEXT_location) rayPayloadInEXT vkRayPayload payloadIn;\n"
+"layout(location = 1) rayPayloadInEXT vkRayPayload payloadIn;\n"
 
 "void main()\n"
 "{\n"
@@ -28,8 +28,6 @@ char* Shader_closesthit =
 "    difTex.xyz = MetallicPayloadCalculate(payloadIn.RecursionCnt, payloadIn.hitPosition, difTex.xyz, normalMap, payloadIn.hitInstanceId);\n"
 //半透明
 "    difTex.xyz = Translucent(payloadIn.RecursionCnt, payloadIn.hitPosition, difTex, normalMap); \n"
-//アルファブレンド
-"    difTex.xyz = AlphaBlend(payloadIn.RecursionCnt, payloadIn.hitPosition, difTex);\n"
 
 "    payloadIn.color = difTex.xyz;\n"
 "    payloadIn.hit = true;\n"

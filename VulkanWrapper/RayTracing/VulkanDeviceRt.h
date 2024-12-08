@@ -18,7 +18,7 @@ private:
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
 
 public:
-    static const uint32_t numHitShader = 4;
+    static const uint32_t numHitShader = 2;
 
     static VulkanDeviceRt* getVulkanDeviceRt() { return pDeviceRt; };
 

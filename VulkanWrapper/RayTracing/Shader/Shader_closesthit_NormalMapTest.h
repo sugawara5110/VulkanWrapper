@@ -4,7 +4,7 @@
 
 char* Shader_closesthit_NormalMapTest =
 
-"layout(location = rayPayloadInEXT_location) rayPayloadInEXT vkRayPayload payloadIn;\n"
+"layout(location = 1) rayPayloadInEXT vkRayPayload payloadIn;\n"
 
 "void main()\n"
 "{\n"

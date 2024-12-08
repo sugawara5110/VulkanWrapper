@@ -10,11 +10,10 @@
 #include "AccelerationStructure.h"
 
 enum vkMaterialType {
-	NONREFLECTION = 0b0000,
-	METALLIC = 0b1000,
-	EMISSIVE = 0b0100,
-	DIRECTIONLIGHT = 0b0010,
-	TRANSLUCENCE = 0b0001
+	NONREFLECTION = 0b100000,
+	METALLIC = 0b010000,
+	EMISSIVE = 0b001000,
+	TRANSLUCENCE = 0b000100
 };
 
 class VulkanBasicPolygonRt {
@@ -36,7 +35,6 @@ public:
 		CoordTf::VECTOR4 vAmbient = { 0.0f,0.0f,0.0f,0.0f };//アンビエント
 		CoordTf::VECTOR4 shininess = { 4.0f,0.0f,0.0f,0.0f };//x:スペキュラ強さ
 		CoordTf::VECTOR4 RefractiveIndex = { 0.0f,0.0f,0.0f,0.0f };//x:屈折率
-		CoordTf::VECTOR4 useAlpha = { 0.0f,0.0f,0.0f,0.0f };//x:
 		CoordTf::VECTOR4 MaterialType = { NONREFLECTION,0.0f,0.0f,0.0f };//x:
 	};
 
@@ -70,6 +68,7 @@ private:
 	uint32_t vertexCount = 0;
 	uint32_t vertexStride = 0;
 
+	bool useAlpha = false;
 	bool UpdateBLAS_On = false;
 
 	void createVertexBuffer(uint32_t QueueIndex, uint32_t comIndex, Vertex3D_t* ver, uint32_t num);

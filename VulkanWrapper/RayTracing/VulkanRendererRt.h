@@ -25,9 +25,6 @@ private:
         CoordTf::VECTOR4 numEmissive = {};//.x‚Ì‚Ý
         CoordTf::VECTOR4 GlobalAmbientColor = {};
         CoordTf::VECTOR4 emissiveNo[VulkanDevice::numLightMax] = {};//.x‚Ì‚Ý
-        CoordTf::VECTOR4 dDirection = {};
-        CoordTf::VECTOR4 dLightColor = {};
-        CoordTf::VECTOR4 dLightst = {};//x:ƒIƒ“ƒIƒt
         CoordTf::VECTOR4 TMin_TMax = {};//x, y
         CoordTf::VECTOR4 maxRecursion = {};//x:, y:maxNumInstance
     };
@@ -48,14 +45,10 @@ private:
 
     enum ShaderGroups {
         GroupRayGenShader = 0,
-        GroupMissShader0 = 1,
-        GroupMissShader1 = 2,
-        GroupEmMissShader0 = 3,
-        GroupEmMissShader1 = 4,
-        GroupHitShader0 = 5,
-        GroupHitShader1 = 6,
-        GroupEmHitShader0 = 7,
-        GroupEmHitShader1 = 8,
+        GroupMissShader = 1,
+        GroupEmMissShader = 2,
+        GroupHitShader = 3,
+        GroupEmHitShader = 4,
         MaxShaderGroup
     };
     std::vector<VkRayTracingShaderGroupCreateInfoKHR> m_shaderGroups;
@@ -70,15 +63,15 @@ private:
     VulkanDevice::Uniform<SceneParam>* m_sceneUBO = nullptr;
 
     struct Material {
+        CoordTf::MATRIX mvp;
         CoordTf::VECTOR4 vDiffuse;
         CoordTf::VECTOR4 vSpeculer;
         CoordTf::VECTOR4 vAmbient;
         CoordTf::VECTOR4 shininess;
         CoordTf::VECTOR4 RefractiveIndex;
-        CoordTf::VECTOR4 useAlpha;
         CoordTf::VECTOR4 MaterialType;
         CoordTf::VECTOR4 lightst;
-        CoordTf::MATRIX mvp;
+        CoordTf::VECTOR4 Padding;
     };
     std::vector<Material> materialArr;
     VulkanDevice::Uniform<Material>* materialUBO = nullptr;
@@ -119,7 +112,6 @@ public:
     void Init(uint32_t QueueIndex, uint32_t comIndex, std::vector<VulkanBasicPolygonRt::RtData*> rt);
     void destroy();
 
-    void setDirectionLight(bool on, CoordTf::VECTOR3 Color = { 1.0f,1.0f,1.0f }, CoordTf::VECTOR3 Direction = { -0.2f, -1.0f, -1.0f });
     void setTMin_TMax(float min, float max);
     void setGlobalAmbientColor(CoordTf::VECTOR3 Color);
 

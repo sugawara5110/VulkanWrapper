@@ -1,258 +1,32 @@
-//*****************************************************************************************//
-//**                             Shader_traceRay.h                                       **//
+Ôªø//*****************************************************************************************//
+//**                             Shader_traceRay                                         **//
 //*****************************************************************************************//
 
 char* Shader_traceRay =
 
-"layout(location = rayPayloadEXT_location) rayPayloadEXT vkRayPayload payload;\n"
-
-///////////////////////åıåπÇ÷åıê¸ÇîÚÇŒÇ∑, ÉqÉbÉgÇµÇΩèÍçáñæÇÈÇ≥Ç™â¡éZ//////////////////////////
-"vec3 EmissivePayloadCalculate(in int RecursionCnt, in vec3 hitPosition, \n"
-"                                in vec3 difTexColor, in vec3 speTexColor, in vec3 normalMap, in vec3 normal)\n"
+///////////////////////////////////////////traceRay////////////////////////////////////////////////
+"void traceRay(in int RecursionCnt,\n"
+"              in uint RayFlags,\n"
+"              in uint HitGroupIndex,\n"
+"              in uint MissShaderIndex,\n"
+"              in vec3 direction)\n"
 "{\n"
-"    MaterialCB mcb = matCB[gl_InstanceID];\n"
-"    int mNo = int(mcb.materialNo.x);\n"
-"    vec3 ret = difTexColor;\n"
+"    float tmin = sceneParams.TMin_TMax.x;\n"
+"    float tmax = sceneParams.TMin_TMax.y;\n"
+"    payload.color = vec3(0.0f, 0.0f, 0.0f);\n"
+"    payload.RecursionCnt = RecursionCnt + 1;\n"
+"    payload.EmissiveIndex = 0;\n"
+"    payload.reTry = false;\n"
+"    payload.hit = false;\n"
 
-"    bool mf = materialIdent(mNo, EMISSIVE);\n"
-"    if(!mf) {\n"//emissiveà»äO
-
-"       LightOut emissiveColor = LightOut(vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 0.0f, 0.0f));\n"
-"       LightOut Out;\n"
-"       payload.hitPosition = hitPosition;\n"
-"       float tmin = sceneParams.TMin_TMax.x;\n"
-"       float tmax = sceneParams.TMin_TMax.y;\n"
-"       RecursionCnt++;\n"
-
-"       vec3 SpeculerCol = mcb.Speculer.xyz;\n"
-"       vec3 Diffuse = mcb.Diffuse.xyz;\n"
-"       vec3 Ambient = mcb.Ambient.xyz + sceneParams.GlobalAmbientColor.xyz;\n"
-"       float shininess = mcb.shininess.x;\n"
-
-"       if(RecursionCnt <= sceneParams.maxRecursion.x) {\n"
-
-"          const uint RayFlags = gl_RayFlagsCullBackFacingTrianglesEXT;\n"
-//ì_åıåπåvéZ
-"          for(int i = 0; i < sceneParams.numEmissive.x; i++) {\n"
-
-"              vec4 emissivePosition = sceneParams.emissivePosition[i];\n"
-
-"              if(emissivePosition.w == 1.0f) {\n"
-
-"                 vec3 lightVec = normalize(emissivePosition.xyz - hitPosition);\n"
-"                 vec3 direction = lightVec;\n"
-"                 payload.pLightID = int(sceneParams.emissiveNo[i].x);\n"
-"                 bool loop = true;\n"
-"                 payload.hitPosition = hitPosition;\n"
-"                 while(loop){\n"
-"                    payload.mNo = EMISSIVE;\n"//èàóùï™äÚóp
-"                    vec3 origin = payload.hitPosition;\n"
-
-"                    traceRayEXT(\n"
-"                        topLevelAS,\n"
-"                        RayFlags,\n"
-"                        0xff,\n"
-"                        em_Index,\n"//sbtRecordOffset
-"                        0,\n"//sbtRecordStride
-"                        em_Index,\n"//missIndex
-"                        origin,\n"
-"                        tmin,\n"
-"                        direction,\n"
-"                        tmax,\n"
-"                        rayPayloadEXT_location\n"//layoutÇÃlocationî‘çÜ
-"                    );\n"
-
-"                    loop = payload.reTry;\n"
-"                 }\n"
-
-"                 Out = PointLightCom(SpeculerCol, Diffuse, Ambient, normalMap, emissivePosition, \n"
-"                                     hitPosition, payload.lightst, payload.color, sceneParams.cameraPosition.xyz, shininess);\n"
-
-"                 emissiveColor.Diffuse += Out.Diffuse;\n"
-"                 emissiveColor.Speculer += Out.Speculer;\n"
-"              }\n"
-"          }\n"
-//ïΩçsåıåπåvéZ
-"          if(sceneParams.dLightst.x == 1.0f){\n"
-"             payload.hitPosition = hitPosition;\n"
-"             vec3 direction = -sceneParams.dDirection.xyz;\n"
-"             bool loop = true;\n"
-"             while(loop){\n"
-"                payload.mNo = DIRECTIONLIGHT | METALLIC;\n"//èàóùï™äÚóp
-"                vec3 origin = payload.hitPosition;\n"
-
-"                traceRayEXT(\n"
-"                    topLevelAS,\n"
-"                    RayFlags,\n"
-"                    0xff,\n"
-"                    em_Index,\n"//sbtRecordOffset
-"                    0,\n"//sbtRecordStride
-"                    em_Index,\n"//missIndex
-"                    origin,\n"
-"                    tmin,\n"
-"                    direction,\n"
-"                    tmax,\n"
-"                    rayPayloadEXT_location\n"//ÉyÉCÉçÅ[ÉhÉCÉìÉfÉbÉNÉX
-"                );\n"
-
-"                loop = payload.reTry;\n"
-"             }\n"
-
-"             Out = DirectionalLightCom(SpeculerCol, Diffuse, Ambient, normalMap, sceneParams.dLightst, sceneParams.dDirection.xyz, \n"
-"                                       payload.color, hitPosition, sceneParams.cameraPosition.xyz, shininess);\n"
-
-"             emissiveColor.Diffuse += Out.Diffuse;\n"
-"             emissiveColor.Speculer += Out.Speculer;\n"
-"          }\n"
-"       }\n"
-//ç≈å„Ç…ÉeÉNÉXÉ`ÉÉÇÃêFÇ…ä|ÇØçáÇÌÇπ
-"       difTexColor *= emissiveColor.Diffuse;\n"
-"       speTexColor *= emissiveColor.Speculer;\n"
-"       ret = difTexColor + speTexColor;\n"
+"    if (RecursionCnt <= sceneParams.maxRecursion.x)\n"
+"    {\n"
+"        bool loop = true;\n"
+"        while (loop)\n"
+"        {\n"
+"            vec3 origin = payload.hitPosition;\n"
+"            traceRayEXT(topLevelAS, RayFlags, 0xff, HitGroupIndex, 0, MissShaderIndex, origin, tmin, direction, tmax, 0);\n"
+"            loop = payload.reTry;\n"
+"        }\n"
 "    }\n"
-"    return ret;\n"
-"}\n"
-
-///////////////////////îΩéÀï˚å¸Ç÷åıê¸ÇîÚÇŒÇ∑, ÉqÉbÉgÇµÇΩèÍçáÉsÉNÉZÉãílèÊéZ///////////////////////
-"vec3 MetallicPayloadCalculate(in int RecursionCnt, in vec3 hitPosition, \n"
-"                                in vec3 difTexColor, in vec3 normal, inout int hitInstanceId)\n"
-"{\n"
-"    int mNo = int(matCB[gl_InstanceID].materialNo.x);\n"
-"    vec3 ret = difTexColor;\n"
-
-"    hitInstanceId = gl_InstanceID; \n"//é©êgÇÃIDèëÇ´çûÇ›
-
-"    if(materialIdent(mNo, METALLIC)) {\n"//METALLIC
-
-"       RecursionCnt++;\n"
-"       payload.RecursionCnt = RecursionCnt;\n"
-//éãê¸ÉxÉNÉgÉã 
-"       vec3 eyeVec = gl_WorldRayDirectionEXT;\n"
-//îΩéÀÉxÉNÉgÉã
-"       vec3 reflectVec = reflect(eyeVec, normalize(normal));\n"
-"       vec3 direction = reflectVec;\n"//îΩéÀï˚å¸Ç…RayÇîÚÇŒÇ∑
-
-"       float tmin = sceneParams.TMin_TMax.x;\n"
-"       float tmax = sceneParams.TMin_TMax.y;\n"
-
-"       if (RecursionCnt <= sceneParams.maxRecursion.x) {\n"
-"           payload.hitPosition = hitPosition;\n"
-"           vec3 origin = payload.hitPosition;\n"
-
-"           traceRayEXT(\n"
-"               topLevelAS,\n"
-"               gl_RayFlagsCullBackFacingTrianglesEXT,\n"
-"               0xff,\n"
-"               clo_Index,\n"//sbtRecordOffset
-"               0,\n"//sbtRecordStride
-"               clo_Index,\n"//missIndex
-"               origin,\n"
-"               tmin,\n"
-"               direction,\n"
-"               tmax,\n"
-"               rayPayloadEXT_location\n"//ÉyÉCÉçÅ[ÉhÉCÉìÉfÉbÉNÉX
-"           );\n"
-
-"       }\n"
-
-"       vec3 outCol = vec3(0.0f, 0.0f, 0.0f);\n"
-"       if (payload.hit) {\n"
-"           outCol = difTexColor * payload.color;\n"//ÉqÉbÉgÇµÇΩèÍçáâfÇËçûÇ›Ç∆ÇµÇƒèÊéZ
-"           hitInstanceId = payload.hitInstanceId;\n"//ÉqÉbÉgÇµÇΩIDèëÇ´çûÇ›
-"           int hitmNo = payload.mNo;\n"
-"           if(materialIdent(hitmNo, EMISSIVE)){\n"
-"              outCol = payload.color;\n"
-"           }\n"
-"       }\n"
-"       else {\n"
-"           outCol = difTexColor;\n"//ÉqÉbÉgÇµÇ»Ç©Ç¡ÇΩèÍçáâfÇËçûÇ›ñ≥ÇµÇ≈å≥ÇÃÉsÉNÉZÉãèëÇ´çûÇ›
-"       }\n"
-"       ret = outCol;\n"
-"    }\n"
-
-"    return ret;\n"
-"}\n"
-
-////////////////////////////////////////îºìßñæ//////////////////////////////////////////
-"vec3 Translucent(in int RecursionCnt, in vec3 hitPosition, in vec4 difTexColor, in vec3 normal)\n"
-"{\n"
-"    MaterialCB mcb = matCB[gl_InstanceID];\n"
-"    int mNo = int(mcb.materialNo.x);\n"
-"    vec3 ret = difTexColor.xyz;\n"
-
-"    if(materialIdent(mNo, TRANSLUCENCE)) {\n"
-
-"       float Alpha = difTexColor.w;\n"
-"       RecursionCnt++;\n"
-"       payload.RecursionCnt = RecursionCnt;\n"
-"       float tmin = sceneParams.TMin_TMax.x;\n"
-"       float tmax = sceneParams.TMin_TMax.y;\n"
-//éãê¸ÉxÉNÉgÉã 
-"       vec3 eyeVec = gl_WorldRayDirectionEXT;\n"
-"       vec3 direction = normalize(eyeVec + -normal * mcb.RefractiveIndex.x);\n"
-
-"       if (RecursionCnt <= sceneParams.maxRecursion.x) {\n"
-"           payload.hitPosition = hitPosition;\n"
-"           vec3 origin = payload.hitPosition;\n"
-
-"           traceRayEXT(\n"
-"               topLevelAS,\n"
-"               gl_RayFlagsCullBackFacingTrianglesEXT,\n"
-"               0xff,\n"
-"               clo_Index,\n"//sbtRecordOffset
-"               0,\n"//sbtRecordStride
-"               clo_Index,\n"//missIndex
-"               origin,\n"
-"               tmin,\n"
-"               direction,\n"
-"               tmax,\n"
-"               rayPayloadEXT_location\n"//ÉyÉCÉçÅ[ÉhÉCÉìÉfÉbÉNÉX
-"           );\n"
-"       }\n"
-//ÉAÉãÉtÉ@ílÇÃî‰ó¶Ç≈å≥ÇÃêFÇ∆åıê¸è’ìÀêÊÇÃêFÇîzçá
-"       ret = payload.color * (1.0f - Alpha) + difTexColor.xyz * Alpha;\n"
-"    }\n"
-"    return ret;\n"
-"}\n"
-
-////////////////////////////////////ÉAÉãÉtÉ@ÉuÉåÉìÉh//////////////////////////////////////
-"vec3 AlphaBlend(in int RecursionCnt, in vec3 hitPosition, in vec4 difTexColor)\n"
-"{\n"
-"    MaterialCB mcb = matCB[gl_InstanceID];\n"
-"    int mNo = int(mcb.materialNo.x);\n"
-"    vec3 ret = difTexColor.xyz;\n"
-"    float blend = mcb.AlphaBlend.x;\n"
-"    float Alpha = difTexColor.w;\n"
-
-"    bool mf = materialIdent(mNo, TRANSLUCENCE);\n"
-"    if(blend == 1.0f && !mf && Alpha < 1.0f) {\n"
-
-"       RecursionCnt++;\n"
-"       payload.RecursionCnt = RecursionCnt;\n"
-"       float tmin = sceneParams.TMin_TMax.x;\n"
-"       float tmax = sceneParams.TMin_TMax.y;\n"
-"       vec3 direction = gl_WorldRayDirectionEXT;\n"
-
-"       if (RecursionCnt <= sceneParams.maxRecursion.x) {\n"
-"           payload.hitPosition = hitPosition;\n"
-"           vec3 origin = payload.hitPosition;\n"
-
-"           traceRayEXT(\n"
-"               topLevelAS,\n"
-"               gl_RayFlagsCullBackFacingTrianglesEXT,\n"
-"               0xff,\n"
-"               clo_Index,\n"//sbtRecordOffset
-"               0,\n"//sbtRecordStride
-"               clo_Index,\n"//missIndex
-"               origin,\n"
-"               tmin,\n"
-"               direction,\n"
-"               tmax,\n"
-"               rayPayloadEXT_location\n"//ÉyÉCÉçÅ[ÉhÉCÉìÉfÉbÉNÉX
-"           );\n"
-"       }\n"
-//ÉAÉãÉtÉ@ílÇÃî‰ó¶Ç≈å≥ÇÃêFÇ∆åıê¸è’ìÀêÊÇÃêFÇîzçá
-"       ret = payload.color * (1.0f - Alpha) + difTexColor.xyz * Alpha;\n"
-"    }\n"
-"    return ret;\n"
 "}\n";

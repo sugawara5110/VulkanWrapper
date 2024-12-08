@@ -9,11 +9,12 @@ char* Shader_hitCom =
 
 "hitAttributeEXT vec2 attribs;\n"
 
-"const int NONREFLECTION  = 0; \n"//0b0000
-"const int METALLIC       = 8; \n"//0b1000
-"const int EMISSIVE       = 4; \n"//0b0100
-"const int DIRECTIONLIGHT = 2; \n"//0b0010
-"const int TRANSLUCENCE   = 1; \n"//0b0001
+"const int NONREFLECTION  =32;\n" //0b100000
+"const int METALLIC       =16;\n" //0b010000
+"const int EMISSIVE       =8;\n"  //0b001000
+"const int TRANSLUCENCE   =4;\n"  //0b000100
+"const int NEE            =2;\n"  //0b000010 
+"const int NEE_PATHTRACER =1;\n"  //0b000001 
 
 "struct Vertex {\n"
 "    vec4 Position;\n"
