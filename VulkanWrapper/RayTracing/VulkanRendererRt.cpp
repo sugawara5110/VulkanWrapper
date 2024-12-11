@@ -109,9 +109,10 @@ void VulkanRendererRt::Init(uint32_t QueueIndex, uint32_t comIndex, std::vector<
             textureNorArr.push_back(rt[i]->texId.norTex.info);
             textureSpeArr.push_back(rt[i]->texId.speTex.info);
             Material m = {};
-            memcpy(&m, &rt[i]->mat, sizeof(VulkanBasicPolygonRt::RtMaterial));
+            memcpy(&m.vDiffuse, &rt[i]->mat, sizeof(VulkanBasicPolygonRt::RtMaterial));
             memcpy(&m.lightst, &rt[i]->instance[j].lightst, sizeof(CoordTf::VECTOR4));
             memcpy(&m.mvp, &rt[i]->instance[j].mvp, sizeof(CoordTf::MATRIX));
+            memcpy(&m.addColor, &rt[i]->instance[j].addColor, sizeof(CoordTf::VECTOR4));
             materialArr.push_back(m);
 
             if (rt[i]->mat.MaterialType.x == (float)EMISSIVE) {
@@ -219,6 +220,7 @@ void VulkanRendererRt::Update(int maxRecursion) {
             memcpy(&m.vDiffuse, &rt[i]->mat, sizeof(VulkanBasicPolygonRt::RtMaterial));
             memcpy(&m.lightst, &rt[i]->instance[j].lightst, sizeof(CoordTf::VECTOR4));
             memcpy(&m.mvp, &rt[i]->instance[j].mvp, sizeof(CoordTf::MATRIX));
+            memcpy(&m.addColor, &rt[i]->instance[j].addColor, sizeof(CoordTf::VECTOR4));
             memcpy(&materialArr[instanceCnt], &m, sizeof(Material));
 
             if (rt[i]->mat.MaterialType.x == (float)EMISSIVE) {

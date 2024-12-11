@@ -70,8 +70,8 @@ private:
         CoordTf::VECTOR4 shininess;
         CoordTf::VECTOR4 RefractiveIndex;
         CoordTf::VECTOR4 MaterialType;
+        CoordTf::VECTOR4 addColor;
         CoordTf::VECTOR4 lightst;
-        CoordTf::VECTOR4 Padding;
     };
     std::vector<Material> materialArr;
     VulkanDevice::Uniform<Material>* materialUBO = nullptr;

@@ -9,6 +9,7 @@ char* Shader_common =
 "#extension GL_EXT_nonuniform_qualifier : enable\n"//gl_InstanceIDで必要
 
 "#define NumLightMax 256 \n"
+"const float AIR_RefractiveIndex = 1.0f;\n"
 
 "layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;\n"
 
@@ -31,8 +32,8 @@ char* Shader_common =
 "    vec4 shininess;\n"//x:
 "    vec4 RefractiveIndex;\n"//x:屈折率
 "    vec4 materialNo;\n"//x:
+"    vec4 addColor;\n"
 "    vec4 lightst;\n"//レンジ, 減衰1, 減衰2, 減衰3
-"    vec4 Padding;\n"
 "};\n"
 
 "layout(binding = 0, set = 4) uniform Materials {\n"

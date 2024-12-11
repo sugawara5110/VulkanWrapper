@@ -14,20 +14,13 @@ char* Shader_closesthit =
 "    vec3 normalMap = getNorPixel();\n"
 "    vec3 speTex = getSpePixel();\n"
 
-"    vec3 normal = getNormal() * mat3(gl_ObjectToWorld3x4EXT);\n"
-
-"    payloadIn.reTry = false;\n"
-
 //深度取得
 "    if(payloadIn.depth == -1.0f) {\n"
 "       payloadIn.depth = getDepth();\n"
 "    }\n"
-//光源への光線
-"    difTex.xyz = EmissivePayloadCalculate(payloadIn.RecursionCnt, payloadIn.hitPosition, difTex.xyz, speTex, normalMap, normal);\n"
-//反射方向への光線
-"    difTex.xyz = MetallicPayloadCalculate(payloadIn.RecursionCnt, payloadIn.hitPosition, difTex.xyz, normalMap, payloadIn.hitInstanceId);\n"
-//半透明
-"    difTex.xyz = Translucent(payloadIn.RecursionCnt, payloadIn.hitPosition, difTex, normalMap); \n"
+
+"    difTex.xyz = PayloadCalculate_OneRay(payloadIn.RecursionCnt, payloadIn.hitPosition, difTex, speTex,\n"
+"                                         normalMap, payloadIn.hitInstanceId);\n"
 
 "    payloadIn.color = difTex.xyz;\n"
 "    payloadIn.hit = true;\n"

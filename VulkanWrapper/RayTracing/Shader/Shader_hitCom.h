@@ -167,8 +167,16 @@ char* Shader_hitCom =
 "vec4 getDifPixel()\n"
 "{\n"
 "    vec2 uv = getTexUV();\n"
-"    vec4 ret = texture(texturesDif[gl_InstanceID], uv);\n"
-"    return ret;\n"
+"    vec4 tex = texture(texturesDif[gl_InstanceID], uv);\n"
+"    MaterialCB mcb = matCB[gl_InstanceID];\n"
+"    vec4 add = mcb.addColor;\n"
+
+"    tex.x = clamp(tex.x + add.x, 0.0f, 1.0f);\n"
+"    tex.y = clamp(tex.y + add.y, 0.0f, 1.0f);\n"
+"    tex.z = clamp(tex.z + add.z, 0.0f, 1.0f);\n"
+"    tex.w = clamp(tex.w + add.w, 0.0f, 1.0f);\n"
+
+"    return tex;\n"
 "}\n"
 //////////////ノーマル
 "vec3 getNorPixel()\n"

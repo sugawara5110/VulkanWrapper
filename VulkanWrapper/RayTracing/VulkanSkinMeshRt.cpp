@@ -376,11 +376,11 @@ CoordTf::VECTOR3 VulkanSkinMeshRt::GetVertexPosition(int meshIndex, int verNum, 
 	return ret;
 }
 
-void VulkanSkinMeshRt::Instancing(CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale) {
+void VulkanSkinMeshRt::Instancing(CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale, CoordTf::VECTOR4 addColor) {
 
 	for (int i = 0; i < getNumMesh(); i++) {
 		if (!isNoUseMesh(i))
-			mObj[i].instancing(pos, theta, scale);
+			mObj[i].instancing(pos, theta, scale, addColor);
 	}
 }
 
@@ -405,10 +405,10 @@ bool VulkanSkinMeshRt::InstancingUpdate(uint32_t swapIndex, uint32_t QueueIndex,
 
 bool VulkanSkinMeshRt::Update(uint32_t swapIndex, uint32_t QueueIndex, uint32_t comIndex,
 	int AnimationIndex, float time,
-	CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale,
+	CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale, CoordTf::VECTOR4 addColor,
 	int InternalAnimationIndex) {
 
-	Instancing(pos, theta, scale);
+	Instancing(pos, theta, scale, addColor);
 	return InstancingUpdate(swapIndex, QueueIndex, comIndex, AnimationIndex, time, InternalAnimationIndex);
 }
 

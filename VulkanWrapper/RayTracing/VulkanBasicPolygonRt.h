@@ -28,13 +28,14 @@ public:
 		VkTransformMatrixKHR vkWorld = {};
 		CoordTf::VECTOR4 lightst = { 100.0f,0.1f, 0.001f, 0.001f };//レンジ, 減衰1, 減衰2, 減衰3
 		float lightOn = 0.0f;
+		CoordTf::VECTOR4 addColor = {};
 	};
 	struct RtMaterial {
 		CoordTf::VECTOR4 vDiffuse = { 0.8f,0.8f,0.8f,1.0f };//ディフューズ色
 		CoordTf::VECTOR4 vSpeculer = { 0.2f,0.2f,0.2f,1.0f };//スぺキュラ色
 		CoordTf::VECTOR4 vAmbient = { 0.0f,0.0f,0.0f,0.0f };//アンビエント
 		CoordTf::VECTOR4 shininess = { 4.0f,0.0f,0.0f,0.0f };//x:スペキュラ強さ
-		CoordTf::VECTOR4 RefractiveIndex = { 0.0f,0.0f,0.0f,0.0f };//x:屈折率
+		CoordTf::VECTOR4 RefractiveIndex = { 1.0f,0.0f,0.0f,0.0f };//x:屈折率:1.0f:空気(基準), 1.33f:水, 1.5f:ガラス, 2.4f:ダイヤ 
 		CoordTf::VECTOR4 MaterialType = { NONREFLECTION,0.0f,0.0f,0.0f };//x:
 	};
 
@@ -104,9 +105,11 @@ public:
 
 	void setMaterialRefractiveIndex(float RefractiveIndex, uint32_t materialIndex = 0);
 
-	void instancing(CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale);
+	void instancing(CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale, CoordTf::VECTOR4 addColor);
 	void instancingUpdate(uint32_t swapIndex, uint32_t QueueIndex, uint32_t comIndex);
-	void update(uint32_t swapIndex, uint32_t QueueIndex, uint32_t comIndex, CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale);
+
+	void update(uint32_t swapIndex, uint32_t QueueIndex, uint32_t comIndex,
+		CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale, CoordTf::VECTOR4 addColor);
 };
 
 #endif

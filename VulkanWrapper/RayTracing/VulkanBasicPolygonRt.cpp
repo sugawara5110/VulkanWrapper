@@ -257,7 +257,7 @@ void VulkanBasicPolygonRt::setMaterialRefractiveIndex(float RefractiveIndex, uin
     m.RefractiveIndex.x = RefractiveIndex;
 }
 
-void VulkanBasicPolygonRt::instancing(CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale) {
+void VulkanBasicPolygonRt::instancing(CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale, CoordTf::VECTOR4 addColor) {
     using namespace CoordTf;
     MATRIX w = {};
     MATRIX w2 = {};
@@ -273,6 +273,7 @@ void VulkanBasicPolygonRt::instancing(CoordTf::VECTOR3 pos, CoordTf::VECTOR3 the
 
     for (auto i = 0; i < Rdata.size(); i++) {
         VulkanBasicPolygonRt::Instance& ins = Rdata[i].instance[InstanceCnt];
+        ins.addColor = addColor;
         ins.world = w2;
         ins.vkWorld = vw;
         ins.mvp = w2 * device->getCameraView() * device->getProjection();
@@ -294,7 +295,8 @@ void VulkanBasicPolygonRt::instancingUpdate(uint32_t swapIndex, uint32_t QueueIn
     InstanceCnt = 0;
 }
 
-void VulkanBasicPolygonRt::update(uint32_t swapIndex, uint32_t QueueIndex, uint32_t comIndex, CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale) {
-    instancing(pos, theta, scale);
+void VulkanBasicPolygonRt::update(uint32_t swapIndex, uint32_t QueueIndex,
+    uint32_t comIndex, CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale, CoordTf::VECTOR4 addColor) {
+    instancing(pos, theta, scale, addColor);
     instancingUpdate(swapIndex, QueueIndex, comIndex);
 }
