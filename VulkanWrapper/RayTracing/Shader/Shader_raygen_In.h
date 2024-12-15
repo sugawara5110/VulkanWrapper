@@ -23,6 +23,7 @@ char* Shader_raygen_In =
 
 "    payload.RecursionCnt = 0;\n"
 "    payload.hitPosition = origin;\n"
+"    payload.mNo = NONREFLECTION;\n"
 
 "    vec4 idMap = vec4(0.0f, 0.0f, 0.0f, 0.0f);\n"//x:のみ使用
 "    vec4 dpMap = vec4(0.0f, 0.0f, 0.0f, 0.0f);\n"//x:のみ使用

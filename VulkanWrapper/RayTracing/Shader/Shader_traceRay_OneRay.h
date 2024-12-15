@@ -37,15 +37,18 @@ char* Shader_traceRay_OneRay =
 
 "              traceRay(RecursionCnt,\n"
 "                       gl_RayFlagsCullBackFacingTrianglesEXT,\n"
-"                       1,\n"
+"                       0,\n"
 "                       1,\n"
 "                       direction);\n"
 
-"              Out = PointLightCom(SpeculerCol, Diffuse, Ambient, normal, emissivePosition, \n"
-"                                  hitPosition, payload.lightst, payload.color, sceneParams.cameraPosition.xyz, shininess);\n"
+"              if(materialIdent(payload.mNo, EMISSIVE))\n"//狙い通り光源に当たった場合のみ色計算
+"              {\n"
+"                  Out = PointLightCom(SpeculerCol, Diffuse, Ambient, normal, emissivePosition, \n"
+"                                      hitPosition, payload.lightst, payload.color, sceneParams.cameraPosition.xyz, shininess);\n"
 
-"              emissiveColor.Diffuse += Out.Diffuse;\n"
-"              emissiveColor.Speculer += Out.Speculer;\n"
+"                  emissiveColor.Diffuse += Out.Diffuse;\n"
+"                  emissiveColor.Speculer += Out.Speculer;\n"
+"              }\n"
 "           }\n"
 "       }\n"
 //最後にテクスチャの色に掛け合わせ
@@ -73,6 +76,7 @@ char* Shader_traceRay_OneRay =
 "       vec3 direction = reflectVec;\n"//反射方向にRayを飛ばす
 
 "       payload.hitPosition = hitPosition; \n"
+"       payload.mNo = METALLIC; \n"//処理分岐用
 
 "       traceRay(RecursionCnt,\n"
 "                gl_RayFlagsCullBackFacingTrianglesEXT,\n"
@@ -125,6 +129,7 @@ char* Shader_traceRay_OneRay =
 "       vec3 direction = refract(eyeVec, normalize(normal), eta);\n"
 
 "       payload.hitPosition = hitPosition;\n"
+"       payload.mNo = TRANSLUCENCE; \n"//処理分岐用
 
 "       traceRay(RecursionCnt,\n"
 "                gl_RayFlagsCullBackFacingTrianglesEXT,\n"

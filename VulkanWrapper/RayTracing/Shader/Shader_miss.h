@@ -11,4 +11,5 @@ char* Shader_miss =
 "    payloadIn.color = vec3(0.0, 0.0, 0.0);\n"
 "    payloadIn.hit = false;\n"
 "    payloadIn.reTry = false;\n"
+"    payloadIn.mNo = NONREFLECTION;\n"
 "}\n";

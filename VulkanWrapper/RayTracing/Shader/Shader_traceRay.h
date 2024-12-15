@@ -4,7 +4,8 @@
 
 char* Shader_traceRay =
 
-///////////////////////////////////////////traceRay////////////////////////////////////////////////
+"layout(location = 0) rayPayloadEXT vkRayPayload payload;\n"
+
 "void traceRay(in int RecursionCnt,\n"
 "              in uint RayFlags,\n"
 "              in uint HitGroupIndex,\n"

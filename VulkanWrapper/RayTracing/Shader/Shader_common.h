@@ -11,6 +11,13 @@ char* Shader_common =
 "#define NumLightMax 256 \n"
 "const float AIR_RefractiveIndex = 1.0f;\n"
 
+"const int NONREFLECTION  =32;\n" //0b100000
+"const int METALLIC       =16;\n" //0b010000
+"const int EMISSIVE       =8;\n"  //0b001000
+"const int TRANSLUCENCE   =4;\n"  //0b000100
+"const int NEE            =2;\n"  //0b000010 
+"const int NEE_PATHTRACER =1;\n"  //0b000001 
+
 "layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;\n"
 
 "layout(binding = 2, set = 0) uniform SceneParameters {\n"
@@ -54,6 +61,4 @@ char* Shader_common =
 "    float depth;\n"
 "    int hitInstanceId;\n"
 "    uint EmissiveIndex;\n"
-"};\n"
-
-"layout(location = 0) rayPayloadEXT vkRayPayload payload;\n";
+"};\n";

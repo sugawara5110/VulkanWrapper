@@ -15,8 +15,15 @@ char* Shader_closesthit =
 "    vec3 speTex = getSpePixel();\n"
 
 //深度取得
-"    if(payloadIn.depth == -1.0f) {\n"
+"    if(payloadIn.depth == -1.0f)\n" 
+"    {\n"
 "       payloadIn.depth = getDepth();\n"
+"    }\n"
+
+"    if(materialIdent(payloadIn.mNo, EMISSIVE))\n"
+"    {\n"
+"       payloadIn.mNo = int(matCB[gl_InstanceID].materialNo.x);\n"
+"       return;\n"
 "    }\n"
 
 "    difTex.xyz = PayloadCalculate_OneRay(payloadIn.RecursionCnt, payloadIn.hitPosition, difTex, speTex,\n"

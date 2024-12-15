@@ -9,5 +9,7 @@ char* Shader_emissiveMiss =
 "void main()\n"
 "{\n"
 "    payloadIn.color = vec3(0.0, 0.0, 0.0);\n"
+"    payloadIn.hit = false;\n"
 "    payloadIn.reTry = false;\n"
+"    payloadIn.mNo = NONREFLECTION;\n"
 "}\n";
