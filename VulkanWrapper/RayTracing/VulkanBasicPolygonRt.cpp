@@ -6,6 +6,29 @@
 
 #include "VulkanBasicPolygonRt.h"
 
+void VulkanBasicPolygonRt::RtData::setvSize(CoordTf::VECTOR3 v) {
+    if (!setvSize_first) {
+        LmaxX = LminX = v.x;
+        LmaxY = LminY = v.y;
+        LmaxZ = LminZ = v.z;
+        setvSize_first = true;
+    }
+    if (LmaxX < v.x)LmaxX = v.x;
+    if (LminX > v.x)LminX = v.x;
+    if (LmaxY < v.y)LmaxY = v.y;
+    if (LminY > v.y)LminY = v.y;
+    if (LmaxZ < v.z)LmaxZ = v.z;
+    if (LminZ > v.z)LminZ = v.z;
+}
+
+void VulkanBasicPolygonRt::RtData::createOutlineSize(CoordTf::VECTOR3 scale, int InstanceIndex) {
+    float x = (LmaxX - LminX) * scale.x;
+    float y = (LmaxY - LminY) * scale.y;
+    float z = (LmaxZ - LminZ) * scale.z;
+
+    instance[InstanceIndex].OutlineSize = 2 * (x * y + y * z + x * z);
+}
+
 VulkanBasicPolygonRt::VulkanBasicPolygonRt() {
 
 }
@@ -40,22 +63,27 @@ void VulkanBasicPolygonRt::createVertexBuffer(
     uint32_t comIndex,
     Vertex3D_t* ver, uint32_t num) {
 
+    using namespace CoordTf;
+
     struct Vertex3Dvec4 {
-        float pos[4] = {};
-        float normal[4] = {};
-        float tangent[4] = {};
-        float difUv[4] = {};
-        float speUv[4] = {};
+        VECTOR4 pos = {};
+        VECTOR4 normal = {};
+        VECTOR4 tangent = {};
+        VECTOR4 difUv = {};
+        VECTOR4 speUv = {};
     };
 
     Vertex3Dvec4* v = NEW Vertex3Dvec4[num];
 
     for (uint32_t i = 0; i < num; i++) {
-        memcpy(v[i].pos, ver[i].pos, sizeof(float) * 3);
-        memcpy(v[i].normal, ver[i].normal, sizeof(float) * 3);
-        memcpy(v[i].tangent, ver[i].tangent, sizeof(float) * 3);
-        memcpy(v[i].difUv, ver[i].difUv, sizeof(float) * 2);
-        memcpy(v[i].speUv, ver[i].speUv, sizeof(float) * 2);
+        memcpy(&v[i].pos, &ver[i].pos, sizeof(VECTOR3));
+        memcpy(&v[i].normal, &ver[i].normal, sizeof(VECTOR3));
+        memcpy(&v[i].tangent, &ver[i].tangent, sizeof(VECTOR3));
+        memcpy(&v[i].difUv, &ver[i].difUv, sizeof(VECTOR2));
+        memcpy(&v[i].speUv, &ver[i].speUv, sizeof(VECTOR2));
+        for (auto i = 0; i < Rdata.size(); i++) {
+            Rdata[i].setvSize(ver[i].pos);
+        }
     }
 
     VkBufferUsageFlags usageForRT =
@@ -215,11 +243,13 @@ void VulkanBasicPolygonRt::create(uint32_t QueueIndex, uint32_t comIndex, bool u
 
     Vertex3D_t* v3 = NEW Vertex3D_t[num];
 
+    using namespace CoordTf;
+
     for (uint32_t i = 0; i < num; i++) {
-        memcpy(v3[i].pos, ver[i].pos, sizeof(float) * 3);
-        memcpy(v3[i].normal, ver[i].normal, sizeof(float) * 3);
-        memcpy(v3[i].difUv, ver[i].difUv, sizeof(float) * 2);
-        memcpy(v3[i].speUv, ver[i].speUv, sizeof(float) * 2);
+        memcpy(&v3[i].pos, &ver[i].pos, sizeof(VECTOR3));
+        memcpy(&v3[i].normal, &ver[i].normal, sizeof(VECTOR3));
+        memcpy(&v3[i].difUv, &ver[i].difUv, sizeof(VECTOR2));
+        memcpy(&v3[i].speUv, &ver[i].speUv, sizeof(VECTOR2));
     }
 
     const uint32_t numMaterial = 1;
@@ -254,7 +284,12 @@ void VulkanBasicPolygonRt::setMaterialShininess(float shininess, uint32_t materi
 void VulkanBasicPolygonRt::setMaterialRefractiveIndex(float RefractiveIndex, uint32_t materialIndex) {
 
     VulkanBasicPolygonRt::RtMaterial& m = Rdata[materialIndex].mat;
-    m.RefractiveIndex.x = RefractiveIndex;
+    m.RefractiveIndex_roughness.x = RefractiveIndex;
+}
+
+void VulkanBasicPolygonRt::setMaterialRoughness(float Roughness, uint32_t materialIndex) {
+    VulkanBasicPolygonRt::RtMaterial& m = Rdata[materialIndex].mat;
+    m.RefractiveIndex_roughness.y = Roughness;
 }
 
 void VulkanBasicPolygonRt::instancing(CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale, CoordTf::VECTOR4 addColor) {
@@ -272,6 +307,7 @@ void VulkanBasicPolygonRt::instancing(CoordTf::VECTOR3 pos, CoordTf::VECTOR3 the
     VulkanDevice* device = VulkanDevice::GetInstance();
 
     for (auto i = 0; i < Rdata.size(); i++) {
+        Rdata[i].createOutlineSize(scale, InstanceCnt);
         VulkanBasicPolygonRt::Instance& ins = Rdata[i].instance[InstanceCnt];
         ins.addColor = addColor;
         ins.world = w2;

@@ -146,10 +146,10 @@ public:
     };
 
     struct Vertex3D {
-        float pos[3];
-        float normal[3];
-        float difUv[2];
-        float speUv[2];
+        CoordTf::VECTOR3 pos;
+        CoordTf::VECTOR3 normal;
+        CoordTf::VECTOR2 difUv;
+        CoordTf::VECTOR2 speUv;
     };
 
     class CommandObj {

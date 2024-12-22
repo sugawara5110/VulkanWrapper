@@ -12,51 +12,46 @@ char* Shader_traceRay_OneRay =
 "    int mNo = int(mcb.materialNo.x);\n"
 "    vec3 ret = difTexColor;\n"
 
-"    bool mf = materialIdent(mNo, EMISSIVE);\n"
-"    if(!mf) {\n"//emissive以外
+"    LightOut emissiveColor = LightOut(vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 0.0f, 0.0f));\n"
+"    LightOut Out;\n"
 
-"       LightOut emissiveColor = LightOut(vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 0.0f, 0.0f));\n"
-"       LightOut Out;\n"
+"    vec3 SpeculerCol = mcb.Speculer.xyz;\n"
+"    vec3 Diffuse = mcb.Diffuse.xyz;\n"
+"    vec3 Ambient = mcb.Ambient.xyz + sceneParams.GlobalAmbientColor.xyz;\n"
+"    float shininess = mcb.shininess.x;\n"
 
-"       vec3 SpeculerCol = mcb.Speculer.xyz;\n"
-"       vec3 Diffuse = mcb.Diffuse.xyz;\n"
-"       vec3 Ambient = mcb.Ambient.xyz + sceneParams.GlobalAmbientColor.xyz;\n"
-"       float shininess = mcb.shininess.x;\n"
+"    for(int i = 0; i < sceneParams.numEmissive.x; i++) {\n"
 
-"       for(int i = 0; i < sceneParams.numEmissive.x; i++) {\n"
+"        vec4 emissivePosition = sceneParams.emissivePosition[i];\n"
 
-"           vec4 emissivePosition = sceneParams.emissivePosition[i];\n"
+"        if(emissivePosition.w == 1.0f) {\n"
 
-"           if(emissivePosition.w == 1.0f) {\n"
+"           vec3 lightVec = normalize(emissivePosition.xyz - hitPosition);\n"
+"           vec3 direction = lightVec;\n"
+"           payload.hitPosition = hitPosition;\n"
+"           payload.mNo = EMISSIVE; \n"//処理分岐用
 
-"              vec3 lightVec = normalize(emissivePosition.xyz - hitPosition);\n"
-"              vec3 direction = lightVec;\n"
-"              payload.pLightID = int(sceneParams.emissiveNo[i].x);\n"
-"              payload.hitPosition = hitPosition;\n"
-"              payload.mNo = EMISSIVE; \n"//処理分岐用
+"           traceRay(RecursionCnt,\n"
+"                    gl_RayFlagsCullBackFacingTrianglesEXT,\n"
+"                    0,\n"
+"                    1,\n"
+"                    direction);\n"
 
-"              traceRay(RecursionCnt,\n"
-"                       gl_RayFlagsCullBackFacingTrianglesEXT,\n"
-"                       0,\n"
-"                       1,\n"
-"                       direction);\n"
+"           if(materialIdent(payload.mNo, EMISSIVE))\n"//狙い通り光源に当たった場合のみ色計算
+"           {\n"
+"               emissivePosition.xyz = payload.hitPosition;\n"
+"               Out = PointLightCom(SpeculerCol, Diffuse, Ambient, normal, emissivePosition, \n"
+"                                   hitPosition, payload.lightst, payload.color, sceneParams.cameraPosition.xyz, shininess);\n"
 
-"              if(materialIdent(payload.mNo, EMISSIVE))\n"//狙い通り光源に当たった場合のみ色計算
-"              {\n"
-"                  Out = PointLightCom(SpeculerCol, Diffuse, Ambient, normal, emissivePosition, \n"
-"                                      hitPosition, payload.lightst, payload.color, sceneParams.cameraPosition.xyz, shininess);\n"
-
-"                  emissiveColor.Diffuse += Out.Diffuse;\n"
-"                  emissiveColor.Speculer += Out.Speculer;\n"
-"              }\n"
+"               emissiveColor.Diffuse += Out.Diffuse;\n"
+"               emissiveColor.Speculer += Out.Speculer;\n"
 "           }\n"
-"       }\n"
-//最後にテクスチャの色に掛け合わせ
-"       difTexColor *= emissiveColor.Diffuse;\n"
-"       speTexColor *= emissiveColor.Speculer;\n"
-"       ret = difTexColor + speTexColor;\n"
+"        }\n"
 "    }\n"
-"    return ret;\n"
+//最後にテクスチャの色に掛け合わせ
+"    difTexColor *= emissiveColor.Diffuse;\n"
+"    speTexColor *= emissiveColor.Speculer;\n"
+"    return difTexColor + speTexColor;\n"
 "}\n"
 
 ///////////////////////反射方向へ光線を飛ばす, ヒットした場合ピクセル値乗算///////////////////////
@@ -113,14 +108,14 @@ char* Shader_traceRay_OneRay =
 "       float Alpha = difTexColor.w;\n"
 
 "       float in_eta = AIR_RefractiveIndex;\n"
-"       float out_eta = mcb.RefractiveIndex.x;\n"
+"       float out_eta = mcb.RefractiveIndex_roughness.x;\n"
 
 "       vec3 r_eyeVec = -gl_WorldRayDirectionEXT;\n"
 "       float norDir = dot(r_eyeVec, normal);\n"
 "       if (norDir < 0.0f)\n"
 "       {\n"
 "           normal *= -1.0f;\n"
-"           in_eta = mcb.RefractiveIndex.x;\n"
+"           in_eta = mcb.RefractiveIndex_roughness.x;\n"
 "           out_eta = AIR_RefractiveIndex;\n"
 "       }\n"
 

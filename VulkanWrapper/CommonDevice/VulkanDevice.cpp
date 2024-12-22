@@ -889,6 +889,7 @@ void VulkanDevice::GetTexture(
 }
 
 int32_t VulkanDevice::getTextureNo(char* pass) {
+    if (!pass)return -1;
     for (uint32_t i = 0; i < numTexture; i++) {
         size_t len1 = strlen(textureNameList[i]);
         size_t len2 = strlen(pass);

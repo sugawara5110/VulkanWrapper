@@ -89,19 +89,11 @@ void VulkanSkinMeshRt::SetVertex(bool lclOn, bool axisOn) {
 		for (unsigned int i = 0; i < mesh->getNumPolygonVertices(); i++) {
 			Vertex3D_t* v = &vbm[i];
 			Vertex_M* vv = &vb_m[i];
-			v->pos[0] = vv->Pos.x;
-			v->pos[1] = vv->Pos.y;
-			v->pos[2] = vv->Pos.z;
-			v->normal[0] = vv->normal.x;
-			v->normal[1] = vv->normal.y;
-			v->normal[2] = vv->normal.z;
-			v->tangent[0] = vv->tangent.x;
-			v->tangent[1] = vv->tangent.y;
-			v->tangent[2] = vv->tangent.z;
-			v->difUv[0] = vv->tex0.x;
-			v->difUv[1] = vv->tex0.y;
-			v->speUv[0] = vv->tex1.x;
-			v->speUv[1] = vv->tex1.y;
+			v->pos = vv->Pos;
+			v->normal = vv->normal;
+			v->tangent = vv->tangent;
+			v->difUv = vv->tex0;
+			v->speUv = vv->tex1;
 
 			MY_VERTEX_S* vs = &vb[i];
 			Skin_VERTEX* vvs = &svb[i];
@@ -431,6 +423,13 @@ void VulkanSkinMeshRt::setMaterialRefractiveIndex(float RefractiveIndex,
 	uint32_t materialIndex) {
 
 	mObj[meshIndex].setMaterialRefractiveIndex(RefractiveIndex, materialIndex);
+}
+
+void VulkanSkinMeshRt::setMaterialRoughness(float Roughness,
+	uint32_t meshIndex,
+	uint32_t materialIndex) {
+
+	mObj[meshIndex].setMaterialRoughness(Roughness, materialIndex);
 }
 
 VulkanSkinMeshRt::SkinningCom::~SkinningCom() {

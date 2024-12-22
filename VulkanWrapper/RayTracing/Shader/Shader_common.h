@@ -9,6 +9,10 @@ char* Shader_common =
 "#extension GL_EXT_nonuniform_qualifier : enable\n"//gl_InstanceIDで必要
 
 "#define NumLightMax 256 \n"
+
+"uint Seed = 0;\n"
+"const float PI = 3.1415926;\n"
+"vec3 local_normal = vec3(0.0f, 0.0f, 1.0f);\n"
 "const float AIR_RefractiveIndex = 1.0f;\n"
 
 "const int NONREFLECTION  =32;\n" //0b100000
@@ -21,14 +25,21 @@ char* Shader_common =
 "layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;\n"
 
 "layout(binding = 2, set = 0) uniform SceneParameters {\n"
+"    mat4 prevViewProjection;\n"
 "    mat4 projectionToWorld;\n"
+"    mat4 ImageBasedLighting_Matrix;\n"
 "    vec4 cameraPosition;\n"
 "    vec4 emissivePosition[NumLightMax];\n"//.w:onoff
 "    vec4 numEmissive;\n"//.xのみ
 "    vec4 GlobalAmbientColor;\n"
 "    vec4 emissiveNo[NumLightMax];"//.xのみ
 "    vec4 TMin_TMax;\n"//.x, .y
+"    vec4 frameReset_DepthRange_NorRange;\n"//.x:フレームインデックスリセット(1.0でリセット), .y:深度レンジ, .z:法線レンジ
 "    vec4 maxRecursion;\n"//x:, y:maxNumInstance
+"    uint traceMode;\n"
+"    uint SeedFrame;\n"
+"    float IBL_size;\n"
+"    bool useImageBasedLighting;\n"
 "} sceneParams;\n"
 
 "struct MaterialCB {\n"
@@ -37,7 +48,7 @@ char* Shader_common =
 "    vec4 Speculer; \n"
 "    vec4 Ambient;\n"
 "    vec4 shininess;\n"//x:
-"    vec4 RefractiveIndex;\n"//x:屈折率
+"    vec4 RefractiveIndex_roughness;\n"//x:屈折率, y:粗さ
 "    vec4 materialNo;\n"//x:
 "    vec4 addColor;\n"
 "    vec4 lightst;\n"//レンジ, 減衰1, 減衰2, 減衰3
@@ -55,7 +66,6 @@ char* Shader_common =
 "    bool hit;\n"
 "    float Alpha;\n"
 "    int RecursionCnt;\n"
-"    int pLightID;\n"//ポイントライトチェック用
 "    int mNo;\n"
 "    vec4 lightst;\n"//レンジ, 減衰1, 減衰2, 減衰3
 "    float depth;\n"

@@ -7,6 +7,10 @@ char* Shader_raygen_In =
 "layout(binding = 1, set = 0, rgba8) uniform image2D image;\n"
 "layout(binding = 3, set = 0, r32f) uniform image2D InstanceIdMap;\n"
 "layout(binding = 4, set = 0, r32f) uniform image2D depthMap;\n"
+"layout(binding = 0, set = 5, r32f) uniform image2D prevDepthMap;\n"
+"layout(binding = 1, set = 5, r32f) uniform image2D frameIndexMap;\n"
+"layout(binding = 2, set = 5, rgba8) uniform image2D normalMap;\n"
+"layout(binding = 3, set = 5, rgba8) uniform image2D prevNormalMap;\n"
 
 "void raygen_In()\n"
 "{\n"

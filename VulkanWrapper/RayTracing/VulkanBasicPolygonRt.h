@@ -28,6 +28,7 @@ public:
 		VkTransformMatrixKHR vkWorld = {};
 		CoordTf::VECTOR4 lightst = { 100.0f,0.1f, 0.001f, 0.001f };//レンジ, 減衰1, 減衰2, 減衰3
 		float lightOn = 0.0f;
+		float OutlineSize = 0.0f;//パストレのライトのPDF計算に使用 (直方体の表面積で計算)
 		CoordTf::VECTOR4 addColor = {};
 	};
 	struct RtMaterial {
@@ -35,7 +36,7 @@ public:
 		CoordTf::VECTOR4 vSpeculer = { 0.2f,0.2f,0.2f,1.0f };//スぺキュラ色
 		CoordTf::VECTOR4 vAmbient = { 0.0f,0.0f,0.0f,0.0f };//アンビエント
 		CoordTf::VECTOR4 shininess = { 4.0f,0.0f,0.0f,0.0f };//x:スペキュラ強さ
-		CoordTf::VECTOR4 RefractiveIndex = { 1.0f,0.0f,0.0f,0.0f };//x:屈折率:1.0f:空気(基準), 1.33f:水, 1.5f:ガラス, 2.4f:ダイヤ 
+		CoordTf::VECTOR4 RefractiveIndex_roughness = { 1.0f,0.05f,0.0f,0.0f };//x:屈折率:1.0f:空気(基準), 1.33f:水, 1.5f:ガラス, 2.4f:ダイヤ, y:粗さ
 		CoordTf::VECTOR4 MaterialType = { NONREFLECTION,0.0f,0.0f,0.0f };//x:
 	};
 
@@ -53,13 +54,24 @@ public:
 		AccelerationStructure BLAS[numSwap] = {};
 		std::vector<Instance> instance = {};
 		uint32_t hitShaderIndex = 0;
+
+		float LmaxX = 0.0f;
+		float LminX = 0.0f;
+		float LmaxY = 0.0f;
+		float LminY = 0.0f;
+		float LmaxZ = 0.0f;
+		float LminZ = 0.0f;
+		bool setvSize_first = false;
+
+		void setvSize(CoordTf::VECTOR3 v);
+		void createOutlineSize(CoordTf::VECTOR3 scale, int InstanceIndex);
 	};
 	struct Vertex3D_t {
-		float pos[3] = {};
-		float normal[3] = {};
-		float tangent[3] = {};
-		float difUv[2] = {};
-		float speUv[2] = {};
+		CoordTf::VECTOR3 pos = {};
+		CoordTf::VECTOR3 normal = {};
+		CoordTf::VECTOR3 tangent = {};
+		CoordTf::VECTOR2 difUv = {};
+		CoordTf::VECTOR2 speUv = {};
 	};
 
 private:
@@ -104,6 +116,8 @@ public:
 	void setMaterialShininess(float shininess, uint32_t materialIndex = 0);
 
 	void setMaterialRefractiveIndex(float RefractiveIndex, uint32_t materialIndex = 0);
+
+	void setMaterialRoughness(float Roughness, uint32_t materialIndex = 0);
 
 	void instancing(CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale, CoordTf::VECTOR4 addColor);
 	void instancingUpdate(uint32_t swapIndex, uint32_t QueueIndex, uint32_t comIndex);

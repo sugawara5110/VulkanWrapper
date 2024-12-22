@@ -22,6 +22,7 @@
 #include "Shader/Shader_raygen_In.h"
 #include "Shader/Shader_raygenInstanceIdMapTest.h"
 #include "Shader/Shader_raygenDepthMapTest.h"
+#include "Shader/Shader_hitCom_PathTracing.h"
 
 namespace {
     char* changeStr(char* srcStr, char* target, char* replacement) {
@@ -95,7 +96,8 @@ namespace {
     }
 }
 
-void VulkanRendererRt::Init(uint32_t QueueIndex, uint32_t comIndex, std::vector<VulkanBasicPolygonRt::RtData*> r) {
+void VulkanRendererRt::Init(uint32_t QueueIndex, uint32_t comIndex, std::vector<VulkanBasicPolygonRt::RtData*> r,
+    char* ImageBasedLightingTextureFileName) {
 
     m_sceneUBO = NEW VulkanDevice::Uniform<SceneParam>(1);
 
@@ -104,30 +106,32 @@ void VulkanRendererRt::Init(uint32_t QueueIndex, uint32_t comIndex, std::vector<
     int emissiveCnt = 0;
     int instanceCnt = 0;
     for (int i = 0; i < rt.size(); i++) {
-        for (int j = 0; j < rt[i]->instance.size(); j++) {
-            textureDifArr.push_back(rt[i]->texId.difTex.info);
-            textureNorArr.push_back(rt[i]->texId.norTex.info);
-            textureSpeArr.push_back(rt[i]->texId.speTex.info);
+        VulkanBasicPolygonRt::RtData* Rt = rt[i];
+        for (int j = 0; j < Rt->instance.size(); j++) {
+            textureDifArr.push_back(Rt->texId.difTex.info);
+            textureNorArr.push_back(Rt->texId.norTex.info);
+            textureSpeArr.push_back(Rt->texId.speTex.info);
             Material m = {};
-            memcpy(&m.vDiffuse, &rt[i]->mat, sizeof(VulkanBasicPolygonRt::RtMaterial));
-            memcpy(&m.lightst, &rt[i]->instance[j].lightst, sizeof(CoordTf::VECTOR4));
-            memcpy(&m.mvp, &rt[i]->instance[j].mvp, sizeof(CoordTf::MATRIX));
-            memcpy(&m.addColor, &rt[i]->instance[j].addColor, sizeof(CoordTf::VECTOR4));
+            VulkanBasicPolygonRt::Instance& ins = Rt->instance[j];
+            memcpy(&m.vDiffuse, &Rt->mat, sizeof(VulkanBasicPolygonRt::RtMaterial));
+            memcpy(&m.lightst, &ins.lightst, sizeof(CoordTf::VECTOR4));
+            memcpy(&m.mvp, &ins.mvp, sizeof(CoordTf::MATRIX));
+            memcpy(&m.addColor, &ins.addColor, sizeof(CoordTf::VECTOR4));
             materialArr.push_back(m);
 
-            if (rt[i]->mat.MaterialType.x == (float)EMISSIVE) {
+            if (Rt->mat.MaterialType.x == (float)EMISSIVE) {
 
                 CoordTf::VECTOR4 v4{
-                rt[i]->instance[j].world._41,
-                rt[i]->instance[j].world._42,
-                rt[i]->instance[j].world._43,
-                rt[i]->instance[j].lightOn
+                ins.world._41,
+                ins.world._42,
+                ins.world._43,
+                ins.lightOn
                 };
 
-                memcpy(&m_sceneParam.emissivePosition[emissiveCnt],
-                    &v4,
-                    sizeof(CoordTf::VECTOR4));
+                m_sceneParam.emissivePosition[emissiveCnt] = v4;
                 m_sceneParam.emissiveNo[emissiveCnt].x = (float)instanceCnt;
+                m_sceneParam.emissiveNo[emissiveCnt].y = ins.OutlineSize;
+
                 emissiveCnt++;
             }
             instanceCnt++;
@@ -147,6 +151,8 @@ void VulkanRendererRt::Init(uint32_t QueueIndex, uint32_t comIndex, std::vector<
     CreateTLAS(QueueIndex, comIndex);
 
     CreateRaytracedBuffer(QueueIndex, comIndex);
+
+    createImageBasedLightingTexture(QueueIndex, comIndex, ImageBasedLightingTextureFileName);
 
     CreateLayouts();
 
@@ -168,6 +174,12 @@ void VulkanRendererRt::destroy() {
 
     vkUtil::S_DELETE(m_sceneUBO);
     vkUtil::S_DELETE(materialUBO);
+
+    frameIndexMap.destroy();
+    normalMap.destroy();
+    prevDepthMap.destroy();
+    prevNormalMap.destroy();
+    ImageBasedLighting.destroy();
 
     instanceIdMap.destroy();
     depthMap.destroy();
@@ -209,33 +221,36 @@ void VulkanRendererRt::Update(int maxRecursion) {
 
     MATRIX VP = dev->getCameraView() * dev->getProjection();
     MatrixTranspose(&VP);
+    MatrixInverse(&m_sceneParam.prevViewProjection, &m_sceneParam.projectionToWorld);
     MatrixInverse(&m_sceneParam.projectionToWorld, &VP);
 
     int emissiveCnt = 0;
     int instanceCnt = 0;
     for (int i = 0; i < rt.size(); i++) {
-        for (int j = 0; j < rt[i]->instance.size(); j++) {
+        VulkanBasicPolygonRt::RtData* Rt = rt[i];
+        for (int j = 0; j < Rt->instance.size(); j++) {
 
             Material m = {};
-            memcpy(&m.vDiffuse, &rt[i]->mat, sizeof(VulkanBasicPolygonRt::RtMaterial));
-            memcpy(&m.lightst, &rt[i]->instance[j].lightst, sizeof(CoordTf::VECTOR4));
-            memcpy(&m.mvp, &rt[i]->instance[j].mvp, sizeof(CoordTf::MATRIX));
-            memcpy(&m.addColor, &rt[i]->instance[j].addColor, sizeof(CoordTf::VECTOR4));
+            VulkanBasicPolygonRt::Instance& ins = Rt->instance[j];
+            memcpy(&m.vDiffuse, &Rt->mat, sizeof(VulkanBasicPolygonRt::RtMaterial));
+            memcpy(&m.lightst, &ins.lightst, sizeof(CoordTf::VECTOR4));
+            memcpy(&m.mvp, &ins.mvp, sizeof(CoordTf::MATRIX));
+            memcpy(&m.addColor, &ins.addColor, sizeof(CoordTf::VECTOR4));
             memcpy(&materialArr[instanceCnt], &m, sizeof(Material));
 
-            if (rt[i]->mat.MaterialType.x == (float)EMISSIVE) {
+            if (Rt->mat.MaterialType.x == (float)EMISSIVE) {
 
                 CoordTf::VECTOR4 v4{
-                rt[i]->instance[j].world._41,
-                rt[i]->instance[j].world._42,
-                rt[i]->instance[j].world._43,
-                rt[i]->instance[j].lightOn
+                ins.world._41,
+                ins.world._42,
+                ins.world._43,
+                ins.lightOn
                 };
 
-                memcpy(&m_sceneParam.emissivePosition[emissiveCnt],
-                    &v4,
-                    sizeof(CoordTf::VECTOR4));
+                m_sceneParam.emissivePosition[emissiveCnt] = v4;
                 m_sceneParam.emissiveNo[emissiveCnt].x = (float)instanceCnt;
+                m_sceneParam.emissiveNo[emissiveCnt].y = ins.OutlineSize;
+
                 emissiveCnt++;
             }
             instanceCnt++;
@@ -451,6 +466,26 @@ void VulkanRendererRt::CreateRaytracedBuffer(uint32_t QueueIndex, uint32_t comIn
         VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     depthMapUp.createUploadBuffer(imageSize, usageUp, nullptr);
 
+    prevDepthMap.createImage(width, height, mapFormat,
+        VK_IMAGE_TILING_OPTIMAL, usage, devMemProps);
+
+    prevDepthMap.createImageView(mapFormat);
+
+    frameIndexMap.createImage(width, height, mapFormat,
+        VK_IMAGE_TILING_OPTIMAL, usage, devMemProps);
+
+    frameIndexMap.createImageView(mapFormat);
+
+    normalMap.createImage(width, height, format,
+        VK_IMAGE_TILING_OPTIMAL, usage, devMemProps);
+
+    normalMap.createImageView(format);
+
+    prevNormalMap.createImage(width, height, format,
+        VK_IMAGE_TILING_OPTIMAL, usage, devMemProps);
+
+    prevNormalMap.createImageView(format);
+
     VulkanDevice::CommandObj* com = dev->getCommandObj(QueueIndex);
 
     // バッファの状態を変更しておく.
@@ -461,12 +496,18 @@ void VulkanRendererRt::CreateRaytracedBuffer(uint32_t QueueIndex, uint32_t comIn
     instanceIdMap.barrierResource(QueueIndex, comIndex, VK_IMAGE_LAYOUT_GENERAL);
     depthMap.barrierResource(QueueIndex, comIndex, VK_IMAGE_LAYOUT_GENERAL);
 
+    prevDepthMap.barrierResource(QueueIndex, comIndex, VK_IMAGE_LAYOUT_GENERAL);
+    frameIndexMap.barrierResource(QueueIndex, comIndex, VK_IMAGE_LAYOUT_GENERAL);
+    normalMap.barrierResource(QueueIndex, comIndex, VK_IMAGE_LAYOUT_GENERAL);
+    prevNormalMap.barrierResource(QueueIndex, comIndex, VK_IMAGE_LAYOUT_GENERAL);
+
     com->endCommand(comIndex);
     com->submitCommandsAndWait();
 }
 
 void VulkanRendererRt::CreateRaytracePipeline() {
 
+    vkUtil::addChar hitcom = {};
     vkUtil::addChar ray[3] = {};
     vkUtil::addChar clo[6] = {};
     vkUtil::addChar emHit[1] = {};
@@ -480,6 +521,8 @@ void VulkanRendererRt::CreateRaytracePipeline() {
     snprintf(replace, sizeof(replace), "%d", numMaterial);
 
     char* Shader_common_R = changeStr(Shader_common, "replace_NUM_MAT_CB", replace);
+
+    hitcom.addStr(Shader_hitCom, Shader_hitCom_PathTracing);
 
     ray[0].addStr(Shader_common_R, Shader_traceRay);
     ray[1].addStr(ray[0].str, Shader_raygen_In);
@@ -495,7 +538,7 @@ void VulkanRendererRt::CreateRaytracePipeline() {
 
     clo[0].addStr(Shader_common_R, ShaderCalculateLighting);
     clo[1].addStr(clo[0].str, ShaderNormalTangent);
-    clo[2].addStr(clo[1].str, Shader_hitCom);
+    clo[2].addStr(clo[1].str, hitcom.str);
     clo[3].addStr(clo[2].str, Shader_traceRay);
     clo[4].addStr(clo[3].str, Shader_traceRay_OneRay);
     if (testMode[NormalMap]) {
@@ -769,6 +812,46 @@ void VulkanRendererRt::CreateLayouts() {
 
     set[4].push_back(layoutMaterialCB);
 
+    VkDescriptorSetLayoutBinding layoutPrevDepthMap{};
+    layoutPrevDepthMap.binding = 0;
+    layoutPrevDepthMap.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    layoutPrevDepthMap.descriptorCount = 1;
+    layoutPrevDepthMap.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+
+    set[5].push_back(layoutPrevDepthMap);
+
+    VkDescriptorSetLayoutBinding layoutFrameIndexMap{};
+    layoutFrameIndexMap.binding = 1;
+    layoutFrameIndexMap.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    layoutFrameIndexMap.descriptorCount = 1;
+    layoutFrameIndexMap.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+
+    set[5].push_back(layoutFrameIndexMap);
+
+    VkDescriptorSetLayoutBinding layoutNormalMap{};
+    layoutNormalMap.binding = 2;
+    layoutNormalMap.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    layoutNormalMap.descriptorCount = 1;
+    layoutNormalMap.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+
+    set[5].push_back(layoutNormalMap);
+
+    VkDescriptorSetLayoutBinding layoutPrevNormalMap{};
+    layoutPrevNormalMap.binding = 3;
+    layoutPrevNormalMap.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    layoutPrevNormalMap.descriptorCount = 1;
+    layoutPrevNormalMap.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+
+    set[5].push_back(layoutPrevNormalMap);
+
+    VkDescriptorSetLayoutBinding layoutImageBasedLighting{};
+    layoutImageBasedLighting.binding = 4;
+    layoutImageBasedLighting.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    layoutImageBasedLighting.descriptorCount = 1;
+    layoutImageBasedLighting.stageFlags = VK_SHADER_STAGE_ALL;
+
+    set[5].push_back(layoutImageBasedLighting);
+
     auto cl = [this, set](uint32_t sIndex) {
 
         VkDescriptorSetLayoutCreateInfo dsLayout[numDescriptorSet] = {};
@@ -793,7 +876,7 @@ void VulkanRendererRt::CreateLayouts() {
         pipelineLayoutCI.pSetLayouts = m_dsLayout[sIndex];
         _vkCreatePipelineLayout(dev->getDevice(),
             &pipelineLayoutCI, nullptr, &m_pipelineLayout[sIndex]);
-    };
+        };
 
     for (uint32_t i = 0; i < VulkanBasicPolygonRt::numSwap; i++) {
         cl(i);
@@ -895,12 +978,58 @@ void VulkanRendererRt::CreateDescriptorSets() {
         materialWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         materialWrite.pBufferInfo = &materialUBO->getBufferSet()->info;
 
+        VkWriteDescriptorSet prevDepthWrite{
+            VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
+        };
+        prevDepthWrite.dstSet = m_descriptorSet[sIndex][5];
+        prevDepthWrite.dstBinding = 0;
+        prevDepthWrite.descriptorCount = 1;
+        prevDepthWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        prevDepthWrite.pImageInfo = &prevDepthMap.info;
+
+        VkWriteDescriptorSet frameIndexWrite{
+           VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
+        };
+        frameIndexWrite.dstSet = m_descriptorSet[sIndex][5];
+        frameIndexWrite.dstBinding = 1;
+        frameIndexWrite.descriptorCount = 1;
+        frameIndexWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        frameIndexWrite.pImageInfo = &frameIndexMap.info;
+
+        VkWriteDescriptorSet normalMapWrite{
+            VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
+        };
+        normalMapWrite.dstSet = m_descriptorSet[sIndex][5];
+        normalMapWrite.dstBinding = 2;
+        normalMapWrite.descriptorCount = 1;
+        normalMapWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        normalMapWrite.pImageInfo = &normalMap.info;
+
+        VkWriteDescriptorSet prevNormalMapWrite{
+            VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
+        };
+        prevNormalMapWrite.dstSet = m_descriptorSet[sIndex][5];
+        prevNormalMapWrite.dstBinding = 3;
+        prevNormalMapWrite.descriptorCount = 1;
+        prevNormalMapWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        prevNormalMapWrite.pImageInfo = &prevNormalMap.info;
+
+        VkWriteDescriptorSet ImageBasedLightingWrite{
+            VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
+        };
+        ImageBasedLightingWrite.dstSet = m_descriptorSet[sIndex][5];
+        ImageBasedLightingWrite.dstBinding = 4;
+        ImageBasedLightingWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        ImageBasedLightingWrite.descriptorCount = 1;
+        ImageBasedLightingWrite.pImageInfo = &ImageBasedLighting.info;
+
         std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
             asWrite, imageWrite, sceneUboWrite, InstanceIdMapWrite, depthWrite,
             difTexImageWrite,
             norTexImageWrite,
             speTexImageWrite,
-            materialWrite
+            materialWrite,
+            prevDepthWrite, frameIndexWrite, normalMapWrite, prevNormalMapWrite, ImageBasedLightingWrite
         };
 
         VulkanDeviceRt* devRt = VulkanDeviceRt::getVulkanDeviceRt();
@@ -911,7 +1040,7 @@ void VulkanRendererRt::CreateDescriptorSets() {
             writeDescriptorSets.data(),
             0,
             nullptr);
-    };
+        };
 
     for (uint32_t i = 0; i < VulkanBasicPolygonRt::numSwap; i++) {
         cds(i);
@@ -920,4 +1049,43 @@ void VulkanRendererRt::CreateDescriptorSets() {
 
 void VulkanRendererRt::TestModeOn(TestMode mode) {
     testMode[mode] = true;
+}
+
+void VulkanRendererRt::setGIparameter(TraceMode mode) {
+    m_sceneParam.traceMode = mode;
+}
+
+void VulkanRendererRt::resetFrameIndex() {
+    m_sceneParam.frameReset_DepthRange_NorRange.x = 1.0f;
+}
+
+void VulkanRendererRt::set_DepthRange_NorRange(float DepthRange, float NorRange) {
+    m_sceneParam.frameReset_DepthRange_NorRange.y = DepthRange;
+    m_sceneParam.frameReset_DepthRange_NorRange.z = NorRange;
+}
+
+void VulkanRendererRt::useImageBasedLightingTexture(bool on) {
+    m_sceneParam.useImageBasedLighting = on;
+}
+
+void VulkanRendererRt::setImageBasedLighting_size(float size) {
+    m_sceneParam.IBL_size = size;
+}
+
+void VulkanRendererRt::setImageBasedLighting_Direction(CoordTf::VECTOR3 dir) {
+    using namespace CoordTf;
+    MATRIX rotZ, rotY, rotX;
+    MatrixRotationZ(&rotZ, dir.z);
+    MatrixRotationY(&rotY, dir.y);
+    MatrixRotationX(&rotX, dir.x);
+    m_sceneParam.ImageBasedLighting_Matrix = rotZ * rotY * rotX;
+}
+
+void VulkanRendererRt::createImageBasedLightingTexture(uint32_t QueueIndex, uint32_t comIndex, char* FileName) {
+    VulkanDevice* d = VulkanDevice::GetInstance();
+    int32_t tInd = d->getTextureNo(FileName);
+    if (tInd < 0)tInd = d->numTextureMax + 1;
+
+    d->createVkTexture(ImageBasedLighting, QueueIndex, comIndex,
+        d->getTexture(tInd));
 }

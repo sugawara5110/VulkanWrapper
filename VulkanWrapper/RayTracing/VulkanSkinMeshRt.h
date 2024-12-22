@@ -102,6 +102,10 @@ public:
 		uint32_t meshIndex,
 		uint32_t materialIndex = 0);
 
+	void setMaterialRoughness(float Roughness,
+		uint32_t meshIndex,
+		uint32_t materialIndex = 0);
+
 	std::vector<VulkanBasicPolygonRt::RtData>& getRtData(uint32_t meshIndex) {
 		return mObj[meshIndex].Rdata;
 	}
