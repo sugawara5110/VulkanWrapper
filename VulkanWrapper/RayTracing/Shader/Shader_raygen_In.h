@@ -18,6 +18,8 @@ char* Shader_raygen_In =
 "    const vec2 dim = gl_LaunchSizeEXT.xy;\n"//画面全体の幅と高さを取得
 "    const vec2 screenPos = (index + 0.5f) / dim * 2.0f - 1.0f;\n"
 
+"    Seed = sceneParams.SeedFrame;\n"
+
 "    vec3 origin = sceneParams.cameraPosition.xyz;\n"
 "    vec4 world = vec4(screenPos.x, -screenPos.y, 0, 1) * sceneParams.projectionToWorld;\n"
 "    world.xyz /= world.w;\n"
@@ -28,11 +30,13 @@ char* Shader_raygen_In =
 "    payload.RecursionCnt = 0;\n"
 "    payload.hitPosition = origin;\n"
 "    payload.mNo = NONREFLECTION;\n"
+"    payload.normal = vec3(0.0f, 0.0f, 0.0f);\n"
+"    payload.throughput = vec3(1.0f, 1.0f, 1.0f);\n"
 
 "    vec4 idMap = vec4(0.0f, 0.0f, 0.0f, 0.0f);\n"//x:のみ使用
 "    vec4 dpMap = vec4(0.0f, 0.0f, 0.0f, 0.0f);\n"//x:のみ使用
 
-"    payload.depth = -1.0f;\n"
+"    payload.depth = 1.0f;\n"
 "    dpMap.x = 1.0f;\n"
 
 "    traceRay(payload.RecursionCnt,\n"

@@ -14,23 +14,37 @@ char* Shader_closesthit =
 "    vec3 normalMap = getNorPixel();\n"
 "    vec3 speTex = getSpePixel();\n"
 
-//深度取得
-"    if(payloadIn.depth == -1.0f)\n" 
+"    if (sceneParams.traceMode == 0)\n"
 "    {\n"
+"       if(materialIdent(payloadIn.mNo, EMISSIVE))\n"
+"       {\n"
+"          payloadIn.mNo = int(matCB[gl_InstanceID].materialNo.x);\n"
+"          return;\n"
+"       }\n"
+
+"       difTex.xyz = PayloadCalculate_OneRay(payloadIn.RecursionCnt, payloadIn.hitPosition, difTex, speTex,\n"
+"                                            normalMap, payloadIn.hitInstanceId);\n"
+
 "       payloadIn.depth = getDepth();\n"
+"       payloadIn.normal = normalMap;\n"
+"       payloadIn.color = difTex.xyz;\n"
+"       payloadIn.hit = true;\n"
+"       payloadIn.Alpha = difTex.w;\n"
 "    }\n"
-
-"    if(materialIdent(payloadIn.mNo, EMISSIVE))\n"
+"    else\n"
 "    {\n"
-"       payloadIn.mNo = int(matCB[gl_InstanceID].materialNo.x);\n"
-"       return;\n"
+////////PathTracing
+"       payloadIn.normal = normalMap;\n"
+"       payloadIn.depth = getDepth();\n"
+"       payloadIn.hitInstanceId = gl_InstanceID;\n"
+
+"       if(!materialIdent(payloadIn.mNo, NEE))\n"
+"       {\n"
+"          payloadIn.color = PayloadCalculate_PathTracing(payloadIn.RecursionCnt, payloadIn.hitPosition,\n"
+"                                                         difTex, speTex, normalMap,\n"
+"                                                         payloadIn.throughput, payloadIn.hitInstanceId);\n"
+"       }\n"
 "    }\n"
 
-"    difTex.xyz = PayloadCalculate_OneRay(payloadIn.RecursionCnt, payloadIn.hitPosition, difTex, speTex,\n"
-"                                         normalMap, payloadIn.hitInstanceId);\n"
-
-"    payloadIn.color = difTex.xyz;\n"
-"    payloadIn.hit = true;\n"
-"    payloadIn.Alpha = difTex.w;\n"
 "    payloadIn.mNo = int(matCB[gl_InstanceID].materialNo.x);\n"
 "}\n";

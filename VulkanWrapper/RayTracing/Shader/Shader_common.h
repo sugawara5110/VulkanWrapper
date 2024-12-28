@@ -15,12 +15,12 @@ char* Shader_common =
 "vec3 local_normal = vec3(0.0f, 0.0f, 1.0f);\n"
 "const float AIR_RefractiveIndex = 1.0f;\n"
 
-"const int NONREFLECTION  =32;\n" //0b100000
-"const int METALLIC       =16;\n" //0b010000
-"const int EMISSIVE       =8;\n"  //0b001000
-"const int TRANSLUCENCE   =4;\n"  //0b000100
-"const int NEE            =2;\n"  //0b000010 
-"const int NEE_PATHTRACER =1;\n"  //0b000001 
+"const uint NONREFLECTION  = 32;\n" //0b100000
+"const uint METALLIC       = 16;\n" //0b010000
+"const uint EMISSIVE       = 8;\n"  //0b001000
+"const uint TRANSLUCENCE   = 4;\n"  //0b000100
+"const uint NEE            = 2;\n"  //0b000010 
+"const uint NEE_PATHTRACER = 1;\n"  //0b000001 
 
 "layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;\n"
 
@@ -32,7 +32,7 @@ char* Shader_common =
 "    vec4 emissivePosition[NumLightMax];\n"//.w:onoff
 "    vec4 numEmissive;\n"//.xのみ
 "    vec4 GlobalAmbientColor;\n"
-"    vec4 emissiveNo[NumLightMax];"//.xのみ
+"    vec4 emissiveNo[NumLightMax];"//x:emissiveNo, y:OutlineSize
 "    vec4 TMin_TMax;\n"//.x, .y
 "    vec4 frameReset_DepthRange_NorRange;\n"//.x:フレームインデックスリセット(1.0でリセット), .y:深度レンジ, .z:法線レンジ
 "    vec4 maxRecursion;\n"//x:, y:maxNumInstance
@@ -62,11 +62,13 @@ char* Shader_common =
 "{\n"
 "    vec3 color;\n"
 "    vec3 hitPosition;\n"
+"    vec3 normal;\n"
+"    vec3 throughput;\n"
 "    bool reTry;\n"
 "    bool hit;\n"
 "    float Alpha;\n"
-"    int RecursionCnt;\n"
-"    int mNo;\n"
+"    uint RecursionCnt;\n"
+"    uint mNo;\n"
 "    vec4 lightst;\n"//レンジ, 減衰1, 減衰2, 減衰3
 "    float depth;\n"
 "    int hitInstanceId;\n"

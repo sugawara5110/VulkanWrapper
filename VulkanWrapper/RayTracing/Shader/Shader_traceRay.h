@@ -6,7 +6,7 @@ char* Shader_traceRay =
 
 "layout(location = 0) rayPayloadEXT vkRayPayload payload;\n"
 
-"void traceRay(in int RecursionCnt,\n"
+"void traceRay(in uint RecursionCnt,\n"
 "              in uint RayFlags,\n"
 "              in uint HitGroupIndex,\n"
 "              in uint MissShaderIndex,\n"

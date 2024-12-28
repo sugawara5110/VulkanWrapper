@@ -5,11 +5,11 @@
 char* Shader_traceRay_OneRay =
 
 ///////////////////////光源へ光線を飛ばす, ヒットした場合明るさが加算//////////////////////////
-"vec3 EmissivePayloadCalculate(in int RecursionCnt, in vec3 hitPosition, \n"
+"vec3 EmissivePayloadCalculate(in uint RecursionCnt, in vec3 hitPosition, \n"
 "                              in vec3 difTexColor, in vec3 speTexColor, in vec3 normal)\n"
 "{\n"
 "    MaterialCB mcb = matCB[gl_InstanceID];\n"
-"    int mNo = int(mcb.materialNo.x);\n"
+"    uint mNo = int(mcb.materialNo.x);\n"
 "    vec3 ret = difTexColor;\n"
 
 "    LightOut emissiveColor = LightOut(vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 0.0f, 0.0f));\n"
@@ -55,10 +55,10 @@ char* Shader_traceRay_OneRay =
 "}\n"
 
 ///////////////////////反射方向へ光線を飛ばす, ヒットした場合ピクセル値乗算///////////////////////
-"vec3 MetallicPayloadCalculate(in int RecursionCnt, in vec3 hitPosition, \n"
+"vec3 MetallicPayloadCalculate(in uint RecursionCnt, in vec3 hitPosition, \n"
 "                              in vec3 difTexColor, in vec3 normal, inout int hitInstanceId)\n"
 "{\n"
-"    int mNo = int(matCB[gl_InstanceID].materialNo.x);\n"
+"    uint mNo = int(matCB[gl_InstanceID].materialNo.x);\n"
 "    vec3 ret = difTexColor;\n"
 
 "    hitInstanceId = gl_InstanceID; \n"//自身のID書き込み
@@ -83,7 +83,7 @@ char* Shader_traceRay_OneRay =
 "       if (payload.hit) {\n"
 "           outCol = difTexColor * payload.color;\n"//ヒットした場合映り込みとして乗算
 "           hitInstanceId = payload.hitInstanceId;\n"//ヒットしたID書き込み
-"           int hitmNo = payload.mNo;\n"
+"           uint hitmNo = payload.mNo;\n"
 "           if(materialIdent(hitmNo, EMISSIVE)){\n"
 "              outCol = payload.color;\n"
 "           }\n"
@@ -97,10 +97,10 @@ char* Shader_traceRay_OneRay =
 "}\n"
 
 ////////////////////////////////////////半透明//////////////////////////////////////////
-"vec3 Translucent(in int RecursionCnt, in vec3 hitPosition, in vec4 difTexColor, in vec3 normal)\n"
+"vec3 Translucent(in uint RecursionCnt, in vec3 hitPosition, in vec4 difTexColor, in vec3 normal)\n"
 "{\n"
 "    MaterialCB mcb = matCB[gl_InstanceID];\n"
-"    int mNo = int(mcb.materialNo.x);\n"
+"    uint mNo = int(mcb.materialNo.x);\n"
 "    vec3 ret = difTexColor.xyz;\n"
 
 "    if(materialIdent(mNo, TRANSLUCENCE)) {\n"
@@ -139,7 +139,7 @@ char* Shader_traceRay_OneRay =
 "}\n"
 
 ////////////////////////////////////////ONE_RAY//////////////////////////////////////////
-"vec3 PayloadCalculate_OneRay(in int RecursionCnt, in vec3 hitPosition,\n"
+"vec3 PayloadCalculate_OneRay(in uint RecursionCnt, in vec3 hitPosition,\n"
 "                             in vec4 difTex, in vec3 speTex, in vec3 normalMap,\n"
 "                             inout int hitInstanceId)\n"
 "{\n"

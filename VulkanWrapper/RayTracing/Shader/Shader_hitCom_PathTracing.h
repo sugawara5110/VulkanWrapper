@@ -209,9 +209,9 @@ char* Shader_hitCom_PathTracing =
 "{\n"
 "    const float dotNL = abs(dot(N, L));\n"
 
-"    float a = out_eta * out_eta / (in_eta * in_eta);\n"
-"    vec3 b = 1 - F;\n"
-"    float c = 1.0f / dotNL;\n"
+"    const float a = out_eta * out_eta / (in_eta * in_eta);\n"
+"    const vec3 b = 1 - F;\n"
+"    const float c = 1.0f / dotNL;\n"
 "    return a * b * c;\n"
 "}\n"
 
@@ -288,14 +288,4 @@ char* Shader_hitCom_PathTracing =
 "        bsdf = DiffSpeBSDF(inDir, outDir, difTexColor.xyz, speTexColor, N, PDF);\n"
 "    }\n"
 "    return bsdf;\n"
-"}\n"
-
-////////////////////////////////////////////SkyLight////////////////////////////////////////////////
-"layout(binding = 4, set = 5) uniform sampler2D ImageBasedLighting;\n"
-
-"vec3 getSkyLight(vec3 dir)\n"
-"{\n"
-"    vec2 uv = vec2(atan(dir.z, dir.x) / 2.0f / PI + 0.5f, acos(dir.y) / PI);\n"
-"    vec4 ret = texture(ImageBasedLighting, uv);\n"
-"    return ret.xyz;\n"
 "}\n";

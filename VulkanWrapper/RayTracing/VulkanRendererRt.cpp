@@ -16,8 +16,9 @@
 #include "Shader/Shader_anyHit.h"
 #include "Shader/Shader_emissiveHit.h"
 #include "Shader/Shader_emissiveMiss.h"
-#include "Shader/Shader_traceRay_OneRay.h"
 #include "Shader/Shader_traceRay.h"
+#include "Shader/Shader_traceRay_OneRay.h"
+#include "Shader/Shader_traceRay_PathTracing.h"
 #include "Shader/Shader_closesthit_NormalMapTest.h"
 #include "Shader/Shader_raygen_In.h"
 #include "Shader/Shader_raygenInstanceIdMapTest.h"
@@ -119,7 +120,7 @@ void VulkanRendererRt::Init(uint32_t QueueIndex, uint32_t comIndex, std::vector<
             memcpy(&m.addColor, &ins.addColor, sizeof(CoordTf::VECTOR4));
             materialArr.push_back(m);
 
-            if (Rt->mat.MaterialType.x == (float)EMISSIVE) {
+            if (Rt->mat.MaterialType.x == EMISSIVE) {
 
                 CoordTf::VECTOR4 v4{
                 ins.world._41,
@@ -162,10 +163,17 @@ void VulkanRendererRt::Init(uint32_t QueueIndex, uint32_t comIndex, std::vector<
 
     CreateDescriptorSets();
 
+    CoordTf::MatrixIdentity(&m_sceneParam.ImageBasedLighting_Matrix);
     m_sceneParam.GlobalAmbientColor = { 0.01f,0.01f,0.01f,0.0f };
     m_sceneParam.TMin_TMax.as(0.1f, 1000.0f, 0.0f, 0.0f);
+    m_sceneParam.frameReset_DepthRange_NorRange = { 0.0f,0.0001f,0.999f,0.0f };
     m_sceneParam.maxRecursion.x = 1;
     m_sceneParam.maxRecursion.y = (float)instanceCnt;
+    m_sceneParam.traceMode = 0;
+    m_sceneParam.SeedFrame = 0;
+    m_sceneParam.IBL_size = 5000.0f;
+    m_sceneParam.useImageBasedLighting = false;
+    frameInd = 0;
 }
 
 void VulkanRendererRt::destroy() {
@@ -345,6 +353,15 @@ void VulkanRendererRt::Render(uint32_t swapIndex, uint32_t QueueIndex, uint32_t 
     if (depthUpdate) {
         DepthMapUpdate(QueueIndex, comIndex);
     }
+
+    if (INT_MAX <= frameInd++) {
+        frameInd = 0;
+        resetFrameIndex();
+    }
+
+    if (INT_MAX <= m_sceneParam.SeedFrame++) {
+        m_sceneParam.SeedFrame = 0;
+    }
 }
 
 void VulkanRendererRt::CreateTLAS(uint32_t QueueIndex, uint32_t comIndex) {
@@ -507,6 +524,7 @@ void VulkanRendererRt::CreateRaytracedBuffer(uint32_t QueueIndex, uint32_t comIn
 
 void VulkanRendererRt::CreateRaytracePipeline() {
 
+    vkUtil::addChar traceRay = {};
     vkUtil::addChar hitcom = {};
     vkUtil::addChar ray[3] = {};
     vkUtil::addChar clo[6] = {};
@@ -524,6 +542,8 @@ void VulkanRendererRt::CreateRaytracePipeline() {
 
     hitcom.addStr(Shader_hitCom, Shader_hitCom_PathTracing);
 
+    traceRay.addStr(Shader_traceRay_OneRay, Shader_traceRay_PathTracing);
+
     ray[0].addStr(Shader_common_R, Shader_traceRay);
     ray[1].addStr(ray[0].str, Shader_raygen_In);
     if (testMode[InstanceIdMap]) {
@@ -540,7 +560,7 @@ void VulkanRendererRt::CreateRaytracePipeline() {
     clo[1].addStr(clo[0].str, ShaderNormalTangent);
     clo[2].addStr(clo[1].str, hitcom.str);
     clo[3].addStr(clo[2].str, Shader_traceRay);
-    clo[4].addStr(clo[3].str, Shader_traceRay_OneRay);
+    clo[4].addStr(clo[3].str, traceRay.str);
     if (testMode[NormalMap]) {
         clo[5].addStr(clo[4].str, Shader_closesthit_NormalMapTest);
     }

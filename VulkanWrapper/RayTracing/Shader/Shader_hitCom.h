@@ -37,7 +37,7 @@ char* Shader_hitCom =
 "};\n"
 
 ///////////////////////////////////////////Material識別////////////////////////////////////////////
-"bool materialIdent(int matNo, int MaterialBit)\n"
+"bool materialIdent(uint matNo, uint MaterialBit)\n"
 "{\n"
 "    return (matNo & MaterialBit) == MaterialBit;\n"
 "}\n"
