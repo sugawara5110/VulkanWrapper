@@ -45,6 +45,8 @@ private:
     VkPipelineLayout       m_pipelineLayout[VulkanBasicPolygonRt::numSwap] = {};
     VkPipeline             m_raytracePipeline[VulkanBasicPolygonRt::numSwap] = {};
     uint32_t frameInd;
+    float frameReset;
+    bool firstRenderer;
 
     VulkanDevice::ImageSet m_raytracedImage;
     VulkanDevice::ImageSet instanceIdMap;

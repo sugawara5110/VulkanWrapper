@@ -253,13 +253,20 @@ private:
 
     void destroyTexture();
 
-    void copyBuffer(uint32_t QueueIndex, uint32_t comBufindex, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
-
     uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 
 public:
     VkResult waitForFence(VkFence fence);
     void resetFence(VkFence fence);
+
+    void copyBuffer(uint32_t QueueIndex, uint32_t comBufindex, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+
+    void copyImage(
+        uint32_t QueueIndex, uint32_t comBufindex,
+        VkImage srcImage, VkImageLayout srcImageLayout,
+        VkImage dstImage, VkImageLayout dstImageLayout,
+        uint32_t width, uint32_t height,
+        VkImageAspectFlagBits mask);
 
     void copyBufferToImage(
         uint32_t QueueIndex, uint32_t comBufindex,
@@ -319,7 +326,13 @@ public:
         if (add_usage)usage = usage | *add_usage;
         defaultBuffer.createDefaultBuffer(bufferSize, usage, allocateMemory_add_pNext);
 
+        CommandObj* com = &commandObj[QueueIndex];
+        com->beginCommand(comBufindex);
+
         copyBuffer(QueueIndex, comBufindex, stagingBuffer.getBuffer(), defaultBuffer.getBuffer(), bufferSize);
+
+        com->endCommand(comBufindex);
+        com->submitCommandsAndWait();
 
         stagingBuffer.destroy();
 

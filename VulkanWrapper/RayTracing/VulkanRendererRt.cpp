@@ -174,6 +174,8 @@ void VulkanRendererRt::Init(uint32_t QueueIndex, uint32_t comIndex, std::vector<
     m_sceneParam.IBL_size = 5000.0f;
     m_sceneParam.useImageBasedLighting = false;
     frameInd = 0;
+    frameReset = 0.0f;
+    firstRenderer = false;
 }
 
 void VulkanRendererRt::destroy() {
@@ -226,6 +228,8 @@ void VulkanRendererRt::Update(int maxRecursion) {
     VulkanDevice* dev = VulkanDevice::GetInstance();
     m_sceneParam.cameraPosition = dev->getCameraViewPos();
     m_sceneParam.maxRecursion.x = (float)maxRecursion;
+    m_sceneParam.frameReset_DepthRange_NorRange.x = frameReset;
+    frameReset = 0.0f;
 
     MATRIX VP = dev->getCameraView() * dev->getProjection();
     MatrixTranspose(&VP);
@@ -310,6 +314,11 @@ void VulkanRendererRt::Render(uint32_t swapIndex, uint32_t QueueIndex, uint32_t 
     VulkanDevice::CommandObj* com = dev->getCommandObj(QueueIndex);
     auto command = com->getCommandBuffer(comIndex);
 
+    if (!firstRenderer) {
+        m_sceneParam.frameReset_DepthRange_NorRange.x = 1.0f;//フレームインデックスバッファ初期化
+        firstRenderer = true;
+    }
+
     m_sceneUBO->update(0, &m_sceneParam);
     materialUBO->updateArr(materialArr.data());
 
@@ -330,25 +339,61 @@ void VulkanRendererRt::Render(uint32_t swapIndex, uint32_t QueueIndex, uint32_t 
         width, height, 1);
 
     // レイトレーシング結果画像をバックバッファへコピー.
-    VkImageCopy region{};
-    region.extent = { width, height, 1 };
-    region.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
-    region.dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
-
     m_raytracedImage.barrierResource(QueueIndex, comIndex,
-        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 
     dev->barrierResource(QueueIndex, comIndex,
         sw->getCurrentImage(),
         VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
-    _vkCmdCopyImage(command,
+    dev->copyImage(
+        QueueIndex, comIndex,
         m_raytracedImage.getImage(), m_raytracedImage.info.imageLayout,
         sw->getCurrentImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-        1, &region);
+        width, height,
+        VK_IMAGE_ASPECT_COLOR_BIT);
 
-    m_raytracedImage.barrierResource(QueueIndex, comIndex, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
+    m_raytracedImage.barrierResource(QueueIndex, comIndex,
+        VK_IMAGE_LAYOUT_GENERAL);
+
+    prevDepthMap.barrierResource(QueueIndex, comIndex,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+    prevNormalMap.barrierResource(QueueIndex, comIndex,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+    depthMap.barrierResource(QueueIndex, comIndex,
+        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+
+    normalMap.barrierResource(QueueIndex, comIndex,
+        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+
+    dev->copyImage(
+        QueueIndex, comIndex,
+        depthMap.getImage(), depthMap.info.imageLayout,
+        prevDepthMap.getImage(), prevDepthMap.info.imageLayout,
+        width, height,
+        VK_IMAGE_ASPECT_COLOR_BIT);
+
+    dev->copyImage(
+        QueueIndex, comIndex,
+        normalMap.getImage(), normalMap.info.imageLayout,
+        prevNormalMap.getImage(), prevNormalMap.info.imageLayout,
+        width, height,
+        VK_IMAGE_ASPECT_COLOR_BIT);
+
+    prevDepthMap.barrierResource(QueueIndex, comIndex,
+        VK_IMAGE_LAYOUT_GENERAL);
+
+    prevNormalMap.barrierResource(QueueIndex, comIndex,
+        VK_IMAGE_LAYOUT_GENERAL);
+
+    depthMap.barrierResource(QueueIndex, comIndex,
+        VK_IMAGE_LAYOUT_GENERAL);
+
+    normalMap.barrierResource(QueueIndex, comIndex,
+        VK_IMAGE_LAYOUT_GENERAL);
 
     if (depthUpdate) {
         DepthMapUpdate(QueueIndex, comIndex);
@@ -1076,7 +1121,7 @@ void VulkanRendererRt::setGIparameter(TraceMode mode) {
 }
 
 void VulkanRendererRt::resetFrameIndex() {
-    m_sceneParam.frameReset_DepthRange_NorRange.x = 1.0f;
+    frameReset = 1.0f;
 }
 
 void VulkanRendererRt::set_DepthRange_NorRange(float DepthRange, float NorRange) {

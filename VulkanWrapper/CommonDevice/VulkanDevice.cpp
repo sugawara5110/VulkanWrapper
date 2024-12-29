@@ -665,15 +665,38 @@ void VulkanDevice::createDefaultBuffer(VkDeviceSize size, VkBufferUsageFlags usa
 void VulkanDevice::copyBuffer(uint32_t QueueIndex, uint32_t comBufindex, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
 
     CommandObj* com = &commandObj[QueueIndex];
-
-    com->beginCommand(comBufindex);
-
     VkBufferCopy copyRegion = {};
     copyRegion.size = size;
     _vkCmdCopyBuffer(com->commandBuffer[comBufindex], srcBuffer, dstBuffer, 1, &copyRegion);
+}
 
-    com->endCommand(comBufindex);
-    com->submitCommandsAndWait();
+void VulkanDevice::copyImage(
+    uint32_t QueueIndex, uint32_t comBufindex,
+    VkImage srcImage, VkImageLayout srcImageLayout,
+    VkImage dstImage, VkImageLayout dstImageLayout,
+    uint32_t width, uint32_t height,
+    VkImageAspectFlagBits mask) {
+
+    VkImageSubresourceLayers Subresource = {};
+    Subresource.aspectMask = mask;
+    Subresource.mipLevel = 0;
+    Subresource.baseArrayLayer = 0;
+    Subresource.layerCount = 1;
+    VkOffset3D Offset = { 0, 0, 0 };
+    VkExtent3D extent = { width,height,1 };
+
+    VkImageCopy region = {};
+    region.srcSubresource = Subresource;
+    region.srcOffset = Offset;
+    region.dstSubresource = Subresource;
+    region.dstOffset = Offset;
+    region.extent = extent;
+
+    CommandObj* com = &commandObj[QueueIndex];
+
+    _vkCmdCopyImage(com->commandBuffer[comBufindex],
+        srcImage, srcImageLayout, dstImage, dstImageLayout,
+        1, &region);
 }
 
 uint32_t VulkanDevice::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {

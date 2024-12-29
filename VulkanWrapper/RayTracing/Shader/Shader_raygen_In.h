@@ -35,6 +35,7 @@ char* Shader_raygen_In =
 
 "    vec4 idMap = vec4(0.0f, 0.0f, 0.0f, 0.0f);\n"//x:のみ使用
 "    vec4 dpMap = vec4(0.0f, 0.0f, 0.0f, 0.0f);\n"//x:のみ使用
+"    vec4 norMap = vec4(0.0f, 0.0f, 0.0f, 0.0f);\n"//w:未使用
 
 "    payload.depth = 1.0f;\n"
 "    dpMap.x = 1.0f;\n"
@@ -46,11 +47,10 @@ char* Shader_raygen_In =
 "             direction);\n"
 
 "    idMap.x = payload.hitInstanceId;\n"
-
-"    if(payload.depth != -1.0f){\n"
-"       dpMap.x = payload.depth;\n"
-"    }\n"
+"    dpMap.x = payload.depth;\n"
+"    norMap.xyz = payload.normal;\n"
 
 "    imageStore(depthMap, ivec2(gl_LaunchIDEXT.xy), dpMap);\n"
 "    imageStore(InstanceIdMap, ivec2(gl_LaunchIDEXT.xy), idMap);\n"
+"    imageStore(normalMap, ivec2(gl_LaunchIDEXT.xy), norMap);\n"
 "};\n";
