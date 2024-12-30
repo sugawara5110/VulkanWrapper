@@ -25,9 +25,9 @@ char* Shader_raygen =
 "       prev_screenPos.y *= -1.0f;\n"
 "       uvec2 prevInd = uvec2((prev_screenPos + 1.0f) * dim * 0.5f);\n"
 "       float prevDepth = imageLoad(prevDepthMap, ivec2(prevInd)).x;\n"
-"       vec3 prevNor = imageLoad(prevNormalMap, ivec2(prevInd)).xyz;\n"
+"       vec3 prevNor = imageLoad(prevNormalMap, ivec2(prevInd)).xyz * 2.0f - 1.0f;\n"
 "       float crruentDepth = imageLoad(depthMap, ivec2(index)).x;\n"
-"       vec3 crruentNor = imageLoad(normalMap, ivec2(index)).xyz;\n"
+"       vec3 crruentNor = imageLoad(normalMap, ivec2(index)).xyz * 2.0f - 1.0f;\n"
 
 "       float frameReset = sceneParams.frameReset_DepthRange_NorRange.x;\n"
 "       float DepthRange = sceneParams.frameReset_DepthRange_NorRange.y;\n"

@@ -48,7 +48,7 @@ char* Shader_raygen_In =
 
 "    idMap.x = payload.hitInstanceId;\n"
 "    dpMap.x = payload.depth;\n"
-"    norMap.xyz = payload.normal;\n"
+"    norMap.xyz = payload.normal * 0.5f + 0.5f;\n"
 
 "    imageStore(depthMap, ivec2(gl_LaunchIDEXT.xy), dpMap);\n"
 "    imageStore(InstanceIdMap, ivec2(gl_LaunchIDEXT.xy), idMap);\n"

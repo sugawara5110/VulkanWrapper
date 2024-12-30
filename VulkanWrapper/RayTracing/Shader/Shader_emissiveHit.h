@@ -22,9 +22,9 @@ char* Shader_emissiveHit =
 
 "void main()\n"
 "{\n"
-"    payloadIn.mNo = int(matCB[gl_InstanceID].materialNo.x);\n"
 "    payloadIn.lightst = matCB[gl_InstanceID].lightst;\n"
 "    vec4 difTex = getDifPixel();\n"
+"    payloadIn.normal = getNorPixel();\n"
 "    payloadIn.hitPosition = HitWorldPosition();\n"
 
 "    if (difTex.w < 1.0f)\n"
@@ -37,4 +37,5 @@ char* Shader_emissiveHit =
 "    payloadIn.EmissiveIndex = getEmissiveIndex();\n"
 "    payloadIn.hit = true;\n"
 "    payloadIn.color = difTex.xyz;\n"
+"    payloadIn.mNo = int(matCB[gl_InstanceID].materialNo.x);\n"
 "}\n";
