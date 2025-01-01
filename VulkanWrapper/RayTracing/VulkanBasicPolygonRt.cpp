@@ -81,8 +81,8 @@ void VulkanBasicPolygonRt::createVertexBuffer(
         memcpy(&v[i].tangent, &ver[i].tangent, sizeof(VECTOR3));
         memcpy(&v[i].difUv, &ver[i].difUv, sizeof(VECTOR2));
         memcpy(&v[i].speUv, &ver[i].speUv, sizeof(VECTOR2));
-        for (auto i = 0; i < Rdata.size(); i++) {
-            Rdata[i].setvSize(ver[i].pos);
+        for (auto k = 0; k < Rdata.size(); k++) {
+            Rdata[k].setvSize(ver[i].pos);
         }
     }
 

@@ -32,7 +32,7 @@ public:
 		CoordTf::VECTOR4 addColor = {};
 	};
 	struct RtMaterial {
-		CoordTf::VECTOR4 vDiffuse = { 0.8f,0.8f,0.8f,1.0f };//ディフューズ色
+		CoordTf::VECTOR4 vDiffuse = { 1.0f,1.0f,1.0f,1.0f };//ディフューズ色
 		CoordTf::VECTOR4 vSpeculer = { 0.2f,0.2f,0.2f,1.0f };//スぺキュラ色
 		CoordTf::VECTOR4 vAmbient = { 0.0f,0.0f,0.0f,0.0f };//アンビエント
 		CoordTf::VECTOR4 shininess = { 4.0f,0.0f,0.0f,0.0f };//x:スペキュラ強さ
