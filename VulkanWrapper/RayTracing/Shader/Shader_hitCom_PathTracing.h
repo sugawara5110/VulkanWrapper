@@ -5,31 +5,31 @@
 char* Shader_hitCom_PathTracing =
 
 ///////////////////////////////////////////ランダムfloat///////////////////////////////////////////
-"float Rand_float(vec2 v2)\n"
+"float Rand_float(in vec2 v2, inout uint Seed)\n"
 "{\n"
 "	Seed++;\n"
 "	return sin(dot(v2, vec2(12.9898, 78.233)) * (sceneParams.SeedFrame % 100 + 1) * 0.001 + Seed + sceneParams.SeedFrame) * 43758.5453;\n"
 "}\n"
 
 ///////////////////////////////////////////ランダム整数////////////////////////////////////////////
-"uint Rand_integer()\n"
+"uint Rand_integer(inout uint Seed)\n"
 "{\n"
 "	vec2 index = gl_LaunchIDEXT.xy;\n"
-"	return uint(abs(Rand_float(index)));\n"
+"	return uint(abs(Rand_float(index, Seed)));\n"
 "}\n"
 
 ///////////////////////////////////////////ランダム少数////////////////////////////////////////////
-"float Rand_frac(vec2 v2)\n"
+"float Rand_frac(in vec2 v2, inout uint Seed)\n"
 "{\n"
-"	return fract(Rand_float(v2));\n"
+"	return fract(Rand_float(v2, Seed));\n"
 "}\n"
 
 ///////////////////////////////////////////ランダムベクトル////////////////////////////////////////
-"vec3 RandomVector(vec3 v, float area)\n"
+"vec3 RandomVector(in vec3 v, in float area, inout uint Seed)\n"
 "{\n"
 "	vec2 index = gl_LaunchIDEXT.xy;\n"
-"	float rand1 = Rand_frac(index);\n"
-"	float rand2 = Rand_frac(index + 0.5f);\n"
+"	float rand1 = Rand_frac(index, Seed);\n"
+"	float rand2 = Rand_frac(index + 0.5f, Seed);\n"
 
 //ランダムなベクトルを生成
 "	float z = area * rand1 - 1.0f;\n"

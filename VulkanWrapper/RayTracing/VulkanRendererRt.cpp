@@ -1151,6 +1151,7 @@ void VulkanRendererRt::createImageBasedLightingTexture(uint32_t QueueIndex, uint
     int32_t tInd = d->getTextureNo(FileName);
     if (tInd < 0)tInd = d->numTextureMax + 1;
 
-    d->createVkTexture(ImageBasedLighting, QueueIndex, comIndex,
-        d->getTexture(tInd));
+    VulkanDevice::Texture tex = d->getTexture(tInd);
+
+    d->createVkTexture(ImageBasedLighting, QueueIndex, comIndex, tex);
 }

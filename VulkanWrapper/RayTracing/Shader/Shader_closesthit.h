@@ -42,7 +42,7 @@ char* Shader_closesthit =
 "       {\n"
 "          payloadIn.color = PayloadCalculate_PathTracing(payloadIn.RecursionCnt, payloadIn.hitPosition,\n"
 "                                                         difTex, speTex, normalMap,\n"
-"                                                         payloadIn.throughput, payloadIn.hitInstanceId);\n"
+"                                                         payloadIn.throughput, payloadIn.hitInstanceId, payloadIn.Seed);\n"
 "       }\n"
 "    }\n"
 

@@ -10,7 +10,6 @@ char* Shader_common =
 
 "#define NumLightMax 256 \n"
 
-"uint Seed = 0;\n"
 "const float PI = 3.1415926;\n"
 "vec3 local_normal = vec3(0.0f, 0.0f, 1.0f);\n"
 "const float AIR_RefractiveIndex = 1.0f;\n"
@@ -73,4 +72,5 @@ char* Shader_common =
 "    float depth;\n"
 "    int hitInstanceId;\n"
 "    uint EmissiveIndex;\n"
+"    uint Seed;\n"
 "};\n";

@@ -32,7 +32,7 @@ char* Shader_traceRay_PathTracing =
 "        sumSize += sceneParams.IBL_size;\n"
 
 /////乱数を生成
-"    uint rnd = Rand_integer() % 101;\n"
+"    uint rnd = Rand_integer(payload.Seed) % 101;\n"
 
 /////光源毎のサイズから全光源の割合を計算,そこからインデックスを選択
 "    uint sum_min = 0;\n"
@@ -62,7 +62,7 @@ char* Shader_traceRay_PathTracing =
 "        ray_flag = gl_RayFlagsSkipClosestHitShaderEXT;\n"
 "    }\n"
 
-"    vec3 direction = RandomVector(vec3(1.0f, 0.0f, 0.0f), 2.0f);\n"//2.0f全方向
+"    vec3 direction = RandomVector(vec3(1.0f, 0.0f, 0.0f), 2.0f, payload.Seed);\n"//2.0f全方向
 
 "    payload.hitPosition = ePos;\n"
 "    payload.mNo = NEE;\n"//処理分岐用
@@ -137,7 +137,7 @@ char* Shader_traceRay_PathTracing =
 
 "    float rouPDF = min(max(max(throughput.x, throughput.y), throughput.z), 1.0f);\n"
 /////確率的に処理を打ち切り これやらないと白っぽくなる
-"    uint rnd = Rand_integer() % 101;\n"
+"    uint rnd = Rand_integer(payload.Seed) % 101;\n"
 "    if (rnd > uint(rouPDF * 100.0f))\n"
 "    {\n"
 "        payload.throughput = vec3(0.0f, 0.0f, 0.0f);\n"
@@ -173,7 +173,7 @@ char* Shader_traceRay_PathTracing =
 "    }\n"
 
 "    bsdf_f = true;\n"
-"    rnd = Rand_integer() % 101;\n"
+"    rnd = Rand_integer(payload.Seed) % 101;\n"
 "    if (uint(Alpha * 100.0f) < rnd && materialIdent(mNo, TRANSLUCENCE))\n"
 "    {\n"//透過
 
@@ -190,13 +190,13 @@ char* Shader_traceRay_PathTracing =
 "        }\n"
 "        else\n"
 "        {\n"
-"            rDir = RandomVector(refractVec, Area);\n"
+"            rDir = RandomVector(refractVec, Area, payload.Seed);\n"
 "        }\n"
 "    }\n"
 "    else\n"
 "    {\n"
 "        bsdf_f = false;\n"
-"        rnd = Rand_integer() % 101;\n"
+"        rnd = Rand_integer(payload.Seed) % 101;\n"
 "        if (diff_threshold < rnd && materialIdent(mNo, METALLIC))\n"
 "        {\n"//Speculer
 "            vec3 eyeVec = -outDir;\n"
@@ -208,12 +208,12 @@ char* Shader_traceRay_PathTracing =
 "            }\n"
 "            else\n"
 "            {\n"
-"                rDir = RandomVector(reflectVec, Area);\n"
+"                rDir = RandomVector(reflectVec, Area, payload.Seed);\n"
 "            }\n"
 "        }\n"
 "        else\n"
 "        {\n"//Diffuse
-"            rDir = RandomVector(normal, 1.0f);\n"//1.0f半球
+"            rDir = RandomVector(normal, 1.0f, payload.Seed);\n"//1.0f半球
 "        }\n"
 "    }\n"
 
@@ -251,9 +251,11 @@ char* Shader_traceRay_PathTracing =
 ///////////////////////PayloadCalculate_PathTracing///////////////////////////////////////////
 "vec3 PayloadCalculate_PathTracing(in uint RecursionCnt, in vec3 hitPosition, \n"
 "                                  in vec4 difTexColor, in vec3 speTexColor, in vec3 normal, \n"
-"                                  in vec3 throughput, inout int hitInstanceId)\n"
+"                                  in vec3 throughput, inout int hitInstanceId, inout uint Seed)\n"
 "{\n"
 "    vec3 ret = difTexColor.xyz;\n"
+
+"    payload.Seed = Seed;\n"
 
 "    hitInstanceId = gl_InstanceID;\n"
 
@@ -270,6 +272,7 @@ char* Shader_traceRay_PathTracing =
 "    bool bsdf_f;\n"
 "    float in_eta;\n"
 "    float out_eta;\n"
+
 "    vkRayPayload pathPay = PathTracing(outDir, RecursionCnt, hitPosition, difTexColor, speTexColor, normal, throughput, matNo,\n"
 "                                       bsdf_f, in_eta, out_eta);\n"
 

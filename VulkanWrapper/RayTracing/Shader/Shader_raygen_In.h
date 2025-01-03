@@ -18,7 +18,7 @@ char* Shader_raygen_In =
 "    const vec2 dim = gl_LaunchSizeEXT.xy;\n"//‰æ–Ê‘S‘Ì‚Ì•‚Æ‚‚³‚ğæ“¾
 "    const vec2 screenPos = (index + 0.5f) / dim * 2.0f - 1.0f;\n"
 
-"    Seed = sceneParams.SeedFrame;\n"
+"    payload.Seed = sceneParams.SeedFrame;\n"
 
 "    vec3 origin = sceneParams.cameraPosition.xyz;\n"
 "    vec4 world = vec4(screenPos.x, -screenPos.y, 0, 1) * sceneParams.projectionToWorld;\n"
@@ -26,7 +26,6 @@ char* Shader_raygen_In =
 "    vec3 direction = normalize(world.xyz - origin);\n"
 
 "    payload.hitInstanceId = -1;\n"
-
 "    payload.RecursionCnt = 0;\n"
 "    payload.hitPosition = origin;\n"
 "    payload.mNo = NONREFLECTION;\n"
