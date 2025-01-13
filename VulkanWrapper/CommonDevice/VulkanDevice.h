@@ -8,6 +8,7 @@
 #define VulkanDevice_Header
 
 #include "VulkanInstance.h"
+#include <vector>
 
 class VulkanDevice final {
 
@@ -125,6 +126,7 @@ public:
     struct textureIdSet {
         int diffuseId = -1;
         char difUvName[256] = {};
+        BufferSet updifTex;
         ImageSet difTex;
         int normalId = -1;
         char norUvName[256] = {};
@@ -133,6 +135,7 @@ public:
         char speUvName[256] = {};
         ImageSet speTex;
         void destroy() {
+            updifTex.destroy();
             difTex.destroy();
             norTex.destroy();
             speTex.destroy();
@@ -200,6 +203,9 @@ public:
         unsigned char* byte = nullptr;
         uint32_t width = 0;
         uint32_t height = 0;
+        bool use_movie = false;
+        std::vector<BufferSet*> upArr;
+        std::vector<ImageSet*> defArr;
         void setByte(unsigned char* inbyte) {
             byte = NEW unsigned char[width * 4 * height];
             memcpy(byte, inbyte, sizeof(unsigned char) * width * 4 * height);
@@ -249,7 +255,9 @@ private:
     void AllocateMemory(VkBufferUsageFlags usage, VkMemoryRequirements memRequirements, VkMemoryPropertyFlags properties,
         VkDeviceMemory& bufferMemory, void* add_pNext);
 
-    auto createTextureImage(uint32_t QueueIndex, uint32_t comBufindex, Texture& inByte);
+    auto createTextureImage(uint32_t QueueIndex, uint32_t comBufindex, Texture& inByte, BufferSet& stagingBuffer);
+
+    void updateTextureImage(uint32_t QueueIndex, uint32_t comBufindex, Texture& inByte, BufferSet& stagingBuffer, ImageSet& DefaultBuffer);
 
     void destroyTexture();
 
@@ -292,7 +300,7 @@ public:
     VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags mask,
         VkComponentMapping components = { VK_COMPONENT_SWIZZLE_IDENTITY });
 
-    void createVkTexture(ImageSet& tex, uint32_t QueueIndex, uint32_t comBufindex, Texture& inByte);
+    void createVkTexture(ImageSet& tex, uint32_t QueueIndex, uint32_t comBufindex, Texture& inByte, BufferSet& stagingBuffer);
 
     void createTextureSampler(VkSampler& textureSampler);
 
@@ -358,7 +366,10 @@ public:
         char* fileName,
         unsigned char* byteArr,
         uint32_t width,
-        uint32_t height);
+        uint32_t height,
+        bool use_movie = false);
+
+    void updateTexture(uint32_t QueueIndex, uint32_t comBufindex, char* fileName, unsigned char* frame);
 
     int32_t getTextureNo(char* pass);
 

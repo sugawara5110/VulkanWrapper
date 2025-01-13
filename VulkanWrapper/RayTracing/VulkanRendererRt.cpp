@@ -190,6 +190,7 @@ void VulkanRendererRt::destroy() {
     prevDepthMap.destroy();
     prevNormalMap.destroy();
     ImageBasedLighting.destroy();
+    upImageBasedLighting.destroy();
 
     instanceIdMap.destroy();
     depthMap.destroy();
@@ -1153,5 +1154,9 @@ void VulkanRendererRt::createImageBasedLightingTexture(uint32_t QueueIndex, uint
 
     VulkanDevice::Texture tex = d->getTexture(tInd);
 
-    d->createVkTexture(ImageBasedLighting, QueueIndex, comIndex, tex);
+    d->createVkTexture(ImageBasedLighting, QueueIndex, comIndex, tex, upImageBasedLighting);
+    if (tex.use_movie) {
+        tex.defArr.push_back(&ImageBasedLighting);
+        tex.upArr.push_back(&upImageBasedLighting);
+    }
 }

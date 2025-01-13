@@ -520,7 +520,7 @@ void VulkanDevice::createImage(uint32_t width, uint32_t height, VkFormat format,
     vkUtil::checkError(res);
 }
 
-auto VulkanDevice::createTextureImage(uint32_t QueueIndex, uint32_t comBufindex, Texture& inByte) {
+auto VulkanDevice::createTextureImage(uint32_t QueueIndex, uint32_t comBufindex, Texture& inByte, BufferSet& stagingBuffer) {
 
     VkDeviceSize imageSize = inByte.width * inByte.height * 4;
 
@@ -528,32 +528,38 @@ auto VulkanDevice::createTextureImage(uint32_t QueueIndex, uint32_t comBufindex,
         throw std::runtime_error("failed to load texture image!");
     }
 
-    BufferSet stagingBuffer;
     stagingBuffer.createUploadBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, nullptr);
-
-    stagingBuffer.memoryMap(inByte.byte);
 
     ImageSet texture;
     texture.createImage(inByte.width, inByte.height, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
         VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
+    updateTextureImage(QueueIndex, comBufindex, inByte, stagingBuffer, texture);
+
+    return texture;
+}
+
+void VulkanDevice::updateTextureImage(uint32_t QueueIndex, uint32_t comBufindex, Texture& inByte, BufferSet& stagingBuffer, ImageSet& DefaultBuffer) {
+
+    if (!inByte.byte) {
+        throw std::runtime_error("failed to load texture image!");
+    }
+
+    stagingBuffer.memoryMap(inByte.byte);
+
     CommandObj* com = &commandObj[QueueIndex];
 
     com->beginCommand(comBufindex);
 
-    texture.barrierResource(QueueIndex, comBufindex, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    DefaultBuffer.barrierResource(QueueIndex, comBufindex, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
-    copyBufferToImage(QueueIndex, comBufindex, stagingBuffer.getBuffer(), texture.getImage(),
+    copyBufferToImage(QueueIndex, comBufindex, stagingBuffer.getBuffer(), DefaultBuffer.getImage(),
         static_cast<uint32_t>(inByte.width), static_cast<uint32_t>(inByte.height), VK_IMAGE_ASPECT_COLOR_BIT);
 
-    texture.barrierResource(QueueIndex, comBufindex, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    DefaultBuffer.barrierResource(QueueIndex, comBufindex, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     com->endCommand(comBufindex);
     com->submitCommandsAndWait();
-
-    stagingBuffer.destroy();
-
-    return texture;
 }
 
 VkImageView VulkanDevice::createImageView(VkImage image, VkFormat format,
@@ -857,8 +863,8 @@ void VulkanDevice::createDevice(
     vkUtil::ARR_DELETE(dummyDifSpe);
 }
 
-void VulkanDevice::createVkTexture(ImageSet& tex, uint32_t QueueIndex, uint32_t comBufindex, Texture& inByte) {
-    tex = createTextureImage(QueueIndex, comBufindex, inByte);
+void VulkanDevice::createVkTexture(ImageSet& tex, uint32_t QueueIndex, uint32_t comBufindex, Texture& inByte, BufferSet& stagingBuffer) {
+    tex = createTextureImage(QueueIndex, comBufindex, inByte, stagingBuffer);
     tex.createImageView(VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT);
     createTextureSampler(tex.info.sampler);
 }
@@ -866,36 +872,54 @@ void VulkanDevice::createVkTexture(ImageSet& tex, uint32_t QueueIndex, uint32_t 
 void VulkanDevice::createTextureSet(uint32_t QueueIndex, uint32_t comIndex, textureIdSet& texSet) {
     VulkanDevice* d = VulkanDevice::GetInstance();
     if (texSet.diffuseId < 0) {
+        VulkanDevice::Texture& tex = d->texture[d->numTextureMax + 1];
         d->createVkTexture(texSet.difTex, QueueIndex, comIndex,
-            d->texture[d->numTextureMax + 1]);
+            tex, texSet.updifTex);
+        if (tex.use_movie) {
+            tex.defArr.push_back(&texSet.difTex);
+            tex.upArr.push_back(&texSet.updifTex);
+        }
     }
     else {
+        VulkanDevice::Texture& tex = d->texture[texSet.diffuseId];
         d->createVkTexture(texSet.difTex, QueueIndex, comIndex,
-            d->texture[texSet.diffuseId]);
+            tex, texSet.updifTex);
+        if (tex.use_movie) {
+            tex.defArr.push_back(&texSet.difTex);
+            tex.upArr.push_back(&texSet.updifTex);
+        }
     }
 
     if (texSet.normalId < 0) {
+        BufferSet bs;
         d->createVkTexture(texSet.norTex, QueueIndex, comIndex,
-            d->texture[d->numTextureMax]);
+            d->texture[d->numTextureMax], bs);
+        bs.destroy();
     }
     else {
+        BufferSet bs;
         d->createVkTexture(texSet.norTex, QueueIndex, comIndex,
-            d->texture[texSet.normalId]);
+            d->texture[texSet.normalId], bs);
+        bs.destroy();
     }
 
     if (texSet.specularId < 0) {
+        BufferSet bs;
         d->createVkTexture(texSet.speTex, QueueIndex, comIndex,
-            d->texture[d->numTextureMax + 1]);
+            d->texture[d->numTextureMax + 1], bs);
+        bs.destroy();
     }
     else {
+        BufferSet bs;
         d->createVkTexture(texSet.speTex, QueueIndex, comIndex,
-            d->texture[texSet.specularId]);
+            d->texture[texSet.specularId], bs);
+        bs.destroy();
     }
 }
 
 void VulkanDevice::GetTexture(
     char* fileName, unsigned char* byteArr,
-    uint32_t width, uint32_t height) {
+    uint32_t width, uint32_t height, bool use_movie) {
     //ƒtƒ@ƒCƒ‹–¼“o˜^
     char* filename = vkUtil::getNameFromPass(fileName);
     if (strlen(filename) >= (size_t)numTexFileNamelenMax)
@@ -906,9 +930,22 @@ void VulkanDevice::GetTexture(
     texture[numTexture].width = width;
     texture[numTexture].height = height;
     texture[numTexture].setByte(byteArr);
+    texture[numTexture].use_movie = use_movie;
     numTexture++;
     if (numTexture >= numTextureMax)
         throw std::runtime_error("The file limit has been.");
+}
+
+void VulkanDevice::updateTexture(uint32_t QueueIndex, uint32_t comBufindex, char* fileName, unsigned char* frame) {
+    int32_t ind = getTextureNo(fileName);
+    Texture tex = getTexture(ind);
+    VkDeviceSize imageSize = tex.width * tex.height * 4;
+    memcpy(tex.byte, frame, sizeof(unsigned char) * imageSize);
+    if (tex.use_movie) {
+        for (size_t i = 0; i < tex.upArr.size(); i++) {
+            updateTextureImage(QueueIndex, comBufindex, tex, *tex.upArr[i], *tex.defArr[i]);
+        }
+    }
 }
 
 int32_t VulkanDevice::getTextureNo(char* pass) {

@@ -66,12 +66,16 @@ private:
 			uniform[i] = NEW VulkanDevice::Uniform<RasterizeDescriptor::MatrixSet2D>(1);
 			if (textureId < 0) {
 				VulkanDevice::Texture tex = device->getTexture(device->numTextureMax);
-				if (i == 0)device->createVkTexture(texture, QueueIndex, comIndex, tex);
+				VulkanDevice::BufferSet bs;
+				if (i == 0)device->createVkTexture(texture, QueueIndex, comIndex, tex, bs);
+				bs.destroy();
 				//-1の場合テクスチャー無いので, ダミーを入れる
 			}
 			else {
 				VulkanDevice::Texture tex = device->getTexture(textureId);
-				if (i == 0)device->createVkTexture(texture, QueueIndex, comIndex, tex);
+				VulkanDevice::BufferSet bs;
+				if (i == 0)device->createVkTexture(texture, QueueIndex, comIndex, tex, bs);
+				bs.destroy();
 			}
 			descSetCnt = rd->upDescriptorSet2D(useTexture, texture, uniform[i], descSet[i], descSetLayout);
 		}

@@ -59,6 +59,7 @@ private:
     VulkanDevice::ImageSet prevNormalMap;
 
     VulkanDevice::ImageSet ImageBasedLighting;
+    VulkanDevice::BufferSet upImageBasedLighting;
 
     enum ShaderGroups {
         GroupRayGenShader = 0,
