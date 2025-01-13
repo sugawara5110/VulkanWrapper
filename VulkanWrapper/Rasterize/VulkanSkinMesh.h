@@ -57,7 +57,7 @@ private:
 	void copyConnectionPoseMatrix(uint32_t nextAnimationIndex);
 	void setNewPoseMatrixConnection(float connectionRatio);
 	CoordTf::MATRIX getCurrentPoseMatrix(uint32_t index);
-	void subUpdate(uint32_t swapIndex, CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale);
+	void subUpdate(uint32_t swapIndex);
 	void setfbx();
 	void setAnimation();
 
@@ -74,10 +74,17 @@ public:
 
 	void setChangeTexture(uint32_t meshIndex, uint32_t materialIndex, int diffuseTexId, int normalTexId, int specularTexId);
 
+	void Instancing(uint32_t swapIndex, CoordTf::VECTOR3 pos = { 0.0f,0.0f,0.0f },
+		CoordTf::VECTOR3 theta = { 0.0f,0.0f,0.0f }, CoordTf::VECTOR3 scale = { 1.0f,1.0f,1.0f });
+
+	void Instancing_update(uint32_t swapIndex, uint32_t animationIndex, float time);
+
 	void update(uint32_t swapIndex, uint32_t animationIndex, float time, CoordTf::VECTOR3 pos = { 0.0f,0.0f,0.0f },
 		CoordTf::VECTOR3 theta = { 0.0f,0.0f,0.0f }, CoordTf::VECTOR3 scale = { 1.0f,1.0f,1.0f });
 
 	void setConnectionPitch(float pitch);
+
+	bool auto_Instancing_update(uint32_t swapIndex, uint32_t animationIndex, float pitchTime);
 
 	bool autoUpdate(uint32_t swapIndex, uint32_t animationIndex, float pitchTime, CoordTf::VECTOR3 pos = { 0.0f,0.0f,0.0f },
 		CoordTf::VECTOR3 theta = { 0.0f,0.0f,0.0f }, CoordTf::VECTOR3 scale = { 1.0f,1.0f,1.0f });

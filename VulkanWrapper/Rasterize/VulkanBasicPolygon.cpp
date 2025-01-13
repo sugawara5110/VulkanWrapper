@@ -69,8 +69,14 @@ void VulkanBasicPolygon::setMaterialParameter(uint32_t swapIndex,
 	material[swapIndex][materialIndex]->update(0, &materialset[swapIndex][materialIndex]);
 }
 
-void VulkanBasicPolygon::update0(uint32_t swapIndex,
-	CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale, CoordTf::MATRIX* bone, uint32_t numBone) {
+void VulkanBasicPolygon::Instancing(
+	uint32_t swapIndex,
+	CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale,
+	float px, float py, float mx, float my) {
+
+	if (InstancingCnt >= RasterizeDescriptor::numInstancingMax) {
+		throw std::runtime_error("InstancingCnt The value of numInstancingMax reached.");
+	}
 
 	VulkanDevice* device = VulkanDevice::GetInstance();
 	using namespace CoordTf;
@@ -82,8 +88,20 @@ void VulkanBasicPolygon::update0(uint32_t swapIndex,
 	MATRIX vi = device->getCameraView();
 	MatrixMultiply(&vm, &world, &vi);
 	MATRIX pro = device->getProjection();
-	MatrixMultiply(&matset[swapIndex].mvp, &vm, &pro);
-	matset[swapIndex].world = world;
+	MatrixMultiply(&matset[swapIndex].mvp[InstancingCnt], &vm, &pro);
+	matset[swapIndex].world[InstancingCnt] = world;
+	matset[swapIndex].pXpYmXmY[InstancingCnt] = { px, py, mx, my };
+
+	if (InstancingCnt < RasterizeDescriptor::numInstancingMax) {
+		InstancingCnt++;
+	}
+}
+
+void VulkanBasicPolygon::update0(uint32_t swapIndex, CoordTf::MATRIX* bone, uint32_t numBone) {
+
+	VulkanDevice* device = VulkanDevice::GetInstance();
+	using namespace CoordTf;
+
 	if (numBone > 0)memcpy(matset[swapIndex].bone, bone, sizeof(MATRIX) * numBone);
 	uniform[swapIndex]->update(0, &matset[swapIndex]);
 
@@ -103,10 +121,16 @@ void VulkanBasicPolygon::update0(uint32_t swapIndex,
 	}
 }
 
-void VulkanBasicPolygon::update(uint32_t swapIndex,
-	CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale) {
+void VulkanBasicPolygon::Instancing_update(uint32_t swapIndex) {
+	update0(swapIndex, nullptr, 0);
+}
 
-	update0(swapIndex, pos, theta, scale, nullptr, 0);
+void VulkanBasicPolygon::update(uint32_t swapIndex,
+	CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale,
+	float px, float py, float mx, float my) {
+
+	Instancing(swapIndex, pos, theta, scale, px, py, mx, my);
+	update0(swapIndex, nullptr, 0);
 }
 
 void VulkanBasicPolygon::draw(uint32_t swapIndex, uint32_t QueueIndex, uint32_t comIndex) {
@@ -130,6 +154,7 @@ void VulkanBasicPolygon::draw(uint32_t swapIndex, uint32_t QueueIndex, uint32_t 
 		_vkCmdBindDescriptorSets(comb, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
 			&descSet[swapIndex][m], 0, nullptr);
 		_vkCmdBindIndexBuffer(comb, index[m].getBuffer(), 0, VK_INDEX_TYPE_UINT32);
-		_vkCmdDrawIndexed(comb, numIndex[m], 1, 0, 0, 0);
+		_vkCmdDrawIndexed(comb, numIndex[m], InstancingCnt, 0, 0, 0);
 	}
+	InstancingCnt = 0;
 }

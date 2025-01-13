@@ -36,6 +36,8 @@ private:
 	char* vs = nullptr;
 	char* fs = nullptr;
 
+	uint32_t InstancingCnt = 0;
+
 	template<typename T>
 	void create0(uint32_t QueueIndex, uint32_t comIndex, bool useAlpha,
 		int32_t numMat, VulkanDevice::textureIdSet* texid, float* uvSw,
@@ -95,8 +97,7 @@ private:
 		_vkDestroyShaderModule(device->getDevice(), fsInfo.module, nullptr);
 	}
 
-	void update0(uint32_t swapIndex, CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale,
-		CoordTf::MATRIX* bone, uint32_t numBone);
+	void update0(uint32_t swapIndex, CoordTf::MATRIX* bone, uint32_t numBone);
 
 public:
 	VulkanBasicPolygon();
@@ -108,8 +109,15 @@ public:
 	void setMaterialParameter(uint32_t swapIndex, CoordTf::VECTOR3 diffuse, CoordTf::VECTOR3 specular, CoordTf::VECTOR3 ambient,
 		uint32_t materialIndex = 0);
 
+	void Instancing(uint32_t swapIndex, CoordTf::VECTOR3 pos = { 0.0f,0.0f,0.0f },
+		CoordTf::VECTOR3 theta = { 0.0f,0.0f,0.0f }, CoordTf::VECTOR3 scale = { 1.0f,1.0f,1.0f },
+		float px = 1.0f, float py = 1.0f, float mx = 0.0f, float my = 0.0f);//px,py:幅の倍率, mx,my:何個目か
+
+	void Instancing_update(uint32_t swapIndex);
+
 	void update(uint32_t swapIndex, CoordTf::VECTOR3 pos = { 0.0f,0.0f,0.0f },
-		CoordTf::VECTOR3 theta = { 0.0f,0.0f,0.0f }, CoordTf::VECTOR3 scale = { 1.0f,1.0f,1.0f });
+		CoordTf::VECTOR3 theta = { 0.0f,0.0f,0.0f }, CoordTf::VECTOR3 scale = { 1.0f,1.0f,1.0f },
+		float px = 1.0f, float py = 1.0f, float mx = 0.0f, float my = 0.0f);
 
 	void draw(uint32_t swapIndex, uint32_t QueueIndex, uint32_t comIndex);
 };

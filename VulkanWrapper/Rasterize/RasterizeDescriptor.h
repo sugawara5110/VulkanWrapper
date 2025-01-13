@@ -29,11 +29,13 @@ private:
     float attenuation3 = 0.001f;
 
     static const int numBoneMax = 256;
+    static const int numInstancingMax = 256;
 
     struct MatrixSet {
-        CoordTf::MATRIX world;
-        CoordTf::MATRIX mvp;
+        CoordTf::MATRIX world[numInstancingMax];
+        CoordTf::MATRIX mvp[numInstancingMax];
         CoordTf::MATRIX bone[numBoneMax];
+        CoordTf::VECTOR4 pXpYmXmY[numInstancingMax];
     };
 
     struct Material {

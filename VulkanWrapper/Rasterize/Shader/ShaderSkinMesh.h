@@ -9,9 +9,10 @@ char* vsShaderSkinMesh =
 "#extension GL_ARB_separate_shader_objects : enable\n"
 
 "layout (binding = 0) uniform bufferMat {\n"
-"    mat4 world;\n"
-"    mat4 mvp;\n"
+"    mat4 world[256];\n"
+"    mat4 mvp[256];\n"
 "    mat4 bone[256];\n"
+"    vec4 pXpYmXmY[256];\n"
 "} gBufferMat;\n"
 
 "layout (location = 0) in vec4 inPos;\n"
@@ -59,10 +60,10 @@ char* vsShaderSkinMesh =
 "   sOutNor += mat3(m) * sInNor * wei;\n"
 
 //ワールド変換行列だけ掛けた頂点,光源計算に使用
-"   outWpos = (gBufferMat.world * sOutPos).xyz;\n"
+"   outWpos = (gBufferMat.world[gl_InstanceIndex] * sOutPos).xyz;\n"
 //法線は光源計算に使用されるのでワールド変換行列だけ掛ける
-"   outNormal = normalize(mat3(gBufferMat.world) * sOutNor);\n"
+"   outNormal = normalize(mat3(gBufferMat.world[gl_InstanceIndex]) * sOutNor);\n"
 "   outTexCoord = inTexCoord;\n"
 "   outSpeTexCoord = inSpeTexCoord;\n"
-"   gl_Position = gBufferMat.mvp * sOutPos;\n"
+"   gl_Position = gBufferMat.mvp[gl_InstanceIndex] * sOutPos;\n"
 "}\n";
