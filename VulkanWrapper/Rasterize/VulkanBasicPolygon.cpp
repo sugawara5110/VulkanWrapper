@@ -69,20 +69,14 @@ void VulkanBasicPolygon::setMaterialParameter(uint32_t swapIndex,
 	material[swapIndex][materialIndex]->update(0, &materialset[swapIndex][materialIndex]);
 }
 
-void VulkanBasicPolygon::Instancing(
-	uint32_t swapIndex,
-	CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale,
-	float px, float py, float mx, float my) {
+void VulkanBasicPolygon::Instancing0(uint32_t swapIndex, CoordTf::MATRIX world, float px, float py, float mx, float my) {
 
 	if (InstancingCnt >= RasterizeDescriptor::numInstancingMax) {
 		throw std::runtime_error("InstancingCnt The value of numInstancingMax reached.");
 	}
 
-	VulkanDevice* device = VulkanDevice::GetInstance();
 	using namespace CoordTf;
-	MATRIX world;
-
-	vkUtil::calculationMatrixWorld(world, pos, theta, scale);
+	VulkanDevice* device = VulkanDevice::GetInstance();
 
 	MATRIX vm;
 	MATRIX vi = device->getCameraView();
@@ -95,6 +89,26 @@ void VulkanBasicPolygon::Instancing(
 	if (InstancingCnt < RasterizeDescriptor::numInstancingMax) {
 		InstancingCnt++;
 	}
+}
+
+void VulkanBasicPolygon::Instancing(
+	uint32_t swapIndex,
+	CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale,
+	float px, float py, float mx, float my) {
+
+	VulkanDevice* device = VulkanDevice::GetInstance();
+	using namespace CoordTf;
+	MATRIX world;
+
+	vkUtil::calculationMatrixWorld(world, pos, theta, scale);
+
+	Instancing0(swapIndex, world, px, py, mx, my);
+}
+
+void VulkanBasicPolygon::Instancing(uint32_t swapIndex, CoordTf::MATRIX world,
+	float px, float py, float mx, float my) {
+
+	Instancing0(swapIndex, world, px, py, mx, my);
 }
 
 void VulkanBasicPolygon::update0(uint32_t swapIndex, CoordTf::MATRIX* bone, uint32_t numBone) {

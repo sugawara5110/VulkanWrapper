@@ -99,6 +99,8 @@ private:
 
 	void update0(uint32_t swapIndex, CoordTf::MATRIX* bone, uint32_t numBone);
 
+	void Instancing0(uint32_t swapIndex, CoordTf::MATRIX world, float px, float py, float mx, float my);
+
 public:
 	VulkanBasicPolygon();
 	~VulkanBasicPolygon();
@@ -112,6 +114,9 @@ public:
 	void Instancing(uint32_t swapIndex, CoordTf::VECTOR3 pos = { 0.0f,0.0f,0.0f },
 		CoordTf::VECTOR3 theta = { 0.0f,0.0f,0.0f }, CoordTf::VECTOR3 scale = { 1.0f,1.0f,1.0f },
 		float px = 1.0f, float py = 1.0f, float mx = 0.0f, float my = 0.0f);//px,py:幅の倍率, mx,my:何個目か
+
+	void Instancing(uint32_t swapIndex, CoordTf::MATRIX world,
+		float px = 1.0f, float py = 1.0f, float mx = 0.0f, float my = 0.0f);
 
 	void Instancing_update(uint32_t swapIndex);
 

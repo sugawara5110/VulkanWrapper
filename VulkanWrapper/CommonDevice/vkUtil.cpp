@@ -34,11 +34,9 @@ void vkUtil::calculationMatrixWorld(CoordTf::MATRIX& World, CoordTf::VECTOR3 pos
     MatrixRotationZ(&rotZ, theta.z);
     MatrixRotationY(&rotY, theta.y);
     MatrixRotationX(&rotX, theta.x);
-    MATRIX rotZY = rotZ * rotY;
-    MATRIX rotZYX = rotZY * rotX;
+    MATRIX rotZYX = rotZ * rotY * rotX;
     MatrixTranslation(&mov, pos.x, pos.y, pos.z);
-    MATRIX scro = rotZYX * sca;
-    World = scro * mov;
+    World = sca * rotZYX * mov;
 }
 
 void vkUtil::addChar::addStr(char* str1, char* str2) {
