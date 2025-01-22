@@ -30,12 +30,16 @@ private:
 
     static const int numBoneMax = 256;
     static const int numInstancingMax = 256;
+    static const int numDescriptorSet = 4;
 
     struct MatrixSet {
         CoordTf::MATRIX world[numInstancingMax];
         CoordTf::MATRIX mvp[numInstancingMax];
-        CoordTf::MATRIX bone[numBoneMax];
         CoordTf::VECTOR4 pXpYmXmY[numInstancingMax];
+    };
+
+    struct MatrixSet_bone {
+        CoordTf::MATRIX bone[numBoneMax];
     };
 
     struct Material {
@@ -57,8 +61,8 @@ private:
     RasterizeDescriptor(const RasterizeDescriptor& obj) {}   // コピーコンストラクタ禁止
     void operator=(const RasterizeDescriptor& obj) {}// 代入演算子禁止
 
-    void descriptorAndPipelineLayouts(bool useTexture, VkPipelineLayout& pipelineLayout,
-        VkDescriptorSetLayout& descSetLayout);
+    void descriptorAndPipelineLayouts(VkPipelineLayout& pipelineLayout,
+        VkDescriptorSetLayout* descSetLayoutArr);
 
     void descriptorAndPipelineLayouts2D(bool useTexture, VkPipelineLayout& pipelineLayout,
         VkDescriptorSetLayout& descSetLayout);
@@ -80,16 +84,18 @@ public:
     static RasterizeDescriptor* GetInstance();
     static void DeleteInstance();
 
-    uint32_t upDescriptorSet(bool useTexture,
+    void upDescriptorSet(
         VulkanDevice::ImageSet& difTexture,
         VulkanDevice::ImageSet& norTexture,
         VulkanDevice::ImageSet& speTexture,
         VulkanDevice::Uniform<MatrixSet>* uni,
+        VulkanDevice::Uniform<MatrixSet_bone>* uni_bone,
         VulkanDevice::Uniform<Material>* material,
-        VkDescriptorSet& descriptorSet,
-        VkDescriptorSetLayout& descSetLayout);
+        VkDescriptorSet* descriptorSet,
+        VkDescriptorSetLayout* descSetLayout);
 
-    uint32_t upDescriptorSet2D(bool useTexture, VulkanDevice::ImageSet& texture,
+    void upDescriptorSet2D(bool useTexture,
+        VulkanDevice::ImageSet& texture,
         VulkanDevice::Uniform<MatrixSet2D>* uni,
         VkDescriptorSet& descriptorSet,
         VkDescriptorSetLayout& descSetLayout);

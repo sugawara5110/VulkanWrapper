@@ -8,12 +8,15 @@ char* vsShaderBasicPolygon =
 "#version 450\n"
 "#extension GL_ARB_separate_shader_objects : enable\n"
 
-"layout (binding = 0) uniform bufferMat {\n"
+"layout (binding = 0, set = 0) uniform bufferMat {\n"
 "    mat4 world[256];\n"
 "    mat4 mvp[256];\n"
-"    mat4 bone[256];\n"
 "    vec4 pXpYmXmY[256];\n"
 "} gBufferMat;\n"
+
+"layout (binding = 0, set = 1) uniform bufferMat_bone {\n"
+"    mat4 bone[256];\n"
+"} gBufferMat_bone;\n"
 
 "layout (location = 0) in vec4 inPos;\n"
 "layout (location = 1) in vec3 inNormal;\n"
@@ -46,10 +49,10 @@ char* fsShaderBasicPolygon =
 "#version 450\n"
 "#extension GL_ARB_separate_shader_objects : enable\n"
 
-"layout (binding = 1) uniform sampler2D texSampler;\n"
-"layout (binding = 2) uniform sampler2D norSampler;\n"
-"layout (binding = 3) uniform sampler2D speSampler;\n"
-"layout (binding = 4) uniform bufferMaterial {\n"
+"layout (binding = 0, set = 2) uniform sampler2D texSampler;\n"
+"layout (binding = 1, set = 2) uniform sampler2D norSampler;\n"
+"layout (binding = 2, set = 2) uniform sampler2D speSampler;\n"
+"layout (binding = 0, set = 3) uniform bufferMaterial {\n"
 "    vec4 diffuse;\n"
 "    vec4 specular;\n"
 "    vec4 ambient;\n"

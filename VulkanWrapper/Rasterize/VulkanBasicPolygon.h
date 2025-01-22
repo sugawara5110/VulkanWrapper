@@ -21,15 +21,20 @@ private:
 	VulkanDevice::BufferSet vertices;
 	std::unique_ptr<VulkanDevice::BufferSet[]> index;
 	std::unique_ptr<uint32_t[]> numIndex;
-	VkDescriptorSetLayout descSetLayout;
+	VkDescriptorSetLayout descSetLayout[RasterizeDescriptor::numDescriptorSet];
 	const static uint32_t numSwap = 2;
-	std::unique_ptr<VkDescriptorSet[]> descSet[numSwap];
+	std::unique_ptr<std::unique_ptr<VkDescriptorSet[]>[]> descSet[numSwap];
 	uint32_t descSetCnt = 0;
 	VkPipelineLayout pipelineLayout;
 	VkPipelineCache pipelineCache;
 	VkPipeline pipeline;
+
 	VulkanDevice::Uniform<RasterizeDescriptor::MatrixSet>* uniform[numSwap] = {};
 	RasterizeDescriptor::MatrixSet matset[numSwap];
+
+	VulkanDevice::Uniform<RasterizeDescriptor::MatrixSet_bone>* uniform_bone[numSwap] = {};
+	RasterizeDescriptor::MatrixSet_bone matset_bone[numSwap];
+
 	VulkanDevice::Uniform<RasterizeDescriptor::Material>** material[numSwap] = {};
 	RasterizeDescriptor::Material* materialset[numSwap];
 	uint32_t numMaterial = 1;
@@ -58,7 +63,10 @@ private:
 		index = std::make_unique<VulkanDevice::BufferSet[]>(numMaterial);
 		numIndex = std::make_unique<uint32_t[]>(numMaterial);
 		for (uint32_t i = 0; i < numSwap; i++) {
-			descSet[i] = std::make_unique<VkDescriptorSet[]>(numMaterial);
+			descSet[i] = std::make_unique<std::unique_ptr<VkDescriptorSet[]>[]>(numMaterial);
+			for (uint32_t j = 0; j < numMaterial; j++) {
+				descSet[i][j] = std::make_unique<VkDescriptorSet[]>(RasterizeDescriptor::numDescriptorSet);
+			}
 		}
 
 		VkPipelineShaderStageCreateInfo vsInfo = device->createShaderModule("BPvs", vs, VK_SHADER_STAGE_VERTEX_BIT);
@@ -66,12 +74,13 @@ private:
 
 		vertices = device->createVertexBuffer<T>(QueueIndex, comIndex, ver, num, false, nullptr, nullptr);
 		RasterizeDescriptor* rd = RasterizeDescriptor::GetInstance();
-		rd->descriptorAndPipelineLayouts(true, pipelineLayout, descSetLayout);
+		rd->descriptorAndPipelineLayouts(pipelineLayout, descSetLayout);
 
 		for (uint32_t i = 0; i < numSwap; i++) {
 			material[i] = NEW VulkanDevice::Uniform<RasterizeDescriptor::Material>*[numMaterial];
 			materialset[i] = NEW RasterizeDescriptor::Material[numMaterial];
 			uniform[i] = NEW VulkanDevice::Uniform<RasterizeDescriptor::MatrixSet>(1);
+			uniform_bone[i] = NEW VulkanDevice::Uniform<RasterizeDescriptor::MatrixSet_bone>(1);
 			for (uint32_t m = 0; m < numMaterial; m++) {
 				if (i == 0)numIndex[m] = indNum[m];
 				material[i][m] = NEW VulkanDevice::Uniform<RasterizeDescriptor::Material>(1);
@@ -83,9 +92,9 @@ private:
 
 				if (i == 0)device->createTextureSet(QueueIndex, comIndex, texId[m]);
 
-				descSetCnt = rd->upDescriptorSet(true, texId[m].difTex, texId[m].norTex, texId[m].speTex,
-					uniform[i], material[i][m],
-					descSet[i][m], descSetLayout);
+				rd->upDescriptorSet(texId[m].difTex, texId[m].norTex, texId[m].speTex,
+					uniform[i], uniform_bone[i], material[i][m],
+					descSet[i][m].get(), descSetLayout);
 			}
 		}
 

@@ -236,8 +236,8 @@ private:
     CoordTf::VECTOR4 viewPos;
     CoordTf::VECTOR3 upVec = {};
 
-    Texture texture[numTextureMax + 2];
-    char textureNameList[numTextureMax][numTexFileNamelenMax];
+    Texture texture[numTextureMax + 2] = {};
+    char textureNameList[numTextureMax][numTexFileNamelenMax] = {};
     uint32_t numTexture = 0;
 
     VulkanDevice() {}

@@ -8,12 +8,15 @@ char* vsShaderSkinMesh =
 "#version 450\n"
 "#extension GL_ARB_separate_shader_objects : enable\n"
 
-"layout (binding = 0) uniform bufferMat {\n"
+"layout (binding = 0, set = 0) uniform bufferMat {\n"
 "    mat4 world[256];\n"
 "    mat4 mvp[256];\n"
-"    mat4 bone[256];\n"
 "    vec4 pXpYmXmY[256];\n"
 "} gBufferMat;\n"
+
+"layout (binding = 0, set = 1) uniform bufferMat_bone {\n"
+"    mat4 bone[256];\n"
+"} gBufferMat_bone;\n"
 
 "layout (location = 0) in vec4 inPos;\n"
 "layout (location = 1) in vec3 inNormal;\n"
@@ -37,25 +40,25 @@ char* vsShaderSkinMesh =
 //bone0
 "   int iBone = int(boneIndex.x);\n"//1個目のBoneIndex取り出し
 "   float wei = boneWeight.x;\n"//1個目のBoneWeight取り出し
-"   mat4 m = gBufferMat.bone[iBone];\n"//姿勢行列配列からiBone番目行列取り出し
+"   mat4 m = gBufferMat_bone.bone[iBone];\n"//姿勢行列配列からiBone番目行列取り出し
 "   sOutPos += m * sInPos * wei;\n"//スキニング後頂点 = 姿勢行列 * 頂点 * 頂点ウエイト(DirectXとは逆)
 "   sOutNor += mat3(m) * sInNor * wei;\n"//スキニング後法線 = 姿勢行列 * 法線 * 頂点ウエイト
 //bone1
 "   iBone = int(boneIndex.y);\n"
 "   wei = boneWeight.y;\n"
-"   m = gBufferMat.bone[iBone];\n"
+"   m = gBufferMat_bone.bone[iBone];\n"
 "   sOutPos += m * sInPos * wei;\n"
 "   sOutNor += mat3(m) * sInNor * wei;\n"
 //bone2
 "   iBone = int(boneIndex.z);\n"
 "   wei = boneWeight.z;\n"
-"   m = gBufferMat.bone[iBone];\n"
+"   m = gBufferMat_bone.bone[iBone];\n"
 "   sOutPos += m * sInPos * wei;\n"
 "   sOutNor += mat3(m) * sInNor * wei;\n"
 //bone3
 "   iBone = int(boneIndex.w);\n"
 "   wei = boneWeight.w;\n"
-"   m = gBufferMat.bone[iBone];\n"
+"   m = gBufferMat_bone.bone[iBone];\n"
 "   sOutPos += m * sInPos * wei;\n"
 "   sOutNor += mat3(m) * sInNor * wei;\n"
 

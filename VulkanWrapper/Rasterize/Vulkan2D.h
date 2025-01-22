@@ -77,7 +77,7 @@ private:
 				if (i == 0)device->createVkTexture(texture, QueueIndex, comIndex, tex, bs);
 				bs.destroy();
 			}
-			descSetCnt = rd->upDescriptorSet2D(useTexture, texture, uniform[i], descSet[i], descSetLayout);
+			rd->upDescriptorSet2D(useTexture, texture, uniform[i], descSet[i], descSetLayout);
 		}
 
 		pipelineCache = rd->createPipelineCache();

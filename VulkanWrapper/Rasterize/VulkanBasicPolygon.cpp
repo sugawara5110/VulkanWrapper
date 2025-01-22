@@ -17,6 +17,7 @@ VulkanBasicPolygon::~VulkanBasicPolygon() {
 
 	for (uint32_t s = 0; s < numSwap; s++) {
 		vkUtil::S_DELETE(uniform[s]);
+		vkUtil::S_DELETE(uniform_bone[s]);
 		for (uint32_t i = 0; i < numMaterial; i++) {
 			vkUtil::S_DELETE(material[s][i]);
 		}
@@ -27,7 +28,9 @@ VulkanBasicPolygon::~VulkanBasicPolygon() {
 	VulkanDevice* device = VulkanDevice::GetInstance();
 	VkDevice vd = device->getDevice();
 
-	_vkDestroyDescriptorSetLayout(vd, descSetLayout, nullptr);
+	for (int i = 0; i < RasterizeDescriptor::numDescriptorSet; i++) {
+		_vkDestroyDescriptorSetLayout(vd, descSetLayout[i], nullptr);
+	}
 	_vkDestroyPipeline(vd, pipeline, nullptr);
 	_vkDestroyPipelineCache(vd, pipelineCache, nullptr);
 	_vkDestroyPipelineLayout(vd, pipelineLayout, nullptr);
@@ -116,7 +119,10 @@ void VulkanBasicPolygon::update0(uint32_t swapIndex, CoordTf::MATRIX* bone, uint
 	VulkanDevice* device = VulkanDevice::GetInstance();
 	using namespace CoordTf;
 
-	if (numBone > 0)memcpy(matset[swapIndex].bone, bone, sizeof(MATRIX) * numBone);
+	if (numBone > 0) {
+		memcpy(matset_bone[swapIndex].bone, bone, sizeof(MATRIX) * numBone);
+		uniform_bone[swapIndex]->update(0, &matset_bone[swapIndex]);
+	}
 	uniform[swapIndex]->update(0, &matset[swapIndex]);
 
 	RasterizeDescriptor* rd = RasterizeDescriptor::GetInstance();
@@ -165,8 +171,8 @@ void VulkanBasicPolygon::draw(uint32_t swapIndex, uint32_t QueueIndex, uint32_t 
 
 	for (uint32_t m = 0; m < numMaterial; m++) {
 		if (numIndex[m] <= 0)continue;
-		_vkCmdBindDescriptorSets(comb, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
-			&descSet[swapIndex][m], 0, nullptr);
+		_vkCmdBindDescriptorSets(comb, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, RasterizeDescriptor::numDescriptorSet,
+			descSet[swapIndex][m].get(), 0, nullptr);
 		_vkCmdBindIndexBuffer(comb, index[m].getBuffer(), 0, VK_INDEX_TYPE_UINT32);
 		_vkCmdDrawIndexed(comb, numIndex[m], InstancingCnt, 0, 0, 0);
 	}
