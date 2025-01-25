@@ -16,6 +16,7 @@ VulkanBasicPolygon::VulkanBasicPolygon() {
 VulkanBasicPolygon::~VulkanBasicPolygon() {
 
 	for (uint32_t s = 0; s < numSwap; s++) {
+		vkUtil::S_DELETE(uniformVP[s]);
 		vkUtil::S_DELETE(uniform[s]);
 		vkUtil::S_DELETE(uniform_bone[s]);
 		for (uint32_t i = 0; i < numMaterial; i++) {
@@ -78,14 +79,6 @@ void VulkanBasicPolygon::Instancing0(uint32_t swapIndex, CoordTf::MATRIX world, 
 		throw std::runtime_error("InstancingCnt The value of numInstancingMax reached.");
 	}
 
-	using namespace CoordTf;
-	VulkanDevice* device = VulkanDevice::GetInstance();
-
-	MATRIX vm;
-	MATRIX vi = device->getCameraView();
-	MatrixMultiply(&vm, &world, &vi);
-	MATRIX pro = device->getProjection();
-	MatrixMultiply(&matset[swapIndex].mvp[InstancingCnt], &vm, &pro);
 	matset[swapIndex].world[InstancingCnt] = world;
 	matset[swapIndex].pXpYmXmY[InstancingCnt] = { px, py, mx, my };
 
@@ -124,6 +117,11 @@ void VulkanBasicPolygon::update0(uint32_t swapIndex, CoordTf::MATRIX* bone, uint
 		uniform_bone[swapIndex]->update(0, &matset_bone[swapIndex]);
 	}
 	uniform[swapIndex]->update(0, &matset[swapIndex]);
+
+	MATRIX vi = device->getCameraView();
+	MATRIX pro = device->getProjection();
+	matsetVP[swapIndex].viewProjection = vi * pro;
+	uniformVP[swapIndex]->update(0, &matsetVP[swapIndex]);
 
 	RasterizeDescriptor* rd = RasterizeDescriptor::GetInstance();
 

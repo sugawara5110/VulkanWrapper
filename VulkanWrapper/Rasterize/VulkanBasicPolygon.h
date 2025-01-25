@@ -29,6 +29,9 @@ private:
 	VkPipelineCache pipelineCache;
 	VkPipeline pipeline;
 
+	VulkanDevice::Uniform<RasterizeDescriptor::ViewProjection>* uniformVP[numSwap] = {};
+	RasterizeDescriptor::ViewProjection matsetVP[numSwap];
+
 	VulkanDevice::Uniform<RasterizeDescriptor::MatrixSet>* uniform[numSwap] = {};
 	RasterizeDescriptor::MatrixSet matset[numSwap];
 
@@ -79,6 +82,7 @@ private:
 		for (uint32_t i = 0; i < numSwap; i++) {
 			material[i] = NEW VulkanDevice::Uniform<RasterizeDescriptor::Material>*[numMaterial];
 			materialset[i] = NEW RasterizeDescriptor::Material[numMaterial];
+			uniformVP[i] = NEW VulkanDevice::Uniform<RasterizeDescriptor::ViewProjection>(1);
 			uniform[i] = NEW VulkanDevice::Uniform<RasterizeDescriptor::MatrixSet>(1);
 			uniform_bone[i] = NEW VulkanDevice::Uniform<RasterizeDescriptor::MatrixSet_bone>(1);
 			for (uint32_t m = 0; m < numMaterial; m++) {
@@ -92,9 +96,16 @@ private:
 
 				if (i == 0)device->createTextureSet(QueueIndex, comIndex, texId[m]);
 
-				rd->upDescriptorSet(texId[m].difTex, texId[m].norTex, texId[m].speTex,
-					uniform[i], uniform_bone[i], material[i][m],
-					descSet[i][m].get(), descSetLayout);
+				rd->upDescriptorSet(
+					texId[m].difTex,
+					texId[m].norTex,
+					texId[m].speTex,
+					uniformVP[i],
+					uniform[i],
+					uniform_bone[i],
+					material[i][m],
+					descSet[i][m].get(),
+					descSetLayout);
 			}
 		}
 

@@ -26,29 +26,6 @@
 #include "Shader/Shader_hitCom_PathTracing.h"
 
 namespace {
-    char* changeStr(char* srcStr, char* target, char* replacement) {
-        uint32_t ln = (uint32_t)strlen(srcStr);
-        uint32_t taln = (uint32_t)strlen(target);
-        uint32_t reln = (uint32_t)strlen(replacement);
-        uint32_t retln = ln - taln + reln;
-
-        char* ret = NEW char[retln + 1];
-        int retCnt = 0;
-        for (uint32_t i = 0; i < ln; i++) {
-            if (!strncmp(&srcStr[i], target, sizeof(char) * taln)) {
-                memcpy(&ret[retCnt], replacement, sizeof(char) * reln);
-                retCnt += reln;
-                i += (taln - 1);
-            }
-            else {
-                ret[retCnt] = srcStr[i];
-                retCnt++;
-            }
-        }
-        ret[retln] = '\0';
-        return ret;
-    }
-
     VkRayTracingShaderGroupCreateInfoKHR createShaderGroupRayGeneration(uint32_t shaderIndex) {
 
         VkRayTracingShaderGroupCreateInfoKHR shaderGroupCI{
@@ -584,7 +561,7 @@ void VulkanRendererRt::CreateRaytracePipeline() {
     char replace[255] = {};
     snprintf(replace, sizeof(replace), "%d", numMaterial);
 
-    char* Shader_common_R = changeStr(Shader_common, "replace_NUM_MAT_CB", replace);
+    char* Shader_common_R = vkUtil::changeStr(Shader_common, "replace_NUM_MAT_CB", replace, 1);
 
     hitcom.addStr(Shader_hitCom, Shader_hitCom_PathTracing);
 

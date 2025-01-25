@@ -122,3 +122,26 @@ void vkUtil::memory_leak_test() {
 #endif
 #endif
 }
+
+char* vkUtil::changeStr(char* srcStr, char* target, char* replacement, uint32_t numtarget) {
+    uint32_t ln = (uint32_t)strlen(srcStr);
+    uint32_t taln = (uint32_t)strlen(target);
+    uint32_t reln = (uint32_t)strlen(replacement);
+    uint32_t retln = ln - taln * numtarget + reln * numtarget;
+
+    char* ret = NEW char[retln + 1];
+    int retCnt = 0;
+    for (uint32_t i = 0; i < ln; i++) {
+        if (!strncmp(&srcStr[i], target, sizeof(char) * taln)) {
+            memcpy(&ret[retCnt], replacement, sizeof(char) * reln);
+            retCnt += reln;
+            i += (taln - 1);
+        }
+        else {
+            ret[retCnt] = srcStr[i];
+            retCnt++;
+        }
+    }
+    ret[retln] = '\0';
+    return ret;
+}

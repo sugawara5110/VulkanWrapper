@@ -29,58 +29,38 @@ void RasterizeDescriptor::descriptorAndPipelineLayouts(
 
     std::vector<VkDescriptorSetLayoutBinding> set[numDescriptorSet];
 
-    VkDescriptorSetLayoutBinding bufferMat = {};
-    bufferMat.binding = 0;
-    bufferMat.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    bufferMat.descriptorCount = 1;
-    bufferMat.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    bufferMat.pImmutableSamplers = nullptr;
+    auto vkbin = [](uint32_t binding,
+        VkDescriptorType type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        VkShaderStageFlags f = VK_SHADER_STAGE_VERTEX_BIT) {
 
+            VkDescriptorSetLayoutBinding b = {};
+            b.binding = binding;
+            b.descriptorType = type;
+            b.descriptorCount = 1;
+            b.stageFlags = f;
+            b.pImmutableSamplers = nullptr;
+            return b;
+        };
+
+    VkDescriptorSetLayoutBinding bufferMatvp = vkbin(0);
+    set[0].push_back(bufferMatvp);
+
+    VkDescriptorSetLayoutBinding bufferMat = vkbin(1);
     set[0].push_back(bufferMat);
 
-    VkDescriptorSetLayoutBinding bufferMat_bone = {};
-    bufferMat_bone.binding = 0;
-    bufferMat_bone.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    bufferMat_bone.descriptorCount = 1;
-    bufferMat_bone.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    bufferMat_bone.pImmutableSamplers = nullptr;
-
+    VkDescriptorSetLayoutBinding bufferMat_bone = vkbin(0);
     set[1].push_back(bufferMat_bone);
 
-    VkDescriptorSetLayoutBinding texSampler = {};
-    texSampler.binding = 0;
-    texSampler.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    texSampler.descriptorCount = 1;
-    texSampler.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    texSampler.pImmutableSamplers = nullptr;
-
+    VkDescriptorSetLayoutBinding texSampler = vkbin(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
     set[2].push_back(texSampler);
 
-    VkDescriptorSetLayoutBinding norSampler = {};
-    norSampler.binding = 1;
-    norSampler.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    norSampler.descriptorCount = 1;
-    norSampler.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    norSampler.pImmutableSamplers = nullptr;
-
+    VkDescriptorSetLayoutBinding norSampler = vkbin(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
     set[2].push_back(norSampler);
 
-    VkDescriptorSetLayoutBinding speSampler = {};
-    speSampler.binding = 2;
-    speSampler.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    speSampler.descriptorCount = 1;
-    speSampler.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    speSampler.pImmutableSamplers = nullptr;
-
+    VkDescriptorSetLayoutBinding speSampler = vkbin(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
     set[2].push_back(speSampler);
 
-    VkDescriptorSetLayoutBinding bufferMaterial = {};
-    bufferMaterial.binding = 0;
-    bufferMaterial.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    bufferMaterial.descriptorCount = 1;
-    bufferMaterial.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    bufferMaterial.pImmutableSamplers = nullptr;
-
+    VkDescriptorSetLayoutBinding bufferMaterial = vkbin(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT);
     set[3].push_back(bufferMaterial);
 
     VkDescriptorSetLayoutCreateInfo descriptor_layout[numDescriptorSet] = {};
@@ -159,6 +139,7 @@ void RasterizeDescriptor::upDescriptorSet(
     VulkanDevice::ImageSet& difTexture,
     VulkanDevice::ImageSet& norTexture,
     VulkanDevice::ImageSet& speTexture,
+    VulkanDevice::Uniform<ViewProjection>* vp,
     VulkanDevice::Uniform<MatrixSet>* uni,
     VulkanDevice::Uniform<MatrixSet_bone>* uni_bone,
     VulkanDevice::Uniform<Material>* material,
@@ -167,7 +148,7 @@ void RasterizeDescriptor::upDescriptorSet(
 
     VkResult res;
 
-    VkDescriptorSetAllocateInfo alloc_info[1];
+    VkDescriptorSetAllocateInfo alloc_info[1] = {};
     alloc_info[0].sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     alloc_info[0].pNext = nullptr;
     alloc_info[0].descriptorPool = VulkanDevice::GetInstance()->GetDescriptorPool();
@@ -177,10 +158,22 @@ void RasterizeDescriptor::upDescriptorSet(
     res = _vkAllocateDescriptorSets(VulkanDevice::GetInstance()->getDevice(), alloc_info, descriptorSet);
     vkUtil::checkError(res);
 
-    const uint32_t num_writes = 6;
+    const uint32_t num_writes = 7;
+    uint32_t wCnt = 0;
     VkWriteDescriptorSet writes[num_writes] = {};
 
-    VkWriteDescriptorSet& bufferMat = writes[0];
+    VkWriteDescriptorSet& bufferMatvp = writes[wCnt++];
+    bufferMatvp = {};
+    bufferMatvp.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    bufferMatvp.pNext = nullptr;
+    bufferMatvp.dstSet = descriptorSet[0];
+    bufferMatvp.descriptorCount = 1;
+    bufferMatvp.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    bufferMatvp.pBufferInfo = &vp->getBufferSet()->info;
+    bufferMatvp.dstArrayElement = 0;
+    bufferMatvp.dstBinding = 0;
+
+    VkWriteDescriptorSet& bufferMat = writes[wCnt++];
     bufferMat = {};
     bufferMat.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     bufferMat.pNext = nullptr;
@@ -189,9 +182,9 @@ void RasterizeDescriptor::upDescriptorSet(
     bufferMat.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     bufferMat.pBufferInfo = &uni->getBufferSet()->info;
     bufferMat.dstArrayElement = 0;
-    bufferMat.dstBinding = 0;
+    bufferMat.dstBinding = 1;
 
-    VkWriteDescriptorSet& bufferMat_bone = writes[1];
+    VkWriteDescriptorSet& bufferMat_bone = writes[wCnt++];
     bufferMat_bone = {};
     bufferMat_bone.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     bufferMat_bone.pNext = nullptr;
@@ -202,7 +195,7 @@ void RasterizeDescriptor::upDescriptorSet(
     bufferMat_bone.dstArrayElement = 0;
     bufferMat_bone.dstBinding = 0;
 
-    VkWriteDescriptorSet& texSampler = writes[2];
+    VkWriteDescriptorSet& texSampler = writes[wCnt++];
     texSampler = {};
     texSampler.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     texSampler.dstSet = descriptorSet[2];
@@ -212,7 +205,7 @@ void RasterizeDescriptor::upDescriptorSet(
     texSampler.pImageInfo = &difTexture.info;
     texSampler.dstArrayElement = 0;
 
-    VkWriteDescriptorSet& norSampler = writes[3];
+    VkWriteDescriptorSet& norSampler = writes[wCnt++];
     norSampler = {};
     norSampler.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     norSampler.dstSet = descriptorSet[2];
@@ -222,7 +215,7 @@ void RasterizeDescriptor::upDescriptorSet(
     norSampler.pImageInfo = &norTexture.info;
     norSampler.dstArrayElement = 0;
 
-    VkWriteDescriptorSet& speSampler = writes[4];
+    VkWriteDescriptorSet& speSampler = writes[wCnt++];
     speSampler = {};
     speSampler.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     speSampler.dstSet = descriptorSet[2];
@@ -232,7 +225,7 @@ void RasterizeDescriptor::upDescriptorSet(
     speSampler.pImageInfo = &speTexture.info;
     speSampler.dstArrayElement = 0;
 
-    VkWriteDescriptorSet& bufferMaterial = writes[5];
+    VkWriteDescriptorSet& bufferMaterial = writes[wCnt++];
     bufferMaterial = {};
     bufferMaterial.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     bufferMaterial.pNext = nullptr;

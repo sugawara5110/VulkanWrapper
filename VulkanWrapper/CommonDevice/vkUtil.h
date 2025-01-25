@@ -82,6 +82,8 @@ namespace vkUtil {
     }
 
     void memory_leak_test();
+
+    char* changeStr(char* srcStr, char* target, char* replacement, uint32_t numtarget);
 }
 
 #endif

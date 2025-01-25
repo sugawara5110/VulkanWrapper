@@ -8,9 +8,12 @@ char* vsShaderBasicPolygon =
 "#version 450\n"
 "#extension GL_ARB_separate_shader_objects : enable\n"
 
-"layout (binding = 0, set = 0) uniform bufferMat {\n"
+"layout (binding = 0, set = 0) uniform bufferMatVP {\n"
+"    mat4 ViewProjection;\n"
+"} gBufferMatVp;\n"
+
+"layout (binding = 1, set = 0) uniform bufferMat {\n"
 "    mat4 world[256];\n"
-"    mat4 mvp[256];\n"
 "    vec4 pXpYmXmY[256];\n"
 "} gBufferMat;\n"
 
@@ -29,10 +32,11 @@ char* vsShaderBasicPolygon =
 "layout (location = 3) out vec2 outSpeTexCoord;\n"
 
 "void main() {\n"
+"   mat4 world = gBufferMat.world[gl_InstanceIndex];\n"
     //ワールド変換行列だけ掛けた頂点,光源計算に使用
-"   outWpos = (gBufferMat.world[gl_InstanceIndex] * inPos).xyz;\n"
+"   outWpos = (world * inPos).xyz;\n"
     //法線は光源計算に使用されるのでワールド変換行列だけ掛ける
-"   outNormal = normalize(mat3(gBufferMat.world[gl_InstanceIndex]) * inNormal);\n"
+"   outNormal = normalize(mat3(world) * inNormal);\n"
 
 "   vec4 pXpYmXmY = gBufferMat.pXpYmXmY[gl_InstanceIndex];\n"
 
@@ -42,7 +46,8 @@ char* vsShaderBasicPolygon =
 "   outSpeTexCoord.x = inSpeTexCoord.x * pXpYmXmY.x + pXpYmXmY.x * pXpYmXmY.z;\n"
 "   outSpeTexCoord.y = inSpeTexCoord.y * pXpYmXmY.y + pXpYmXmY.y * pXpYmXmY.w;\n" 
 
-"   gl_Position = gBufferMat.mvp[gl_InstanceIndex] * inPos;\n"
+"   mat4 mvp = gBufferMatVp.ViewProjection * world;\n"
+"   gl_Position = mvp * inPos;\n"//directxと逆
 "}\n";
 
 char* fsShaderBasicPolygon =

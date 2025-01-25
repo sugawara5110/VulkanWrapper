@@ -1021,7 +1021,7 @@ bool VulkanDevice::createDescriptorPool(std::vector<VkDescriptorPoolSize>* add_p
     VkDescriptorPoolCreateInfo descPoolCI{
       VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
       nullptr,  VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
-      100, // maxDescriptorSetsêî
+      500, // maxDescriptorSetsêî
       COUNTOF(poolSize), poolSize
     };
 

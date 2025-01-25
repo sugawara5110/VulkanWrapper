@@ -8,9 +8,12 @@ char* vsShaderSkinMesh =
 "#version 450\n"
 "#extension GL_ARB_separate_shader_objects : enable\n"
 
-"layout (binding = 0, set = 0) uniform bufferMat {\n"
+"layout (binding = 0, set = 0) uniform bufferMatVP {\n"
+"    mat4 ViewProjection;\n"
+"} gBufferMatVp;\n"
+
+"layout (binding = 1, set = 0) uniform bufferMat {\n"
 "    mat4 world[256];\n"
-"    mat4 mvp[256];\n"
 "    vec4 pXpYmXmY[256];\n"
 "} gBufferMat;\n"
 
@@ -62,11 +65,14 @@ char* vsShaderSkinMesh =
 "   sOutPos += m * sInPos * wei;\n"
 "   sOutNor += mat3(m) * sInNor * wei;\n"
 
+"   mat4 world = gBufferMat.world[gl_InstanceIndex];\n"
 //ワールド変換行列だけ掛けた頂点,光源計算に使用
-"   outWpos = (gBufferMat.world[gl_InstanceIndex] * sOutPos).xyz;\n"
+"   outWpos = (world * sOutPos).xyz;\n"
 //法線は光源計算に使用されるのでワールド変換行列だけ掛ける
-"   outNormal = normalize(mat3(gBufferMat.world[gl_InstanceIndex]) * sOutNor);\n"
+"   outNormal = normalize(mat3(world) * sOutNor);\n"
 "   outTexCoord = inTexCoord;\n"
 "   outSpeTexCoord = inSpeTexCoord;\n"
-"   gl_Position = gBufferMat.mvp[gl_InstanceIndex] * sOutPos;\n"
+
+"   mat4 mvp = gBufferMatVp.ViewProjection * world;\n"
+"   gl_Position = mvp * sOutPos;\n"
 "}\n";

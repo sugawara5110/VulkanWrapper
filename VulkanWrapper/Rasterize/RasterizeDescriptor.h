@@ -30,11 +30,14 @@ private:
 
     static const int numBoneMax = 256;
     static const int numInstancingMax = 256;
-    static const int numDescriptorSet = 4;
+    static const int numDescriptorSet = 5;
+
+    struct ViewProjection {
+        CoordTf::MATRIX viewProjection = {};
+    };
 
     struct MatrixSet {
         CoordTf::MATRIX world[numInstancingMax];
-        CoordTf::MATRIX mvp[numInstancingMax];
         CoordTf::VECTOR4 pXpYmXmY[numInstancingMax];
     };
 
@@ -88,6 +91,7 @@ public:
         VulkanDevice::ImageSet& difTexture,
         VulkanDevice::ImageSet& norTexture,
         VulkanDevice::ImageSet& speTexture,
+        VulkanDevice::Uniform<ViewProjection>* vp,
         VulkanDevice::Uniform<MatrixSet>* uni,
         VulkanDevice::Uniform<MatrixSet_bone>* uni_bone,
         VulkanDevice::Uniform<Material>* material,
