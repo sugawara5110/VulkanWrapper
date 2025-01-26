@@ -8,7 +8,10 @@
 
 RasterizeDescriptor* RasterizeDescriptor::ptr = nullptr;
 
-void RasterizeDescriptor::InstanceCreate() {
+uint32_t RasterizeDescriptor::numMaxLight = 256;
+
+void RasterizeDescriptor::InstanceCreate(uint32_t NumMaxLight) {
+    numMaxLight = NumMaxLight;
     if (ptr == nullptr)ptr = NEW RasterizeDescriptor();
 }
 
@@ -20,6 +23,19 @@ void RasterizeDescriptor::DeleteInstance() {
     if (ptr != nullptr) {
         delete ptr;
         ptr = nullptr;
+    }
+}
+
+RasterizeDescriptor::RasterizeDescriptor() {
+    for (uint32_t s = 0; s < numSwap; s++) {
+        uniformLight[s] = NEW VulkanDevice::Uniform<RasterizeDescriptor::Light>(numMaxLight);
+    }
+    matsetLight.resize(numMaxLight);
+}
+
+RasterizeDescriptor::~RasterizeDescriptor() {
+    for (uint32_t s = 0; s < numSwap; s++) {
+        vkUtil::S_DELETE(uniformLight[s]);
     }
 }
 
@@ -62,6 +78,9 @@ void RasterizeDescriptor::descriptorAndPipelineLayouts(
 
     VkDescriptorSetLayoutBinding bufferMaterial = vkbin(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT);
     set[3].push_back(bufferMaterial);
+
+    VkDescriptorSetLayoutBinding bufferLight = vkbin(1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT);
+    set[3].push_back(bufferLight);
 
     VkDescriptorSetLayoutCreateInfo descriptor_layout[numDescriptorSet] = {};
 
@@ -140,11 +159,12 @@ void RasterizeDescriptor::upDescriptorSet(
     VulkanDevice::ImageSet& norTexture,
     VulkanDevice::ImageSet& speTexture,
     VulkanDevice::Uniform<ViewProjection>* vp,
-    VulkanDevice::Uniform<MatrixSet>* uni,
+    VulkanDevice::Uniform<Instancing>* uni,
     VulkanDevice::Uniform<MatrixSet_bone>* uni_bone,
     VulkanDevice::Uniform<Material>* material,
     VkDescriptorSet* descriptorSet,
-    VkDescriptorSetLayout* descSetLayout) {
+    VkDescriptorSetLayout* descSetLayout,
+    uint32_t SwapIndex) {
 
     VkResult res;
 
@@ -158,7 +178,7 @@ void RasterizeDescriptor::upDescriptorSet(
     res = _vkAllocateDescriptorSets(VulkanDevice::GetInstance()->getDevice(), alloc_info, descriptorSet);
     vkUtil::checkError(res);
 
-    const uint32_t num_writes = 7;
+    const uint32_t num_writes = 8;
     uint32_t wCnt = 0;
     VkWriteDescriptorSet writes[num_writes] = {};
 
@@ -235,6 +255,17 @@ void RasterizeDescriptor::upDescriptorSet(
     bufferMaterial.pBufferInfo = &material->getBufferSet()->info;
     bufferMaterial.dstArrayElement = 0;
     bufferMaterial.dstBinding = 0;
+
+    VkWriteDescriptorSet& bufferLight = writes[wCnt++];
+    bufferLight = {};
+    bufferLight.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    bufferLight.pNext = nullptr;
+    bufferLight.dstSet = descriptorSet[3];
+    bufferLight.descriptorCount = 1;
+    bufferLight.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    bufferLight.pBufferInfo = &uniformLight[SwapIndex]->getBufferSet()->info;
+    bufferLight.dstArrayElement = 0;
+    bufferLight.dstBinding = 1;
 
     _vkUpdateDescriptorSets(VulkanDevice::GetInstance()->getDevice(), num_writes, writes, 0, nullptr);
 }
@@ -419,7 +450,8 @@ void RasterizeDescriptor::setLightAttenuation(float att1, float att2, float att3
     attenuation3 = att3;
 }
 
-void RasterizeDescriptor::setLight(uint32_t index, CoordTf::VECTOR3 pos, CoordTf::VECTOR3 color) {
-    lightPos[index].as(pos.x, pos.y, pos.z, 0.0f);
-    lightColor[index].as(color.x, color.y, color.z, 1.0f);
+void RasterizeDescriptor::setLight(uint32_t swapIndex, uint32_t LightIndex, CoordTf::VECTOR3 pos, CoordTf::VECTOR3 color) {
+    matsetLight[LightIndex].lightPos.as(pos.x, pos.y, pos.z, 0.0f);
+    matsetLight[LightIndex].lightColor.as(color.x, color.y, color.z, 1.0f);
+    uniformLight[swapIndex]->updateArr(matsetLight.data());
 }

@@ -63,10 +63,14 @@ private:
 
 public:
 	~VulkanSkinMesh();
+
 	void setFbx(char* pass, float endframe);
 	void setFbxInByteArray(char* byteArray, unsigned int size, float endframe);
 	void additionalAnimation(char* pass, float endframe);
 	void additionalAnimationInByteArray(char* byteArray, unsigned int size, float endframe);
+
+	void setNumMaxInstancing(uint32_t num);
+
 	void create(uint32_t QueueIndex, uint32_t comIndex, bool useAlpha);
 
 	void setMaterialParameter(uint32_t swapIndex, uint32_t meshIndex, uint32_t materialIndex,

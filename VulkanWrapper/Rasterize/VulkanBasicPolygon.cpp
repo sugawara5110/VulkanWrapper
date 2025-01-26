@@ -15,7 +15,7 @@ VulkanBasicPolygon::VulkanBasicPolygon() {
 
 VulkanBasicPolygon::~VulkanBasicPolygon() {
 
-	for (uint32_t s = 0; s < numSwap; s++) {
+	for (uint32_t s = 0; s < RasterizeDescriptor::numSwap; s++) {
 		vkUtil::S_DELETE(uniformVP[s]);
 		vkUtil::S_DELETE(uniform[s]);
 		vkUtil::S_DELETE(uniform_bone[s]);
@@ -61,7 +61,7 @@ void VulkanBasicPolygon::create(uint32_t QueueIndex, uint32_t comIndex, bool use
 	tex[0].specularId = speTexInd;
 	float sw[1] = {};
 	create0<VulkanDevice::Vertex3D>(QueueIndex, comIndex, useAlpha, numMaterial, tex, sw, ver, num, &ind, &indNum,
-		attrDescs, 4, vsShaderBasicPolygon, fsShaderBasicPolygon);
+		attrDescs, 4, vsShaderBasicPolygon, fsShaderBasicPolygon, 1);
 }
 
 void VulkanBasicPolygon::setMaterialParameter(uint32_t swapIndex,
@@ -75,14 +75,14 @@ void VulkanBasicPolygon::setMaterialParameter(uint32_t swapIndex,
 
 void VulkanBasicPolygon::Instancing0(uint32_t swapIndex, CoordTf::MATRIX world, float px, float py, float mx, float my) {
 
-	if (InstancingCnt >= RasterizeDescriptor::numInstancingMax) {
-		throw std::runtime_error("InstancingCnt The value of numInstancingMax reached.");
+	if (InstancingCnt >= maxInstancingCnt) {
+		throw std::runtime_error("InstancingCnt The value of maxInstancingCnt reached.");
 	}
 
-	matset[swapIndex].world[InstancingCnt] = world;
-	matset[swapIndex].pXpYmXmY[InstancingCnt] = { px, py, mx, my };
+	matset[swapIndex][InstancingCnt].world = world;
+	matset[swapIndex][InstancingCnt].pXpYmXmY = { px, py, mx, my };
 
-	if (InstancingCnt < RasterizeDescriptor::numInstancingMax) {
+	if (InstancingCnt < maxInstancingCnt) {
 		InstancingCnt++;
 	}
 }
@@ -113,10 +113,10 @@ void VulkanBasicPolygon::update0(uint32_t swapIndex, CoordTf::MATRIX* bone, uint
 	using namespace CoordTf;
 
 	if (numBone > 0) {
-		memcpy(matset_bone[swapIndex].bone, bone, sizeof(MATRIX) * numBone);
-		uniform_bone[swapIndex]->update(0, &matset_bone[swapIndex]);
+		memcpy(matset_bone[swapIndex].data(), bone, sizeof(MATRIX) * numBone);
+		uniform_bone[swapIndex]->updateArr(matset_bone[swapIndex].data());
 	}
-	uniform[swapIndex]->update(0, &matset[swapIndex]);
+	uniform[swapIndex]->updateArr(matset[swapIndex].data());
 
 	MATRIX vi = device->getCameraView();
 	MATRIX pro = device->getProjection();
@@ -129,8 +129,6 @@ void VulkanBasicPolygon::update0(uint32_t swapIndex, CoordTf::MATRIX* bone, uint
 		if (numIndex[m] <= 0)continue;
 		RasterizeDescriptor::Material& mat = materialset[swapIndex][m];
 		mat.viewPos.as(device->getCameraViewPos().x, device->getCameraViewPos().y, device->getCameraViewPos().z, 0.0f);
-		memcpy(mat.lightPos, rd->lightPos, sizeof(VECTOR4) * rd->numLight);
-		memcpy(mat.lightColor, rd->lightColor, sizeof(VECTOR4) * rd->numLight);
 		mat.numLight.x = (float)rd->numLight;
 		mat.numLight.y = rd->attenuation1;
 		mat.numLight.z = rd->attenuation2;
@@ -175,4 +173,8 @@ void VulkanBasicPolygon::draw(uint32_t swapIndex, uint32_t QueueIndex, uint32_t 
 		_vkCmdDrawIndexed(comb, numIndex[m], InstancingCnt, 0, 0, 0);
 	}
 	InstancingCnt = 0;
+}
+
+void VulkanBasicPolygon::setNumMaxInstancing(uint32_t num) {
+	maxInstancingCnt = num;
 }

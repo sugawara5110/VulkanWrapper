@@ -339,9 +339,9 @@ void VulkanSkinMesh::create(uint32_t QueueIndex, uint32_t comIndex, bool useAlph
 		bp[mI]->create0<VertexSkin>(QueueIndex, comIndex, useAlpha, numMaterial, texId, uvSw, verSkin,
 			(uint32_t)mesh->getNumPolygonVertices(),
 			newIndex, numNewIndex, attrDescs, numattrDescs, vsShaderSkinMesh,
-			bp[mI]->fs);
+			bp[mI]->fs, numBone);
 
-		for (uint32_t sw = 0; sw < bp[0]->numSwap; sw++) {
+		for (uint32_t sw = 0; sw < RasterizeDescriptor::numSwap; sw++) {
 			for (uint32_t matInd = 0; matInd < numMaterial; matInd++) {
 				if (numNewIndex[matInd] <= 0)continue;
 				bp[mI]->setMaterialParameter(sw, diffuse[matInd], specular[matInd], ambient[matInd],
@@ -510,5 +510,11 @@ bool VulkanSkinMesh::autoUpdate(uint32_t swapIndex, uint32_t animationIndex, flo
 void VulkanSkinMesh::draw(uint32_t swapIndex, uint32_t QueueIndex, uint32_t comIndex) {
 	for (uint32_t i = 0; i < numMesh; i++) {
 		bp[i]->draw(swapIndex, QueueIndex, comIndex);
+	}
+}
+
+void VulkanSkinMesh::setNumMaxInstancing(uint32_t num) {
+	for (uint32_t i = 0; i < numMesh; i++) {
+		bp[i]->setNumMaxInstancing(num);
 	}
 }

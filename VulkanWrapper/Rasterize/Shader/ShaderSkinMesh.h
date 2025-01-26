@@ -12,13 +12,20 @@ char* vsShaderSkinMesh =
 "    mat4 ViewProjection;\n"
 "} gBufferMatVp;\n"
 
+"struct Instancing{\n"
+"    mat4 world;\n"
+"    vec4 pXpYmXmY;\n"
+"    vec4 d1;\n"
+"    vec4 d2;\n"
+"    vec4 d3;\n"
+"};\n"
+
 "layout (binding = 1, set = 0) uniform bufferMat {\n"
-"    mat4 world[256];\n"
-"    vec4 pXpYmXmY[256];\n"
+"    Instancing ins[replace_NUM_Ins_CB];\n"
 "} gBufferMat;\n"
 
 "layout (binding = 0, set = 1) uniform bufferMat_bone {\n"
-"    mat4 bone[256];\n"
+"    mat4 bone[replace_NUM_BONE_CB];\n"
 "} gBufferMat_bone;\n"
 
 "layout (location = 0) in vec4 inPos;\n"
@@ -65,7 +72,7 @@ char* vsShaderSkinMesh =
 "   sOutPos += m * sInPos * wei;\n"
 "   sOutNor += mat3(m) * sInNor * wei;\n"
 
-"   mat4 world = gBufferMat.world[gl_InstanceIndex];\n"
+"   mat4 world = gBufferMat.ins[gl_InstanceIndex].world;\n"
 //ワールド変換行列だけ掛けた頂点,光源計算に使用
 "   outWpos = (world * sOutPos).xyz;\n"
 //法線は光源計算に使用されるのでワールド変換行列だけ掛ける

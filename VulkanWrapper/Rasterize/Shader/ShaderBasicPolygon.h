@@ -12,13 +12,20 @@ char* vsShaderBasicPolygon =
 "    mat4 ViewProjection;\n"
 "} gBufferMatVp;\n"
 
+"struct Instancing{\n"
+"    mat4 world;\n"
+"    vec4 pXpYmXmY;\n"
+"    vec4 d1;\n"
+"    vec4 d2;\n"
+"    vec4 d3;\n"
+"};\n"
+
 "layout (binding = 1, set = 0) uniform bufferMat {\n"
-"    mat4 world[256];\n"
-"    vec4 pXpYmXmY[256];\n"
+"    Instancing ins[replace_NUM_Ins_CB];\n"
 "} gBufferMat;\n"
 
 "layout (binding = 0, set = 1) uniform bufferMat_bone {\n"
-"    mat4 bone[256];\n"
+"    mat4 bone[replace_NUM_BONE_CB];\n"
 "} gBufferMat_bone;\n"
 
 "layout (location = 0) in vec4 inPos;\n"
@@ -32,13 +39,13 @@ char* vsShaderBasicPolygon =
 "layout (location = 3) out vec2 outSpeTexCoord;\n"
 
 "void main() {\n"
-"   mat4 world = gBufferMat.world[gl_InstanceIndex];\n"
+"   mat4 world = gBufferMat.ins[gl_InstanceIndex].world;\n"
     //ワールド変換行列だけ掛けた頂点,光源計算に使用
 "   outWpos = (world * inPos).xyz;\n"
     //法線は光源計算に使用されるのでワールド変換行列だけ掛ける
 "   outNormal = normalize(mat3(world) * inNormal);\n"
 
-"   vec4 pXpYmXmY = gBufferMat.pXpYmXmY[gl_InstanceIndex];\n"
+"   vec4 pXpYmXmY = gBufferMat.ins[gl_InstanceIndex].pXpYmXmY;\n"
 
 "   outTexCoord.x = inTexCoord.x * pXpYmXmY.x + pXpYmXmY.x * pXpYmXmY.z;\n"
 "   outTexCoord.y = inTexCoord.y * pXpYmXmY.y + pXpYmXmY.y * pXpYmXmY.w;\n" 
@@ -62,11 +69,22 @@ char* fsShaderBasicPolygon =
 "    vec4 specular;\n"
 "    vec4 ambient;\n"
 "    vec4 viewPos;\n"
-"    vec4 lightPos[256];\n"
-"    vec4 lightColor[256];\n"
 "    vec4 numLight;\n"//ライト数, 減衰1, 減衰2, 減衰3
 "    vec4 uvSwitch;\n"
+"    vec4 d1;\n"
+"    vec4 d2;\n"
 "} gMaterial;\n"
+
+"struct Light{\n"
+"    vec4 lightPos;\n"
+"    vec4 lightColor;\n"
+"    vec4 d1;\n"
+"    vec4 d2;\n"
+"};\n"
+
+"layout (binding = 1, set = 3) uniform LightCB {\n"
+"    Light light[replace_NUM_Light_CB];\n"
+"} LightCb;\n"
 
 "layout (location = 0) in vec3 inWpos;\n"
 "layout (location = 1) in vec3 inNormal;\n"
@@ -110,14 +128,15 @@ char* fsShaderBasicPolygon =
 
        ////点光源計算////
 	   //対象頂点から光源までの距離計算
-"      float distance = length(inWpos - gMaterial.lightPos[i].xyz);\n"
+"      vec3 lightPos = LightCb.light[i].lightPos.xyz;\n"
+"      float distance = length(inWpos - lightPos);\n"
 	   //↑の距離とパラメータから光の減衰率の計算    
 "      float attenuation = 1.0f / \n"
 "                          (gMaterial.numLight.y + \n"
 "                           gMaterial.numLight.z * distance + \n"
 "                           pow(gMaterial.numLight.w * distance, 2.0f));\n"
 	   //ライトベクトル計算
-"      vec3 lightVec = normalize(gMaterial.lightPos[i].xyz - inWpos);\n"
+"      vec3 lightVec = normalize(lightPos - inWpos);\n"
 
        ////拡散反射光計算////
        //ライトベクトルから陰影の計算
@@ -137,8 +156,9 @@ char* fsShaderBasicPolygon =
 "      vec3 diffuse = gMaterial.diffuse.xyz * ScaCla;\n"
 "      vec3 specular = gMaterial.specular.xyz * spe3;\n"
 
-"      difCol.xyz += diffuse * gMaterial.lightColor[i].xyz * attenuation;\n"
-"      speCol.xyz += specular * gMaterial.lightColor[i].xyz * attenuation;\n"
+"      vec3 lightColor = LightCb.light[i].lightColor.xyz;\n"
+"      difCol.xyz += diffuse * lightColor * attenuation;\n"
+"      speCol.xyz += specular * lightColor * attenuation;\n"
 "   }\n"
 "   difCol.xyz += gMaterial.ambient.xyz;\n"
 "   vec4 dTex = texture(texSampler, texCoord);\n"

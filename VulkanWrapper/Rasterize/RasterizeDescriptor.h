@@ -20,47 +20,59 @@ private:
     friend VulkanBasicPolygon;
     friend VulkanSkinMesh;
 
+    const static uint32_t numSwap = 2;
+
     static RasterizeDescriptor* ptr;
-    CoordTf::VECTOR4 lightPos[VulkanDevice::numLightMax];
-    CoordTf::VECTOR4 lightColor[VulkanDevice::numLightMax];
+    static uint32_t numMaxLight;
     uint32_t numLight = 1;
     float attenuation1 = 1.0f;
     float attenuation2 = 0.001f;
     float attenuation3 = 0.001f;
 
-    static const int numBoneMax = 256;
-    static const int numInstancingMax = 256;
-    static const int numDescriptorSet = 5;
+    static const int numDescriptorSet = 4;
 
     struct ViewProjection {
         CoordTf::MATRIX viewProjection = {};
     };
 
-    struct MatrixSet {
-        CoordTf::MATRIX world[numInstancingMax];
-        CoordTf::VECTOR4 pXpYmXmY[numInstancingMax];
+    struct Instancing {
+        CoordTf::MATRIX world;
+        CoordTf::VECTOR4 pXpYmXmY;
+        CoordTf::VECTOR4 d1;
+        CoordTf::VECTOR4 d2;
+        CoordTf::VECTOR4 d3;
     };
 
     struct MatrixSet_bone {
-        CoordTf::MATRIX bone[numBoneMax];
+        CoordTf::MATRIX bone;
     };
 
     struct Material {
         CoordTf::VECTOR4 diffuse = { 1.0f, 1.0f, 1.0f, 1.0f };
         CoordTf::VECTOR4 specular = { 0.0f, 0.0f, 0.0f, 0.0f };
         CoordTf::VECTOR4 ambient = { 0.0f, 0.0f, 0.0f, 0.0f };
-        CoordTf::VECTOR4 viewPos;
-        CoordTf::VECTOR4 lightPos[VulkanDevice::numLightMax];
-        CoordTf::VECTOR4 lightColor[VulkanDevice::numLightMax];
+        CoordTf::VECTOR4 viewPos = {};
         CoordTf::VECTOR4 numLight;//ライト数,減衰1,減衰2,減衰3
         CoordTf::VECTOR4 UvSwitch = {};//.x==0:そのまま, 1:切り替え
+        CoordTf::VECTOR4 d1;
+        CoordTf::VECTOR4 d2;
     };
+
+    struct Light {
+        CoordTf::VECTOR4 lightPos = {};
+        CoordTf::VECTOR4 lightColor = {};
+        CoordTf::VECTOR4 d1;
+        CoordTf::VECTOR4 d2;
+    };
+
+    VulkanDevice::Uniform<RasterizeDescriptor::Light>* uniformLight[numSwap] = {};
+    std::vector<RasterizeDescriptor::Light> matsetLight;
 
     struct MatrixSet2D {
         CoordTf::VECTOR2 world;
     };
 
-    RasterizeDescriptor() {}
+    RasterizeDescriptor();
     RasterizeDescriptor(const RasterizeDescriptor& obj) {}   // コピーコンストラクタ禁止
     void operator=(const RasterizeDescriptor& obj) {}// 代入演算子禁止
 
@@ -83,20 +95,23 @@ private:
         const VkPipelineCache& pCache);
 
 public:
-    static void InstanceCreate();
+    static void InstanceCreate(uint32_t NumMaxLight = 256);
     static RasterizeDescriptor* GetInstance();
     static void DeleteInstance();
+
+    ~RasterizeDescriptor();
 
     void upDescriptorSet(
         VulkanDevice::ImageSet& difTexture,
         VulkanDevice::ImageSet& norTexture,
         VulkanDevice::ImageSet& speTexture,
         VulkanDevice::Uniform<ViewProjection>* vp,
-        VulkanDevice::Uniform<MatrixSet>* uni,
+        VulkanDevice::Uniform<Instancing>* uni,
         VulkanDevice::Uniform<MatrixSet_bone>* uni_bone,
         VulkanDevice::Uniform<Material>* material,
         VkDescriptorSet* descriptorSet,
-        VkDescriptorSetLayout* descSetLayout);
+        VkDescriptorSetLayout* descSetLayout,
+        uint32_t SwapIndex);
 
     void upDescriptorSet2D(bool useTexture,
         VulkanDevice::ImageSet& texture,
@@ -108,7 +123,7 @@ public:
 
     void setLightAttenuation(float att1, float att2, float att3);
 
-    void setLight(uint32_t index, CoordTf::VECTOR3 pos, CoordTf::VECTOR3 color);
+    void setLight(uint32_t swapIndex, uint32_t LightIndex, CoordTf::VECTOR3 pos, CoordTf::VECTOR3 color);
 };
 
 #endif
