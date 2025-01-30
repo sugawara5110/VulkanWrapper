@@ -58,7 +58,6 @@ char* vsShaderBasicPolygon =
 "}\n";
 
 char* fsShaderBasicPolygon =
-"#version 450\n"
 "#extension GL_ARB_separate_shader_objects : enable\n"
 
 "layout (binding = 0, set = 2) uniform sampler2D texSampler;\n"
@@ -120,47 +119,32 @@ char* fsShaderBasicPolygon =
 
 "   vec4 NT = texture(norSampler, texCoord);\n"
 "   vec3 norTex = normalize(inNormal * NT.xyz);\n"
-"   vec4 difCol = vec4(0.0f, 0.0f, 0.0f, 1.0f);\n"
-"   vec4 speCol = vec4(0.0f, 0.0f, 0.0f, 1.0f);\n"
+
+"   LightOut emissiveColor = LightOut(vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 0.0f, 0.0f));\n"
+"   LightOut Out;\n"
+
     //ライト数だけループ
 "   for(int i = 0; i < gMaterial.numLight.x; i++)\n"
 "   {\n"
 
-       ////点光源計算////
-	   //対象頂点から光源までの距離計算
 "      vec3 lightPos = LightCb.light[i].lightPos.xyz;\n"
+"      vec4 emPos = vec4(lightPos, 1.0f);\n"//1.0f ライトONのまま
+
 "      float distance = length(inWpos - lightPos);\n"
-	   //↑の距離とパラメータから光の減衰率の計算    
-"      float attenuation = 1.0f / \n"
-"                          (gMaterial.numLight.y + \n"
-"                           gMaterial.numLight.z * distance + \n"
-"                           pow(gMaterial.numLight.w * distance, 2.0f));\n"
-	   //ライトベクトル計算
-"      vec3 lightVec = normalize(lightPos - inWpos);\n"
-
-       ////拡散反射光計算////
-       //ライトベクトルから陰影の計算
-"      float lightScalar = dot(norTex,lightVec);\n"
-       //値を0.0f~1.0f以内にする
-"      float ScaCla = clamp(lightScalar,0.0f,1.0f);\n"
-
-       ////鏡面反射光計算////
-	   //視線ベクトル計算
-"      vec3 eyeVec = normalize(gMaterial.viewPos.xyz - inWpos);\n"
-       //反射計算//
-"      vec3 reflect = normalize(2.0f * ScaCla * norTex - lightVec);\n"
-"      float spe1 = dot(reflect, eyeVec);\n"
-"      float spe2 = clamp(spe1,0.0f,1.0f);\n"
-"      float spe3 = pow(spe2, 4);\n"
-
-"      vec3 diffuse = gMaterial.diffuse.xyz * ScaCla;\n"
-"      vec3 specular = gMaterial.specular.xyz * spe3;\n"
-
+"      vec4 lightst = gMaterial.numLight;\n"
+"      lightst.x = distance * 2.0f;\n"//常にレンジ内
 "      vec3 lightColor = LightCb.light[i].lightColor.xyz;\n"
-"      difCol.xyz += diffuse * lightColor * attenuation;\n"
-"      speCol.xyz += specular * lightColor * attenuation;\n"
+"      float shininess = 4.0f;\n"
+
+"      Out = PointLightCom(gMaterial.specular.xyz, gMaterial.diffuse.xyz, gMaterial.ambient.xyz, norTex, emPos, \n"
+"                          inWpos, lightst, lightColor, gMaterial.viewPos.xyz, shininess);\n"
+
+"      emissiveColor.Diffuse += Out.Diffuse;\n"
+"      emissiveColor.Speculer += Out.Speculer;\n"
+
 "   }\n"
-"   difCol.xyz += gMaterial.ambient.xyz;\n"
+"   vec4 difCol = vec4(emissiveColor.Diffuse, 1.0f);\n"
+"   vec4 speCol = vec4(emissiveColor.Speculer, 1.0f);\n"
 "   vec4 dTex = texture(texSampler, texCoord);\n"
 "   vec4 sTex = texture(speSampler, speTexCoord);\n"
 "   outColor = dTex * difCol + sTex * speCol;\n"

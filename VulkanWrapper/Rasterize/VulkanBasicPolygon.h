@@ -72,23 +72,9 @@ private:
 			}
 		}
 
-		char replace1[64] = {};
-		snprintf(replace1, sizeof(replace1), "%d", maxInstancingCnt);
-		char* repvs1 = vkUtil::changeStr(vs, "replace_NUM_Ins_CB", replace1, 1);
-
-		char replace2[64] = {};
-		snprintf(replace2, sizeof(replace2), "%d", numBone);
-		char* repvs2 = vkUtil::changeStr(repvs1, "replace_NUM_BONE_CB", replace2, 1);
-
-		char replace3[64] = {};
-		snprintf(replace3, sizeof(replace3), "%d", RasterizeDescriptor::numMaxLight);
-		char* repfs = vkUtil::changeStr(fs, "replace_NUM_Light_CB", replace3, 1);
-
-		VkPipelineShaderStageCreateInfo vsInfo = device->createShaderModule("BPvs", repvs2, VK_SHADER_STAGE_VERTEX_BIT);
-		VkPipelineShaderStageCreateInfo fsInfo = device->createShaderModule("BPfs", repfs, VK_SHADER_STAGE_FRAGMENT_BIT);
-		vkUtil::ARR_DELETE(repvs1);
-		vkUtil::ARR_DELETE(repvs2);
-		vkUtil::ARR_DELETE(repfs);
+		VkPipelineShaderStageCreateInfo vsInfo = {};
+		VkPipelineShaderStageCreateInfo fsInfo = {};
+		createShader(vsInfo, fsInfo, vs, fs, numBone);
 
 		vertices = device->createVertexBuffer<T>(QueueIndex, comIndex, ver, num, false, nullptr, nullptr);
 		RasterizeDescriptor* rd = RasterizeDescriptor::GetInstance();
@@ -133,6 +119,8 @@ private:
 		_vkDestroyShaderModule(device->getDevice(), vsInfo.module, nullptr);
 		_vkDestroyShaderModule(device->getDevice(), fsInfo.module, nullptr);
 	}
+
+	void createShader(VkPipelineShaderStageCreateInfo& vsInfo, VkPipelineShaderStageCreateInfo& fsInfo, char* vs, char* fs, uint32_t numBone);
 
 	void update0(uint32_t swapIndex, CoordTf::MATRIX* bone, uint32_t numBone);
 

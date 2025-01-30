@@ -6,6 +6,7 @@
 
 
 #include "VulkanBasicPolygon.h"
+#include "../CommonDevice/SharedShader.h"
 #include "Shader/ShaderBasicPolygon.h"
 
 VulkanBasicPolygon::VulkanBasicPolygon() {
@@ -177,4 +178,34 @@ void VulkanBasicPolygon::draw(uint32_t swapIndex, uint32_t QueueIndex, uint32_t 
 
 void VulkanBasicPolygon::setNumMaxInstancing(uint32_t num) {
 	maxInstancingCnt = num;
+}
+
+void VulkanBasicPolygon::createShader(VkPipelineShaderStageCreateInfo& vsInfo, VkPipelineShaderStageCreateInfo& fsInfo, char* vs, char* fs, uint32_t numBone) {
+
+	char replace1[64] = {};
+	snprintf(replace1, sizeof(replace1), "%d", maxInstancingCnt);
+	char* repvs1 = vkUtil::changeStr(vs, "replace_NUM_Ins_CB", replace1, 1);
+
+	char replace2[64] = {};
+	snprintf(replace2, sizeof(replace2), "%d", numBone);
+	char* repvs2 = vkUtil::changeStr(repvs1, "replace_NUM_BONE_CB", replace2, 1);
+
+	char replace3[64] = {};
+	snprintf(replace3, sizeof(replace3), "%d", RasterizeDescriptor::numMaxLight);
+	char* repfs = vkUtil::changeStr(fs, "replace_NUM_Light_CB", replace3, 1);
+
+	vkUtil::addChar FS = {};
+	FS.addStr(SharedShader::getShaderCalculateLighting(), repfs);
+
+	vkUtil::addChar FS2 = {};
+	FS2.addStr("#version 450\n", FS.str);
+
+	VulkanDevice* device = VulkanDevice::GetInstance();
+
+	vsInfo = device->createShaderModule("BPvs", repvs2, VK_SHADER_STAGE_VERTEX_BIT);
+	fsInfo = device->createShaderModule("BPfs", FS2.str, VK_SHADER_STAGE_FRAGMENT_BIT);
+
+	vkUtil::ARR_DELETE(repvs1);
+	vkUtil::ARR_DELETE(repvs2);
+	vkUtil::ARR_DELETE(repfs);
 }

@@ -6,8 +6,8 @@
 
 #include "VulkanRendererRt.h"
 #include "../CommonDevice/VulkanSwapchain.h"
+#include "../CommonDevice/SharedShader.h"
 #include "Shader/Shader_common.h"
-#include "Shader/ShaderCalculateLighting.h"
 #include "Shader/ShaderNormalTangent.h"
 #include "Shader/Shader_hitCom.h"
 #include "Shader/Shader_closesthit.h"
@@ -579,7 +579,7 @@ void VulkanRendererRt::CreateRaytracePipeline() {
         ray[2].addStr(ray[1].str, Shader_raygen);
     }
 
-    clo[0].addStr(Shader_common_R, ShaderCalculateLighting);
+    clo[0].addStr(Shader_common_R, SharedShader::getShaderCalculateLighting());
     clo[1].addStr(clo[0].str, ShaderNormalTangent);
     clo[2].addStr(clo[1].str, hitcom.str);
     clo[3].addStr(clo[2].str, Shader_traceRay);
