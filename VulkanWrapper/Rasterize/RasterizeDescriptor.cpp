@@ -272,7 +272,7 @@ void RasterizeDescriptor::upDescriptorSet(
 
 void RasterizeDescriptor::upDescriptorSet2D(bool useTexture,
     VulkanDevice::ImageSet& texture,
-    VulkanDevice::Uniform<MatrixSet2D>* uni,
+    VulkanDevice::Uniform<Instancing>* uni,
     VkDescriptorSet& descriptorSet,
     VkDescriptorSetLayout& descSetLayout) {
 

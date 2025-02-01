@@ -8,8 +8,16 @@ char* vsShader2D =
 "#version 450\n"
 "#extension GL_ARB_separate_shader_objects : enable\n"
 
+"struct Instancing{\n"
+"    mat4 world;\n"
+"    vec4 pXpYmXmY;\n"
+"    vec4 d1;\n"
+"    vec4 d2;\n"
+"    vec4 d3;\n"
+"};\n"
+
 "layout (binding = 0) uniform bufferMat {\n"
-"    vec2 world;\n"
+"    Instancing ins[replace_NUM_Ins_CB];\n"
 "} gBufferMat;\n"
 
 "layout(location = 0) in vec2 inPos;\n"
@@ -20,10 +28,9 @@ char* vsShader2D =
 
 "void main()\n"
 "{\n"
-"   vec2 pos = inPos;\n"
-"   pos.x += gBufferMat.world.x;\n"
-"   pos.y += gBufferMat.world.y;\n"
-"	gl_Position = vec4(pos, 0.0f, 1.0f);\n"
+"   mat4 world = gBufferMat.ins[gl_InstanceIndex].world;\n"
+"   vec4 pos = vec4(inPos, 0.0f, 1.0f);\n"
+"	gl_Position = world * pos;\n"
 "	color_out = color;\n"
 "}\n";
 
@@ -39,8 +46,16 @@ char* vsShader2DTex =
 "#version 450\n"
 "#extension GL_ARB_separate_shader_objects : enable\n"
 
+"struct Instancing{\n"
+"    mat4 world;\n"
+"    vec4 pXpYmXmY;\n"
+"    vec4 d1;\n"
+"    vec4 d2;\n"
+"    vec4 d3;\n"
+"};\n"
+
 "layout (binding = 0) uniform bufferMat {\n"
-"    vec2 world;\n"
+"    Instancing ins[replace_NUM_Ins_CB];\n"
 "} gBufferMat;\n"
 
 "layout(location = 0) in vec2 inPos;\n"
@@ -50,11 +65,14 @@ char* vsShader2DTex =
 
 "void main()\n"
 "{\n"
-"   vec2 pos = inPos;\n"
-"   pos.x += gBufferMat.world.x;\n"
-"   pos.y += gBufferMat.world.y;\n"
-"	gl_Position = vec4(pos, 0.0f, 1.0f);\n"
-"	outTexCoord = inTexCoord;\n"
+"   mat4 world = gBufferMat.ins[gl_InstanceIndex].world;\n"
+"   vec4 pos = vec4(inPos, 0.0f, 1.0f);\n"
+"	gl_Position = world * pos;\n"
+
+"   vec4 pXpYmXmY = gBufferMat.ins[gl_InstanceIndex].pXpYmXmY;\n"
+
+"   outTexCoord.x = inTexCoord.x * pXpYmXmY.x + pXpYmXmY.x * pXpYmXmY.z;\n"
+"   outTexCoord.y = inTexCoord.y * pXpYmXmY.y + pXpYmXmY.y * pXpYmXmY.w;\n"
 "}\n";
 
 char* fsShader2DTex =

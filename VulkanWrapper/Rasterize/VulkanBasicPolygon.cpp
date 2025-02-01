@@ -93,9 +93,8 @@ void VulkanBasicPolygon::Instancing(
 	CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale,
 	float px, float py, float mx, float my) {
 
-	VulkanDevice* device = VulkanDevice::GetInstance();
 	using namespace CoordTf;
-	MATRIX world;
+	MATRIX world = {};
 
 	vkUtil::calculationMatrixWorld(world, pos, theta, scale);
 

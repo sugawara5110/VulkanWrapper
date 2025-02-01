@@ -15,7 +15,7 @@ Vulkan2D::~Vulkan2D() {
 	VulkanDevice* device = VulkanDevice::GetInstance();
 	VkDevice vd = device->getDevice();
 	texture.destroy();
-	for (uint32_t s = 0; s < numSwap; s++) {
+	for (uint32_t s = 0; s < RasterizeDescriptor::numSwap; s++) {
 		vkUtil::S_DELETE(uniform[s]);
 	}
 	_vkDestroyDescriptorSetLayout(vd, descSetLayout, nullptr);
@@ -44,12 +44,6 @@ void Vulkan2D::createTexture(uint32_t QueueIndex, uint32_t comIndex, Vertex2DTex
 	create(QueueIndex, comIndex, ver, num, ind, indNum, attrDescs, 2, vsShader2DTex, fsShader2DTex, textureId);
 }
 
-void Vulkan2D::update(uint32_t swapIndex, CoordTf::VECTOR2 pos) {
-	VulkanDevice* device = VulkanDevice::GetInstance();
-	mat2d[swapIndex].world.as(pos.x, pos.y);
-	uniform[swapIndex]->update(0, &mat2d[swapIndex]);
-}
-
 void Vulkan2D::draw(uint32_t swapIndex, uint32_t QueueIndex, uint32_t comIndex) {
 	VulkanDevice* device = VulkanDevice::GetInstance();
 	VulkanSwapchain* sw = VulkanSwapchain::GetInstance();
@@ -68,5 +62,68 @@ void Vulkan2D::draw(uint32_t swapIndex, uint32_t QueueIndex, uint32_t comIndex) 
 	_vkCmdBindDescriptorSets(comb, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
 		&descSet[swapIndex], 0, nullptr);
 	_vkCmdBindIndexBuffer(comb, index.getBuffer(), 0, VK_INDEX_TYPE_UINT32);
-	_vkCmdDrawIndexed(comb, numIndex, 1, 0, 0, 0);
+	_vkCmdDrawIndexed(comb, numIndex, InstancingCnt, 0, 0, 0);
+	InstancingCnt = 0;
+}
+
+void Vulkan2D::createShader(
+	VkPipelineShaderStageCreateInfo& vsInfo,
+	VkPipelineShaderStageCreateInfo& fsInfo,
+	char* vs, char* fs) {
+
+	char replace[64] = {};
+	snprintf(replace, sizeof(replace), "%d", maxInstancingCnt);
+	char* repvs = vkUtil::changeStr(vs, "replace_NUM_Ins_CB", replace, 1);
+
+	VulkanDevice* device = VulkanDevice::GetInstance();
+	vsInfo = device->createShaderModule("2Dvs", repvs, VK_SHADER_STAGE_VERTEX_BIT);
+	fsInfo = device->createShaderModule("2Dfs", fs, VK_SHADER_STAGE_FRAGMENT_BIT);
+
+	vkUtil::ARR_DELETE(repvs);
+}
+
+void Vulkan2D::setNumMaxInstancing(uint32_t num) {
+	maxInstancingCnt = num;
+}
+
+void Vulkan2D::Instancing(uint32_t swapIndex, CoordTf::VECTOR2 pos,
+	float theta, CoordTf::VECTOR2 scale,
+	float px, float py, float mx, float my) {
+
+	using namespace CoordTf;
+	MATRIX world = {};
+
+	VECTOR3 pos3 = { pos.x, pos.y, 0.0f };
+	VECTOR3 the3 = { 0.0f, 0.0f, theta };
+	VECTOR3 sc3 = { scale.x, scale.y, 1.0f };
+	vkUtil::calculationMatrixWorld(world, pos3, the3, sc3);
+
+	Instancing(swapIndex, world, px, py, mx, my);
+}
+
+void Vulkan2D::Instancing(uint32_t swapIndex, CoordTf::MATRIX world,
+	float px, float py, float mx, float my) {
+
+	if (InstancingCnt >= maxInstancingCnt) {
+		throw std::runtime_error("InstancingCnt The value of maxInstancingCnt reached.");
+	}
+
+	mat2d[swapIndex][InstancingCnt].world = world;
+	mat2d[swapIndex][InstancingCnt].pXpYmXmY = { px, py, mx, my };
+
+	if (InstancingCnt < maxInstancingCnt) {
+		InstancingCnt++;
+	}
+}
+
+void Vulkan2D::Instancing_update(uint32_t swapIndex) {
+	uniform[swapIndex]->updateArr(mat2d[swapIndex].data());
+}
+
+void Vulkan2D::update(uint32_t swapIndex, CoordTf::VECTOR2 pos,
+	float theta, CoordTf::VECTOR2 scale,
+	float px, float py, float mx, float my) {
+
+	Instancing(swapIndex, pos, theta, scale, px, py, mx, my);
+	Instancing_update(swapIndex);
 }

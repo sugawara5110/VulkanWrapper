@@ -28,14 +28,21 @@ private:
 	VulkanDevice::BufferSet index;
 	uint32_t numIndex;
 	VkDescriptorSetLayout descSetLayout;
-	const static uint32_t numSwap = 2;
-	VkDescriptorSet descSet[numSwap];
+	VkDescriptorSet descSet[RasterizeDescriptor::numSwap];
 	uint32_t descSetCnt = 0;
 	VkPipelineLayout pipelineLayout;
 	VkPipelineCache pipelineCache;
 	VkPipeline pipeline;
-	VulkanDevice::Uniform<RasterizeDescriptor::MatrixSet2D>* uniform[numSwap] = {};
-	RasterizeDescriptor::MatrixSet2D mat2d[numSwap] = {};
+	VulkanDevice::Uniform<RasterizeDescriptor::Instancing>* uniform[RasterizeDescriptor::numSwap] = {};
+	std::vector<RasterizeDescriptor::Instancing> mat2d[RasterizeDescriptor::numSwap] = {};
+
+	uint32_t maxInstancingCnt = 256;
+	uint32_t InstancingCnt = 0;
+
+	void createShader(
+		VkPipelineShaderStageCreateInfo& vsInfo,
+		VkPipelineShaderStageCreateInfo& fsInfo,
+		char* vs, char* fs);
 
 	template<typename T>
 	void create(uint32_t QueueIndex, uint32_t comIndex, T* ver, uint32_t num, uint32_t* ind, uint32_t indNum,
@@ -53,8 +60,9 @@ private:
 		VulkanDevice* device = VulkanDevice::GetInstance();
 		RasterizeDescriptor* rd = RasterizeDescriptor::GetInstance();
 
-		VkPipelineShaderStageCreateInfo vsInfo = device->createShaderModule("2Dvs", vs, VK_SHADER_STAGE_VERTEX_BIT);
-		VkPipelineShaderStageCreateInfo fsInfo = device->createShaderModule("2Dfs", fs, VK_SHADER_STAGE_FRAGMENT_BIT);
+		VkPipelineShaderStageCreateInfo vsInfo = {};
+		VkPipelineShaderStageCreateInfo fsInfo = {};
+		createShader(vsInfo, fsInfo, vs, fs);
 
 		vertices = device->createVertexBuffer<T>(QueueIndex, comIndex, ver, sizeof(T) * num, false, nullptr, nullptr);
 		index = device->createVertexBuffer<uint32_t>(QueueIndex, comIndex, ind, sizeof(uint32_t) * indNum,
@@ -62,8 +70,10 @@ private:
 
 		rd->descriptorAndPipelineLayouts2D(useTexture, pipelineLayout, descSetLayout);
 
-		for (uint32_t i = 0; i < numSwap; i++) {
-			uniform[i] = NEW VulkanDevice::Uniform<RasterizeDescriptor::MatrixSet2D>(1);
+		for (uint32_t i = 0; i < RasterizeDescriptor::numSwap; i++) {
+			uniform[i] = NEW VulkanDevice::Uniform<RasterizeDescriptor::Instancing>(maxInstancingCnt);
+			mat2d[i].resize(maxInstancingCnt);
+
 			if (textureId < 0) {
 				VulkanDevice::Texture tex = device->getTexture(device->numTextureMax);
 				VulkanDevice::BufferSet bs;
@@ -91,9 +101,25 @@ private:
 public:
 	Vulkan2D();
 	~Vulkan2D();
+
+	void setNumMaxInstancing(uint32_t num);
+
 	void createColor(uint32_t QueueIndex, uint32_t comIndex, Vertex2D* ver, uint32_t num, uint32_t* ind, uint32_t indNum);
 	void createTexture(uint32_t QueueIndex, uint32_t comIndex, Vertex2DTex* ver, uint32_t num, uint32_t* ind, uint32_t indNum, int textureId);
-	void update(uint32_t swapIndex, CoordTf::VECTOR2 pos = { 0.0f,0.0f });
+
+	void Instancing(uint32_t swapIndex, CoordTf::VECTOR2 pos = { 0.0f,0.0f },
+		float theta = 0.0f, CoordTf::VECTOR2 scale = { 1.0f,1.0f },
+		float px = 1.0f, float py = 1.0f, float mx = 0.0f, float my = 0.0f);//px,py:幅の倍率, mx,my:何個目か
+
+	void Instancing(uint32_t swapIndex, CoordTf::MATRIX world,
+		float px = 1.0f, float py = 1.0f, float mx = 0.0f, float my = 0.0f);
+
+	void Instancing_update(uint32_t swapIndex);
+
+	void update(uint32_t swapIndex, CoordTf::VECTOR2 pos = { 0.0f,0.0f },
+		float theta = 0.0f, CoordTf::VECTOR2 scale = { 1.0f,1.0f },
+		float px = 1.0f, float py = 1.0f, float mx = 0.0f, float my = 0.0f);
+
 	void draw(uint32_t swapIndex, uint32_t QueueIndex, uint32_t comIndex);
 };
 

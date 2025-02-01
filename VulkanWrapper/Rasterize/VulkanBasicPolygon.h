@@ -46,6 +46,11 @@ private:
 	uint32_t maxInstancingCnt = 256;
 	uint32_t InstancingCnt = 0;
 
+	void createShader(
+		VkPipelineShaderStageCreateInfo& vsInfo,
+		VkPipelineShaderStageCreateInfo& fsInfo,
+		char* vs, char* fs, uint32_t numBone);
+
 	template<typename T>
 	void create0(uint32_t QueueIndex, uint32_t comIndex, bool useAlpha,
 		int32_t numMat, VulkanDevice::textureIdSet* texid, float* uvSw,
@@ -119,8 +124,6 @@ private:
 		_vkDestroyShaderModule(device->getDevice(), vsInfo.module, nullptr);
 		_vkDestroyShaderModule(device->getDevice(), fsInfo.module, nullptr);
 	}
-
-	void createShader(VkPipelineShaderStageCreateInfo& vsInfo, VkPipelineShaderStageCreateInfo& fsInfo, char* vs, char* fs, uint32_t numBone);
 
 	void update0(uint32_t swapIndex, CoordTf::MATRIX* bone, uint32_t numBone);
 

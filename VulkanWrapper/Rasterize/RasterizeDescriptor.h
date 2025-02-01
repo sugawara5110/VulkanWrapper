@@ -68,10 +68,6 @@ private:
     VulkanDevice::Uniform<RasterizeDescriptor::Light>* uniformLight[numSwap] = {};
     std::vector<RasterizeDescriptor::Light> matsetLight;
 
-    struct MatrixSet2D {
-        CoordTf::VECTOR2 world;
-    };
-
     RasterizeDescriptor();
     RasterizeDescriptor(const RasterizeDescriptor& obj) {}   // コピーコンストラクタ禁止
     void operator=(const RasterizeDescriptor& obj) {}// 代入演算子禁止
@@ -115,7 +111,7 @@ public:
 
     void upDescriptorSet2D(bool useTexture,
         VulkanDevice::ImageSet& texture,
-        VulkanDevice::Uniform<MatrixSet2D>* uni,
+        VulkanDevice::Uniform<Instancing>* uni,
         VkDescriptorSet& descriptorSet,
         VkDescriptorSetLayout& descSetLayout);
 
