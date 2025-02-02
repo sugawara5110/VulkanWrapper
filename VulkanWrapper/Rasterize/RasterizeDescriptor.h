@@ -38,7 +38,7 @@ private:
     struct Instancing {
         CoordTf::MATRIX world;
         CoordTf::VECTOR4 pXpYmXmY;
-        CoordTf::VECTOR4 d1;
+        CoordTf::VECTOR4 addCol;
         CoordTf::VECTOR4 d2;
         CoordTf::VECTOR4 d3;
     };
@@ -49,7 +49,7 @@ private:
 
     struct Material {
         CoordTf::VECTOR4 diffuse = { 1.0f, 1.0f, 1.0f, 1.0f };
-        CoordTf::VECTOR4 specular = { 0.0f, 0.0f, 0.0f, 0.0f };
+        CoordTf::VECTOR4 specular = { 0.2f, 0.2f, 0.2f, 0.0f };
         CoordTf::VECTOR4 ambient = { 0.0f, 0.0f, 0.0f, 0.0f };
         CoordTf::VECTOR4 viewPos = {};
         CoordTf::VECTOR4 numLight;//ÉâÉCÉgêî,å∏êä1,å∏êä2,å∏êä3
@@ -80,7 +80,7 @@ private:
 
     VkPipelineCache createPipelineCache();
 
-    VkPipeline createGraphicsPipelineVF(bool useAlpha,
+    VkPipeline createGraphicsPipelineVF(bool useAlpha, bool blending,
         const VkPipelineShaderStageCreateInfo& vshader,
         const VkPipelineShaderStageCreateInfo& fshader,
         const VkVertexInputBindingDescription& bindDesc,

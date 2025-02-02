@@ -15,7 +15,7 @@ char* vsShaderBasicPolygon =
 "struct Instancing{\n"
 "    mat4 world;\n"
 "    vec4 pXpYmXmY;\n"
-"    vec4 d1;\n"
+"    vec4 addCol;\n"
 "    vec4 d2;\n"
 "    vec4 d3;\n"
 "};\n"
@@ -37,9 +37,11 @@ char* vsShaderBasicPolygon =
 "layout (location = 1) out vec3 outNormal;\n"
 "layout (location = 2) out vec2 outTexCoord;\n"
 "layout (location = 3) out vec2 outSpeTexCoord;\n"
+"layout (location = 4) out vec4 outAddCol;\n"
 
 "void main() {\n"
 "   mat4 world = gBufferMat.ins[gl_InstanceIndex].world;\n"
+"   outAddCol = gBufferMat.ins[gl_InstanceIndex].addCol;\n"
     //ワールド変換行列だけ掛けた頂点,光源計算に使用
 "   outWpos = (world * inPos).xyz;\n"
     //法線は光源計算に使用されるのでワールド変換行列だけ掛ける
@@ -89,6 +91,7 @@ char* fsShaderBasicPolygon =
 "layout (location = 1) in vec3 inNormal;\n"
 "layout (location = 2) in vec2 inTexCoord;\n"
 "layout (location = 3) in vec2 inSpeTexCoord;\n"
+"layout (location = 4) in vec4 inAddCol;\n"
 
 "layout (location = 0) out vec4 outColor;\n"
 
@@ -143,9 +146,12 @@ char* fsShaderBasicPolygon =
 "      emissiveColor.Speculer += Out.Speculer;\n"
 
 "   }\n"
-"   vec4 difCol = vec4(emissiveColor.Diffuse, 1.0f);\n"
-"   vec4 speCol = vec4(emissiveColor.Speculer, 1.0f);\n"
+"   vec3 difCol = emissiveColor.Diffuse;\n"
+"   vec3 speCol = emissiveColor.Speculer;\n"
 "   vec4 dTex = texture(texSampler, texCoord);\n"
 "   vec4 sTex = texture(speSampler, speTexCoord);\n"
-"   outColor = dTex * difCol + sTex * speCol;\n"
+"   float alpha = dTex.w;\n"
+"   vec3 col = dTex.xyz * difCol + sTex.xyz * speCol;\n"
+
+"   outColor = vec4(col, alpha) + inAddCol;\n"
 "}\n";

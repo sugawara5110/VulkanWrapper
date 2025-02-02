@@ -325,7 +325,7 @@ VkPipelineCache RasterizeDescriptor::createPipelineCache() {
     return pipelineCache;
 }
 
-VkPipeline RasterizeDescriptor::createGraphicsPipelineVF(bool useAlpha,
+VkPipeline RasterizeDescriptor::createGraphicsPipelineVF(bool useAlpha, bool blending,
     const VkPipelineShaderStageCreateInfo& vshader, const VkPipelineShaderStageCreateInfo& fshader,
     const VkVertexInputBindingDescription& bindDesc, const VkVertexInputAttributeDescription* attrDescs, uint32_t numAttr,
     const VkPipelineLayout& pLayout, const VkRenderPass renderPass, const VkPipelineCache& pCache) {
@@ -382,13 +382,23 @@ VkPipeline RasterizeDescriptor::createGraphicsPipelineVF(bool useAlpha,
 
     VkPipelineColorBlendAttachmentState blendState{};
     blendState.blendEnable = VK_FALSE;
+    blendState.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    blendState.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    blendState.colorBlendOp = VK_BLEND_OP_ADD;
+    blendState.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    blendState.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+    blendState.alphaBlendOp = VK_BLEND_OP_ADD;
     blendState.colorWriteMask = VK_COLOR_COMPONENT_A_BIT
         | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_G_BIT |
         VK_COLOR_COMPONENT_R_BIT;
+    if (blending) {
+        blendState.blendEnable = VK_TRUE;
+    }
 
     VkPipelineColorBlendStateCreateInfo blendInfo{};
     blendInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
     blendInfo.logicOpEnable = VK_FALSE;
+    blendInfo.logicOp = VK_LOGIC_OP_NO_OP;
     blendInfo.attachmentCount = 1;
     blendInfo.pAttachments = &blendState;
 
@@ -405,7 +415,6 @@ VkPipeline RasterizeDescriptor::createGraphicsPipelineVF(bool useAlpha,
     ds.depthWriteEnable = VK_TRUE;
     ds.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
     ds.depthBoundsTestEnable = VK_FALSE;
-    ds.stencilTestEnable = VK_FALSE;
     ds.back.failOp = VK_STENCIL_OP_KEEP;
     ds.back.passOp = VK_STENCIL_OP_KEEP;
     ds.back.compareOp = VK_COMPARE_OP_ALWAYS;

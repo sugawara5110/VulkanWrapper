@@ -71,7 +71,7 @@ public:
 
 	void setNumMaxInstancing(uint32_t num);
 
-	void create(uint32_t QueueIndex, uint32_t comIndex, bool useAlpha);
+	void create(uint32_t QueueIndex, uint32_t comIndex, bool useAlpha, bool blending);
 
 	void setMaterialParameter(uint32_t swapIndex, uint32_t meshIndex, uint32_t materialIndex,
 		CoordTf::VECTOR3 diffuse, CoordTf::VECTOR3 specular, CoordTf::VECTOR3 ambient);
@@ -79,19 +79,22 @@ public:
 	void setChangeTexture(uint32_t meshIndex, uint32_t materialIndex, int diffuseTexId, int normalTexId, int specularTexId);
 
 	void Instancing(uint32_t swapIndex, CoordTf::VECTOR3 pos = { 0.0f,0.0f,0.0f },
-		CoordTf::VECTOR3 theta = { 0.0f,0.0f,0.0f }, CoordTf::VECTOR3 scale = { 1.0f,1.0f,1.0f });
+		CoordTf::VECTOR3 theta = { 0.0f,0.0f,0.0f }, CoordTf::VECTOR3 scale = { 1.0f,1.0f,1.0f },
+		CoordTf::VECTOR4 addCol = {});
 
 	void Instancing_update(uint32_t swapIndex, uint32_t animationIndex, float time);
 
 	void update(uint32_t swapIndex, uint32_t animationIndex, float time, CoordTf::VECTOR3 pos = { 0.0f,0.0f,0.0f },
-		CoordTf::VECTOR3 theta = { 0.0f,0.0f,0.0f }, CoordTf::VECTOR3 scale = { 1.0f,1.0f,1.0f });
+		CoordTf::VECTOR3 theta = { 0.0f,0.0f,0.0f }, CoordTf::VECTOR3 scale = { 1.0f,1.0f,1.0f },
+		CoordTf::VECTOR4 addCol = {});
 
 	void setConnectionPitch(float pitch);
 
 	bool auto_Instancing_update(uint32_t swapIndex, uint32_t animationIndex, float pitchTime);
 
 	bool autoUpdate(uint32_t swapIndex, uint32_t animationIndex, float pitchTime, CoordTf::VECTOR3 pos = { 0.0f,0.0f,0.0f },
-		CoordTf::VECTOR3 theta = { 0.0f,0.0f,0.0f }, CoordTf::VECTOR3 scale = { 1.0f,1.0f,1.0f });
+		CoordTf::VECTOR3 theta = { 0.0f,0.0f,0.0f }, CoordTf::VECTOR3 scale = { 1.0f,1.0f,1.0f },
+		CoordTf::VECTOR4 addCol = {});
 
 	void draw(uint32_t swapIndex, uint32_t QueueIndex, uint32_t comIndex);
 };

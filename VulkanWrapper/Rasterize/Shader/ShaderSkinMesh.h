@@ -15,7 +15,7 @@ char* vsShaderSkinMesh =
 "struct Instancing{\n"
 "    mat4 world;\n"
 "    vec4 pXpYmXmY;\n"
-"    vec4 d1;\n"
+"    vec4 addCol;\n"
 "    vec4 d2;\n"
 "    vec4 d3;\n"
 "};\n"
@@ -39,6 +39,7 @@ char* vsShaderSkinMesh =
 "layout (location = 1) out vec3 outNormal;\n"
 "layout (location = 2) out vec2 outTexCoord;\n"
 "layout (location = 3) out vec2 outSpeTexCoord;\n"
+"layout (location = 4) out vec4 outAddCol;\n"
 
 "void main() {\n"
 //スキニング
@@ -73,6 +74,7 @@ char* vsShaderSkinMesh =
 "   sOutNor += mat3(m) * sInNor * wei;\n"
 
 "   mat4 world = gBufferMat.ins[gl_InstanceIndex].world;\n"
+"   outAddCol = gBufferMat.ins[gl_InstanceIndex].addCol;\n"
 //ワールド変換行列だけ掛けた頂点,光源計算に使用
 "   outWpos = (world * sOutPos).xyz;\n"
 //法線は光源計算に使用されるのでワールド変換行列だけ掛ける

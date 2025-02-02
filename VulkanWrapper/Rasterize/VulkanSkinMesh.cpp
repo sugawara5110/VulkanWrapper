@@ -98,7 +98,7 @@ VulkanSkinMesh::~VulkanSkinMesh() {
 	}
 }
 
-void VulkanSkinMesh::create(uint32_t QueueIndex, uint32_t comIndex, bool useAlpha) {
+void VulkanSkinMesh::create(uint32_t QueueIndex, uint32_t comIndex, bool useAlpha, bool blending) {
 	//各mesh読み込み
 	for (uint32_t mI = 0; mI < numMesh; mI++) {
 		bp[mI] = NEW VulkanBasicPolygon();
@@ -336,7 +336,7 @@ void VulkanSkinMesh::create(uint32_t QueueIndex, uint32_t comIndex, bool useAlph
 				{4, 0, VK_FORMAT_R32G32B32A32_SFLOAT, sizeof(float) * 10},
 				{5, 0, VK_FORMAT_R32G32B32A32_SFLOAT, sizeof(float) * 14}
 		};
-		bp[mI]->create0<VertexSkin>(QueueIndex, comIndex, useAlpha, numMaterial, texId, uvSw, verSkin,
+		bp[mI]->create0<VertexSkin>(QueueIndex, comIndex, useAlpha, blending, numMaterial, texId, uvSw, verSkin,
 			(uint32_t)mesh->getNumPolygonVertices(),
 			newIndex, numNewIndex, attrDescs, numattrDescs, vsShaderSkinMesh,
 			bp[mI]->fs, numBone);
@@ -433,10 +433,11 @@ void VulkanSkinMesh::setChangeTexture(uint32_t meshIndex, uint32_t materialIndex
 }
 
 void VulkanSkinMesh::Instancing(uint32_t swapIndex, CoordTf::VECTOR3 pos,
-	CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale) {
+	CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale,
+	CoordTf::VECTOR4 addCol) {
 
 	for (uint32_t i = 0; i < numMesh; i++) {
-		bp[i]->Instancing(swapIndex, pos, theta, scale);
+		bp[i]->Instancing(swapIndex, pos, theta, scale, addCol);
 	}
 }
 
@@ -455,9 +456,10 @@ void VulkanSkinMesh::Instancing_update(uint32_t swapIndex, uint32_t animationInd
 }
 
 void VulkanSkinMesh::update(uint32_t swapIndex, uint32_t animationIndex, float time,
-	CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale) {
+	CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale,
+	CoordTf::VECTOR4 addCol) {
 
-	Instancing(swapIndex, pos, theta, scale);
+	Instancing(swapIndex, pos, theta, scale, addCol);
 	Instancing_update(swapIndex, animationIndex, time);
 }
 
@@ -501,9 +503,10 @@ bool VulkanSkinMesh::auto_Instancing_update(uint32_t swapIndex, uint32_t animati
 }
 
 bool VulkanSkinMesh::autoUpdate(uint32_t swapIndex, uint32_t animationIndex, float pitchTime,
-	CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale) {
+	CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale,
+	CoordTf::VECTOR4 addCol) {
 
-	Instancing(swapIndex, pos, theta, scale);
+	Instancing(swapIndex, pos, theta, scale, addCol);
 	return auto_Instancing_update(swapIndex, animationIndex, pitchTime);
 }
 

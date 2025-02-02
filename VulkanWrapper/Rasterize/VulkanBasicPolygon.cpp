@@ -45,7 +45,9 @@ VulkanBasicPolygon::~VulkanBasicPolygon() {
 	vkUtil::ARR_DELETE(texId);
 }
 
-void VulkanBasicPolygon::create(uint32_t QueueIndex, uint32_t comIndex, bool useAlpha, int32_t difTexInd, int32_t norTexInd, int32_t speTexInd, VulkanDevice::Vertex3D* ver, uint32_t num, uint32_t* ind, uint32_t indNum) {
+void VulkanBasicPolygon::create(uint32_t QueueIndex, uint32_t comIndex, bool useAlpha, bool blending,
+	int32_t difTexInd, int32_t norTexInd, int32_t speTexInd,
+	VulkanDevice::Vertex3D* ver, uint32_t num, uint32_t* ind, uint32_t indNum) {
 
 	static VkVertexInputAttributeDescription attrDescs[] =
 	{
@@ -61,7 +63,7 @@ void VulkanBasicPolygon::create(uint32_t QueueIndex, uint32_t comIndex, bool use
 	tex[0].normalId = norTexInd;
 	tex[0].specularId = speTexInd;
 	float sw[1] = {};
-	create0<VulkanDevice::Vertex3D>(QueueIndex, comIndex, useAlpha, numMaterial, tex, sw, ver, num, &ind, &indNum,
+	create0<VulkanDevice::Vertex3D>(QueueIndex, comIndex, useAlpha, blending, numMaterial, tex, sw, ver, num, &ind, &indNum,
 		attrDescs, 4, vsShaderBasicPolygon, fsShaderBasicPolygon, 1);
 }
 
@@ -74,7 +76,11 @@ void VulkanBasicPolygon::setMaterialParameter(uint32_t swapIndex,
 	material[swapIndex][materialIndex]->update(0, &materialset[swapIndex][materialIndex]);
 }
 
-void VulkanBasicPolygon::Instancing0(uint32_t swapIndex, CoordTf::MATRIX world, float px, float py, float mx, float my) {
+void VulkanBasicPolygon::Instancing(
+	uint32_t swapIndex,
+	CoordTf::MATRIX world,
+	CoordTf::VECTOR4 addCol,
+	float px, float py, float mx, float my) {
 
 	if (InstancingCnt >= maxInstancingCnt) {
 		throw std::runtime_error("InstancingCnt The value of maxInstancingCnt reached.");
@@ -82,6 +88,7 @@ void VulkanBasicPolygon::Instancing0(uint32_t swapIndex, CoordTf::MATRIX world, 
 
 	matset[swapIndex][InstancingCnt].world = world;
 	matset[swapIndex][InstancingCnt].pXpYmXmY = { px, py, mx, my };
+	matset[swapIndex][InstancingCnt].addCol = addCol;
 
 	if (InstancingCnt < maxInstancingCnt) {
 		InstancingCnt++;
@@ -91,6 +98,7 @@ void VulkanBasicPolygon::Instancing0(uint32_t swapIndex, CoordTf::MATRIX world, 
 void VulkanBasicPolygon::Instancing(
 	uint32_t swapIndex,
 	CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale,
+	CoordTf::VECTOR4 addCol,
 	float px, float py, float mx, float my) {
 
 	using namespace CoordTf;
@@ -98,13 +106,7 @@ void VulkanBasicPolygon::Instancing(
 
 	vkUtil::calculationMatrixWorld(world, pos, theta, scale);
 
-	Instancing0(swapIndex, world, px, py, mx, my);
-}
-
-void VulkanBasicPolygon::Instancing(uint32_t swapIndex, CoordTf::MATRIX world,
-	float px, float py, float mx, float my) {
-
-	Instancing0(swapIndex, world, px, py, mx, my);
+	Instancing(swapIndex, world, addCol, px, py, mx, my);
 }
 
 void VulkanBasicPolygon::update0(uint32_t swapIndex, CoordTf::MATRIX* bone, uint32_t numBone) {
@@ -143,9 +145,10 @@ void VulkanBasicPolygon::Instancing_update(uint32_t swapIndex) {
 
 void VulkanBasicPolygon::update(uint32_t swapIndex,
 	CoordTf::VECTOR3 pos, CoordTf::VECTOR3 theta, CoordTf::VECTOR3 scale,
+	CoordTf::VECTOR4 addCol,
 	float px, float py, float mx, float my) {
 
-	Instancing(swapIndex, pos, theta, scale, px, py, mx, my);
+	Instancing(swapIndex, pos, theta, scale, addCol, px, py, mx, my);
 	update0(swapIndex, nullptr, 0);
 }
 

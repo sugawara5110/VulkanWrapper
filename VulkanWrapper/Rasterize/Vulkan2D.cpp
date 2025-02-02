@@ -26,22 +26,22 @@ Vulkan2D::~Vulkan2D() {
 	index.destroy();
 }
 
-void Vulkan2D::createColor(uint32_t QueueIndex, uint32_t comIndex, Vertex2D* ver, uint32_t num, uint32_t* ind, uint32_t indNum) {
+void Vulkan2D::createColor(uint32_t QueueIndex, uint32_t comIndex, bool useAlpha, bool blending, Vertex2D* ver, uint32_t num, uint32_t* ind, uint32_t indNum) {
 	static VkVertexInputAttributeDescription attrDescs[] =
 	{
 		{ 0, 0, VK_FORMAT_R32G32_SFLOAT, 0 },
 		{ 1, 0, VK_FORMAT_R32G32B32A32_SFLOAT, sizeof(float) * 2 }
 	};
-	create(QueueIndex, comIndex, ver, num, ind, indNum, attrDescs, 2, vsShader2D, fsShader2D, -1);
+	create(QueueIndex, comIndex, useAlpha, blending, ver, num, ind, indNum, attrDescs, 2, vsShader2D, fsShader2D, -1);
 }
 
-void Vulkan2D::createTexture(uint32_t QueueIndex, uint32_t comIndex, Vertex2DTex* ver, uint32_t num, uint32_t* ind, uint32_t indNum, int textureId) {
+void Vulkan2D::createTexture(uint32_t QueueIndex, uint32_t comIndex, bool useAlpha, bool blending, Vertex2DTex* ver, uint32_t num, uint32_t* ind, uint32_t indNum, int textureId) {
 	static VkVertexInputAttributeDescription attrDescs[] =
 	{
 		{ 0, 0, VK_FORMAT_R32G32_SFLOAT, 0 },
 		{ 1, 0, VK_FORMAT_R32G32_SFLOAT, sizeof(float) * 2 }
 	};
-	create(QueueIndex, comIndex, ver, num, ind, indNum, attrDescs, 2, vsShader2DTex, fsShader2DTex, textureId);
+	create(QueueIndex, comIndex, useAlpha, blending, ver, num, ind, indNum, attrDescs, 2, vsShader2DTex, fsShader2DTex, textureId);
 }
 
 void Vulkan2D::draw(uint32_t swapIndex, uint32_t QueueIndex, uint32_t comIndex) {
@@ -88,6 +88,7 @@ void Vulkan2D::setNumMaxInstancing(uint32_t num) {
 
 void Vulkan2D::Instancing(uint32_t swapIndex, CoordTf::VECTOR2 pos,
 	float theta, CoordTf::VECTOR2 scale,
+	CoordTf::VECTOR4 addCol,
 	float px, float py, float mx, float my) {
 
 	using namespace CoordTf;
@@ -98,10 +99,11 @@ void Vulkan2D::Instancing(uint32_t swapIndex, CoordTf::VECTOR2 pos,
 	VECTOR3 sc3 = { scale.x, scale.y, 1.0f };
 	vkUtil::calculationMatrixWorld(world, pos3, the3, sc3);
 
-	Instancing(swapIndex, world, px, py, mx, my);
+	Instancing(swapIndex, world, addCol, px, py, mx, my);
 }
 
 void Vulkan2D::Instancing(uint32_t swapIndex, CoordTf::MATRIX world,
+	CoordTf::VECTOR4 addCol,
 	float px, float py, float mx, float my) {
 
 	if (InstancingCnt >= maxInstancingCnt) {
@@ -110,6 +112,7 @@ void Vulkan2D::Instancing(uint32_t swapIndex, CoordTf::MATRIX world,
 
 	mat2d[swapIndex][InstancingCnt].world = world;
 	mat2d[swapIndex][InstancingCnt].pXpYmXmY = { px, py, mx, my };
+	mat2d[swapIndex][InstancingCnt].addCol = addCol;
 
 	if (InstancingCnt < maxInstancingCnt) {
 		InstancingCnt++;
@@ -122,8 +125,9 @@ void Vulkan2D::Instancing_update(uint32_t swapIndex) {
 
 void Vulkan2D::update(uint32_t swapIndex, CoordTf::VECTOR2 pos,
 	float theta, CoordTf::VECTOR2 scale,
+	CoordTf::VECTOR4 addCol,
 	float px, float py, float mx, float my) {
 
-	Instancing(swapIndex, pos, theta, scale, px, py, mx, my);
+	Instancing(swapIndex, pos, theta, scale, addCol, px, py, mx, my);
 	Instancing_update(swapIndex);
 }

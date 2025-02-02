@@ -52,7 +52,7 @@ private:
 		char* vs, char* fs, uint32_t numBone);
 
 	template<typename T>
-	void create0(uint32_t QueueIndex, uint32_t comIndex, bool useAlpha,
+	void create0(uint32_t QueueIndex, uint32_t comIndex, bool useAlpha, bool blending,
 		int32_t numMat, VulkanDevice::textureIdSet* texid, float* uvSw,
 		T* ver, uint32_t num,
 		uint32_t** ind, uint32_t* indNum,
@@ -119,7 +119,7 @@ private:
 
 		pipelineCache = rd->createPipelineCache();
 		VulkanSwapchain* sw = VulkanSwapchain::GetInstance();
-		pipeline = rd->createGraphicsPipelineVF(useAlpha, vsInfo, fsInfo, bindDesc, attrDescs, numAttr,
+		pipeline = rd->createGraphicsPipelineVF(useAlpha, blending, vsInfo, fsInfo, bindDesc, attrDescs, numAttr,
 			pipelineLayout, sw->getRenderPass(), pipelineCache);
 		_vkDestroyShaderModule(device->getDevice(), vsInfo.module, nullptr);
 		_vkDestroyShaderModule(device->getDevice(), fsInfo.module, nullptr);
@@ -127,15 +127,13 @@ private:
 
 	void update0(uint32_t swapIndex, CoordTf::MATRIX* bone, uint32_t numBone);
 
-	void Instancing0(uint32_t swapIndex, CoordTf::MATRIX world, float px, float py, float mx, float my);
-
 public:
 	VulkanBasicPolygon();
 	~VulkanBasicPolygon();
 
 	void setNumMaxInstancing(uint32_t num);
 
-	void create(uint32_t QueueIndex, uint32_t comIndex, bool useAlpha, int32_t difTexInd, int32_t norTexInd, int32_t speTexInd,
+	void create(uint32_t QueueIndex, uint32_t comIndex, bool useAlpha, bool blending, int32_t difTexInd, int32_t norTexInd, int32_t speTexInd,
 		VulkanDevice::Vertex3D* ver, uint32_t num, uint32_t* ind, uint32_t indNum);
 
 	void setMaterialParameter(uint32_t swapIndex, CoordTf::VECTOR3 diffuse, CoordTf::VECTOR3 specular, CoordTf::VECTOR3 ambient,
@@ -143,15 +141,18 @@ public:
 
 	void Instancing(uint32_t swapIndex, CoordTf::VECTOR3 pos = { 0.0f,0.0f,0.0f },
 		CoordTf::VECTOR3 theta = { 0.0f,0.0f,0.0f }, CoordTf::VECTOR3 scale = { 1.0f,1.0f,1.0f },
+		CoordTf::VECTOR4 addCol = {},
 		float px = 1.0f, float py = 1.0f, float mx = 0.0f, float my = 0.0f);//px,py:幅の倍率, mx,my:何個目か
 
 	void Instancing(uint32_t swapIndex, CoordTf::MATRIX world,
+		CoordTf::VECTOR4 addCol = {},
 		float px = 1.0f, float py = 1.0f, float mx = 0.0f, float my = 0.0f);
 
 	void Instancing_update(uint32_t swapIndex);
 
 	void update(uint32_t swapIndex, CoordTf::VECTOR3 pos = { 0.0f,0.0f,0.0f },
 		CoordTf::VECTOR3 theta = { 0.0f,0.0f,0.0f }, CoordTf::VECTOR3 scale = { 1.0f,1.0f,1.0f },
+		CoordTf::VECTOR4 addCol = {},
 		float px = 1.0f, float py = 1.0f, float mx = 0.0f, float my = 0.0f);
 
 	void draw(uint32_t swapIndex, uint32_t QueueIndex, uint32_t comIndex);
