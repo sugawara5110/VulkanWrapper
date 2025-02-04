@@ -108,7 +108,7 @@ public:
 	void createColor(uint32_t QueueIndex, uint32_t comIndex, bool useAlpha, bool blending, Vertex2D* ver, uint32_t num, uint32_t* ind, uint32_t indNum);
 	void createTexture(uint32_t QueueIndex, uint32_t comIndex, bool useAlpha, bool blending, Vertex2DTex* ver, uint32_t num, uint32_t* ind, uint32_t indNum, int textureId);
 
-	void Instancing(uint32_t swapIndex, CoordTf::VECTOR2 pos = { 0.0f,0.0f },
+	void Instancing(uint32_t swapIndex, CoordTf::VECTOR3 pos = {},
 		float theta = 0.0f, CoordTf::VECTOR2 scale = { 1.0f,1.0f },
 		CoordTf::VECTOR4 addCol = {},
 		float px = 1.0f, float py = 1.0f, float mx = 0.0f, float my = 0.0f);//px,py:幅の倍率, mx,my:何個目か
@@ -119,7 +119,7 @@ public:
 
 	void Instancing_update(uint32_t swapIndex);
 
-	void update(uint32_t swapIndex, CoordTf::VECTOR2 pos = { 0.0f,0.0f },
+	void update(uint32_t swapIndex, CoordTf::VECTOR3 pos = {},
 		float theta = 0.0f, CoordTf::VECTOR2 scale = { 1.0f,1.0f },
 		CoordTf::VECTOR4 addCol = {},
 		float px = 1.0f, float py = 1.0f, float mx = 0.0f, float my = 0.0f);

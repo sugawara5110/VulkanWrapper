@@ -86,7 +86,7 @@ void Vulkan2D::setNumMaxInstancing(uint32_t num) {
 	maxInstancingCnt = num;
 }
 
-void Vulkan2D::Instancing(uint32_t swapIndex, CoordTf::VECTOR2 pos,
+void Vulkan2D::Instancing(uint32_t swapIndex, CoordTf::VECTOR3 pos,
 	float theta, CoordTf::VECTOR2 scale,
 	CoordTf::VECTOR4 addCol,
 	float px, float py, float mx, float my) {
@@ -94,10 +94,9 @@ void Vulkan2D::Instancing(uint32_t swapIndex, CoordTf::VECTOR2 pos,
 	using namespace CoordTf;
 	MATRIX world = {};
 
-	VECTOR3 pos3 = { pos.x, pos.y, 0.0f };
 	VECTOR3 the3 = { 0.0f, 0.0f, theta };
 	VECTOR3 sc3 = { scale.x, scale.y, 1.0f };
-	vkUtil::calculationMatrixWorld(world, pos3, the3, sc3);
+	vkUtil::calculationMatrixWorld(world, pos, the3, sc3);
 
 	Instancing(swapIndex, world, addCol, px, py, mx, my);
 }
@@ -123,7 +122,7 @@ void Vulkan2D::Instancing_update(uint32_t swapIndex) {
 	uniform[swapIndex]->updateArr(mat2d[swapIndex].data());
 }
 
-void Vulkan2D::update(uint32_t swapIndex, CoordTf::VECTOR2 pos,
+void Vulkan2D::update(uint32_t swapIndex, CoordTf::VECTOR3 pos,
 	float theta, CoordTf::VECTOR2 scale,
 	CoordTf::VECTOR4 addCol,
 	float px, float py, float mx, float my) {
