@@ -21,12 +21,17 @@ char* Shader_miss =
 "    payloadIn.color = vec3(0.0, 0.0, 0.0);\n"
 "    payloadIn.hit = false;\n"
 "    payloadIn.reTry = false;\n"
-"    payloadIn.mNo = NONREFLECTION;\n"
+"    payloadIn.mNo = NONE;\n"
 
 "    if (sceneParams.useImageBasedLighting)\n"
 "    {\n"
 "       payloadIn.color = getSkyLight(gl_WorldRayDirectionEXT * mat3(sceneParams.ImageBasedLighting_Matrix));\n"
 "       payloadIn.hitPosition = gl_WorldRayOriginEXT + gl_RayTmaxEXT * gl_WorldRayDirectionEXT;\n"
-"       payloadIn.hit = true;\n"
+
+"       if (sceneParams.traceMode != 0)\n"
+"       {\n"
+"          payloadIn.hit = true;\n"
+"          payloadIn.mNo = EMISSIVE;\n"
+"       }\n"
 "    }\n"
 "}\n";

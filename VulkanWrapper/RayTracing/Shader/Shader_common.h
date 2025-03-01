@@ -14,12 +14,13 @@ char* Shader_common =
 "vec3 local_normal = vec3(0.0f, 0.0f, 1.0f);\n"
 "const float AIR_RefractiveIndex = 1.0f;\n"
 
-"const uint NONREFLECTION  = 32;\n" //0b100000
-"const uint METALLIC       = 16;\n" //0b010000
-"const uint EMISSIVE       = 8;\n"  //0b001000
-"const uint TRANSLUCENCE   = 4;\n"  //0b000100
-"const uint NEE            = 2;\n"  //0b000010 
-"const uint NEE_PATHTRACER = 1;\n"  //0b000001 
+"#define NONREFLECTION  64 \n" //0b1000000
+"#define METALLIC       32 \n" //0b0100000
+"#define EMISSIVE       16 \n" //0b0010000
+"#define TRANSLUCENCE   8  \n" //0b0001000
+"#define NEE            4  \n" //0b0000100
+"#define NEE_PATHTRACER 2  \n" //0b0000010
+"#define NONE           1  \n" //0b0000001
 
 "layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;\n"
 
@@ -71,6 +72,6 @@ char* Shader_common =
 "    vec4 lightst;\n"//レンジ, 減衰1, 減衰2, 減衰3
 "    float depth;\n"
 "    int hitInstanceId;\n"
-"    uint EmissiveIndex;\n"
+"    int EmissiveIndex;\n"
 "    uint Seed;\n"
 "};\n";

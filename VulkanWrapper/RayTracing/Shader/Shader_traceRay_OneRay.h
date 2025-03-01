@@ -31,11 +31,19 @@ char* Shader_traceRay_OneRay =
 "           payload.hitPosition = hitPosition;\n"
 "           payload.mNo = EMISSIVE; \n"//èàóùï™äÚóp
 
-"           traceRay(RecursionCnt,\n"
-"                    gl_RayFlagsCullBackFacingTrianglesEXT,\n"
-"                    0,\n"
-"                    1,\n"
-"                    direction);\n"
+"           while(true)\n"
+"           {\n"
+"               traceRay(RecursionCnt,\n"
+"                        gl_RayFlagsCullBackFacingTrianglesEXT,\n"
+"                        0,\n"
+"                        1,\n"
+"                        direction);\n"
+
+"               if(payload.EmissiveIndex == i || !materialIdent(payload.mNo, EMISSIVE))\n"
+"               {\n"
+"                   break;\n"
+"               }\n"
+"           }\n"
 
 "           if(materialIdent(payload.mNo, EMISSIVE))\n"//ë_Ç¢í ÇËåıåπÇ…ìñÇΩÇ¡ÇΩèÍçáÇÃÇ›êFåvéZ
 "           {\n"

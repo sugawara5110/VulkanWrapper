@@ -11,5 +11,5 @@ char* Shader_emissiveMiss =
 "    payloadIn.color = vec3(0.0, 0.0, 0.0);\n"
 "    payloadIn.hit = false;\n"
 "    payloadIn.reTry = false;\n"
-"    payloadIn.mNo = NONREFLECTION;\n"
+"    payloadIn.mNo = NONE;\n"
 "}\n";

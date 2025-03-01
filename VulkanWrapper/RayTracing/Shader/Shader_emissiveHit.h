@@ -6,10 +6,10 @@ char* Shader_emissiveHit =
 
 "layout(location = 1) rayPayloadInEXT vkRayPayload payloadIn;\n"
 
-"uint getEmissiveIndex()\n"
+"int getEmissiveIndex()\n"
 "{\n"
-"    uint ret = 0;\n"
-"    for (uint i = 0; i < 256; i++)\n"
+"    int ret = -1;\n"
+"    for (int i = 0; i < 256; i++)\n"
 "    {\n"
 "        if (sceneParams.emissiveNo[i].x == gl_InstanceID)\n"
 "        {\n"

@@ -16,7 +16,7 @@ char* Shader_traceRay =
 "    float tmax = sceneParams.TMin_TMax.y;\n"
 "    payload.color = vec3(0.0f, 0.0f, 0.0f);\n"
 "    payload.RecursionCnt = RecursionCnt + 1;\n"
-"    payload.EmissiveIndex = 0;\n"
+"    payload.EmissiveIndex = -1;\n"
 "    payload.reTry = false;\n"
 "    payload.hit = false;\n"
 
@@ -29,5 +29,9 @@ char* Shader_traceRay =
 "            traceRayEXT(topLevelAS, RayFlags, 0xff, HitGroupIndex, 0, MissShaderIndex, origin, tmin, direction, tmax, 0);\n"
 "            loop = payload.reTry;\n"
 "        }\n"
+"    }\n"
+"    else\n"
+"    {\n"
+"        payload.mNo = NONE;\n"
 "    }\n"
 "}\n";
