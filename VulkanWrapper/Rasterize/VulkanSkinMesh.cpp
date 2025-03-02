@@ -26,12 +26,12 @@ void VulkanSkinMesh::setfbx() {
 	for (uint32_t i = 0; i < numMesh; i++)cTexId[i] = NEW VulkanDevice::textureIdSet[fbxObj[0]->fbx.getFbxMeshNode(i)->getNumMaterial()];
 }
 
-void VulkanSkinMesh::setFbx(char* pass, float endfra) {
+void VulkanSkinMesh::setFbx(char* path, float endfra) {
 	fbxObj[0] = NEW FbxObj();
 	//フレーム数
 	fbxObj[0]->endframe = endfra;
-	//fbxファイルのpass入力する事で内部でデータの取得, 圧縮データの解凍を行ってます
-	fbxObj[0]->fbx.setFbxFile(pass);
+	//fbxファイルのpath入力する事で内部でデータの取得, 圧縮データの解凍を行ってます
+	fbxObj[0]->fbx.setFbxFile(path);
 	setfbx();
 }
 
@@ -74,10 +74,10 @@ void VulkanSkinMesh::setAnimation() {
 	numFbxObj++;
 }
 
-void VulkanSkinMesh::additionalAnimation(char* pass, float endframe) {
+void VulkanSkinMesh::additionalAnimation(char* path, float endframe) {
 	fbxObj[numFbxObj] = NEW FbxObj();
 	fbxObj[numFbxObj]->endframe = endframe;
-	fbxObj[numFbxObj]->fbx.setFbxFile(pass);
+	fbxObj[numFbxObj]->fbx.setFbxFile(path);
 	setAnimation();
 }
 
@@ -257,7 +257,7 @@ void VulkanSkinMesh::create(uint32_t QueueIndex, uint32_t comIndex, bool useAlph
 				textureType type = mesh->getDiffuseTextureType(matInd, tNo);
 				if (type.DiffuseColor && !type.SpecularColor ||
 					mesh->getNumDiffuseTexture(matInd) == 1) {
-					auto diffName = vkUtil::getNameFromPass(
+					auto diffName = vkUtil::getNameFromPath(
 						mesh->getDiffuseTextureName(matInd, tNo));
 					texId[matInd].diffuseId = device->getTextureNo(diffName);
 					auto str = mesh->getDiffuseTextureUVName(matInd, tNo);
@@ -269,7 +269,7 @@ void VulkanSkinMesh::create(uint32_t QueueIndex, uint32_t comIndex, bool useAlph
 			for (int tNo = 0; tNo < mesh->getNumDiffuseTexture(matInd); tNo++) {
 				textureType type = mesh->getDiffuseTextureType(matInd, tNo);
 				if (type.SpecularColor) {
-					auto speName = vkUtil::getNameFromPass(
+					auto speName = vkUtil::getNameFromPath(
 						mesh->getDiffuseTextureName(matInd, tNo));
 					texId[matInd].specularId = device->getTextureNo(speName);
 					auto str = mesh->getDiffuseTextureUVName(matInd, tNo);
@@ -283,7 +283,7 @@ void VulkanSkinMesh::create(uint32_t QueueIndex, uint32_t comIndex, bool useAlph
 				//取得済みのディフェーズテクスチャUV名と同じUV名のノーマルマップを探す
 				if (!strcmp(texId[matInd].difUvName, mesh->getNormalTextureUVName(matInd, tNo)) ||
 					mesh->getNumNormalTexture(matInd) == 1) {
-					auto norName = vkUtil::getNameFromPass(mesh->getNormalTextureName(matInd, tNo));
+					auto norName = vkUtil::getNameFromPath(mesh->getNormalTextureName(matInd, tNo));
 					texId[matInd].normalId = device->getTextureNo(norName);
 					auto str = mesh->getNormalTextureUVName(matInd, tNo);
 					strcpy(texId[matInd].norUvName, str);

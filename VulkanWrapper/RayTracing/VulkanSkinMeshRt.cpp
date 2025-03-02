@@ -145,7 +145,7 @@ void VulkanSkinMeshRt::createMaterial(int meshInd, uint32_t numMaterial, FbxMesh
 			textureType type = mesh->getDiffuseTextureType(i, tNo);
 			if (type.DiffuseColor && !type.SpecularColor ||
 				mesh->getNumDiffuseTexture(i) == 1) {
-				auto diffName = vkUtil::getNameFromPass(mesh->getDiffuseTextureName(i, tNo));
+				auto diffName = vkUtil::getNameFromPath(mesh->getDiffuseTextureName(i, tNo));
 				texId[i].diffuseId = dev->getTextureNo(diffName);
 				auto str = mesh->getDiffuseTextureUVName(i, tNo);
 				if (str)strcpy(difUvName, str);
@@ -156,7 +156,7 @@ void VulkanSkinMeshRt::createMaterial(int meshInd, uint32_t numMaterial, FbxMesh
 		for (int tNo = 0; tNo < mesh->getNumDiffuseTexture(i); tNo++) {
 			textureType type = mesh->getDiffuseTextureType(i, tNo);
 			if (type.SpecularColor) {
-				auto speName = vkUtil::getNameFromPass(mesh->getDiffuseTextureName(i, tNo));
+				auto speName = vkUtil::getNameFromPath(mesh->getDiffuseTextureName(i, tNo));
 				texId[i].specularId = dev->getTextureNo(speName);
 				auto str = mesh->getDiffuseTextureUVName(i, tNo);
 				if (str)strcpy(speUvName, str);
@@ -170,7 +170,7 @@ void VulkanSkinMeshRt::createMaterial(int meshInd, uint32_t numMaterial, FbxMesh
 			auto uvNorName = mesh->getNormalTextureUVName(i, tNo);
 			if (mesh->getNumNormalTexture(i) == 1 ||
 				uvNorName && !strcmp(difUvName, uvNorName)) {
-				auto norName = vkUtil::getNameFromPass(mesh->getNormalTextureName(i, tNo));
+				auto norName = vkUtil::getNameFromPath(mesh->getNormalTextureName(i, tNo));
 				texId[i].normalId = dev->getTextureNo(norName);
 				auto str = mesh->getNormalTextureUVName(i, tNo);
 				if (str)strcpy(norUvName, str);

@@ -99,19 +99,19 @@ CoordTf::VECTOR3 vkUtil::normalRecalculation(CoordTf::VECTOR3 N[3]) {
     return vec;
 }
 
-char* vkUtil::getNameFromPass(char* pass) {
+char* vkUtil::getNameFromPath(char* path) {
 
-    uint32_t len = (uint32_t)strlen(pass);
-    pass += len;//終端文字を指している
+    uint32_t len = (uint32_t)strlen(path);
+    path += len;//終端文字を指している
 
     for (uint32_t i = 0; i < len; i++) {
-        pass--;
-        if (*pass == '\\' || *pass == '/') {
-            pass++;
+        path--;
+        if (*path == '\\' || *path == '/') {
+            path++;
             break;
         }
     }
-    return pass;//ポインタ操作してるので返り値を使用させる
+    return path;//ポインタ操作してるので返り値を使用させる
 }
 
 void vkUtil::memory_leak_test() {

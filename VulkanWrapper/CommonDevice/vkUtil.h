@@ -74,7 +74,7 @@ namespace vkUtil {
 
     CoordTf::VECTOR3 normalRecalculation(CoordTf::VECTOR3 Nor[3]);
 
-    char* getNameFromPass(char* pass);
+    char* getNameFromPath(char* path);
 
     template<class T>
     T Align(T size, uint32_t align) {

@@ -921,7 +921,7 @@ void VulkanDevice::GetTexture(
     char* fileName, unsigned char* byteArr,
     uint32_t width, uint32_t height, bool use_movie) {
     //ƒtƒ@ƒCƒ‹–¼“o˜^
-    char* filename = vkUtil::getNameFromPass(fileName);
+    char* filename = vkUtil::getNameFromPath(fileName);
     if (strlen(filename) >= (size_t)numTexFileNamelenMax)
         throw std::runtime_error("The file name limit has been.");
     strcpy(textureNameList[numTexture], filename);
@@ -948,13 +948,13 @@ void VulkanDevice::updateTexture(uint32_t QueueIndex, uint32_t comBufindex, char
     }
 }
 
-int32_t VulkanDevice::getTextureNo(char* pass) {
-    if (!pass)return -1;
+int32_t VulkanDevice::getTextureNo(char* path) {
+    if (!path)return -1;
     for (uint32_t i = 0; i < numTexture; i++) {
         size_t len1 = strlen(textureNameList[i]);
-        size_t len2 = strlen(pass);
+        size_t len2 = strlen(path);
 
-        if (len1 == len2 && !strcmp(textureNameList[i], pass))return i;
+        if (len1 == len2 && !strcmp(textureNameList[i], path))return i;
     }
     return -1;
 }

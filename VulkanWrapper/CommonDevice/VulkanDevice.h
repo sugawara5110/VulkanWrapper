@@ -371,7 +371,7 @@ public:
 
     void updateTexture(uint32_t QueueIndex, uint32_t comBufindex, char* fileName, unsigned char* frame);
 
-    int32_t getTextureNo(char* pass);
+    int32_t getTextureNo(char* path);
 
     void updateProjection(VkExtent2D wh, float AngleView = 45.0f, float Near = 1.0f, float Far = 100.0f);
 
